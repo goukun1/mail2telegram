@@ -735,6 +735,11 @@ globals@^15.1.0:
   resolved "https://registry.yarnpkg.com/globals/-/globals-15.1.0.tgz#4e03d200c8362201636b8cdfaa316d6cef67ff1e"
   integrity sha512-926gJqg+4mkxwYKiFvoomM4J0kWESfk3qfTvRL2/oc/tK/eTDBbrfcKnSa2KtfdxB5onoL7D3A3qIHQFpd4+UA==
 
+gomail-wasm@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/gomail-wasm/-/gomail-wasm-1.0.2.tgz#12873b1592df302a2e4fd882f5fbb4afa01d9bd5"
+  integrity sha512-APfTTKn/XHEEOYlkpU5FjwHgEiTx2H9ZSDdw6/SWehtwPMc4YLyUVgM8OZDtVgSg7pz8s2SNhBFix6c5OhHGDg==
+
 has-flag@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/has-flag/-/has-flag-4.0.0.tgz#944771fd9c81c81265c4d6941860da06bb59479b"

@@ -1,7 +1,7 @@
 import { renderEmailListMode, renderEmailPreviewMode, renderEmailSummaryMode, renderEmailDebugMode } from './render.js';
 import { parseEmail } from './parse.js';
 import './types.js';
-import { checkAddressStatus, loadArrayFromDB, loadMailCache } from './dao.js';
+import { checkAddressStatus, loadArrayFromDB, loadMailCache, loadWASM } from './dao.js';
 
 
 /**
@@ -40,12 +40,20 @@ export async function sendMailToTelegram(message, env) {
     DB,
     MAX_EMAIL_SIZE,
     MAX_EMAIL_SIZE_POLICY,
+    WASM_URL,
   } = env;
 
   const ttl = parseInt(MAIL_TTL, 10) || 60 * 60 * 24;
   const maxSize = parseInt(MAX_EMAIL_SIZE, 10) || 512 * 1024;
   const maxSizePolicy = MAX_EMAIL_SIZE_POLICY || 'truncate';
-  const mail = await parseEmail(message, maxSize, maxSizePolicy);
+  let wasmloader = null;
+  if (WASM_URL) {
+    wasmloader = async () => {
+      const { bin } = await loadWASM(WASM_URL, DB);
+      return bin;
+    };
+  }
+  const mail = await parseEmail(message, maxSize, maxSizePolicy, wasmloader);
   await DB.put(mail.id, JSON.stringify(mail), { expirationTtl: ttl });
   const req = await renderEmailListMode(mail, env);
   for (const id of TELEGRAM_ID.split(',')) {

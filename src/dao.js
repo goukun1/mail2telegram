@@ -165,3 +165,32 @@ export async function loadMailCache(id, db) {
   }
   return null;
 }
+
+
+/**
+ * @typedef {object} WASMModule
+ * @property {ArrayBuffer} bin - The WASM binary.
+ * @property {boolean} cache - Whether the WASM binary is cached.
+ */
+/**
+ * Loads the WASM module.
+ * @param {string} remote - The URL of the WASM module.
+ * @param {Database} db - The database object.
+ * @return {Promise<WASMModule>} - The WASM module.
+ */
+export async function loadWASM(remote, db) {
+  const wasmCache = await db.get('WASM', { type: 'arrayBuffer' });
+  if (wasmCache) {
+    return {
+      bin: wasmCache,
+      cache: true,
+    }
+  }
+  const wasm = await fetch(remote);
+  const buffer = await wasm.arrayBuffer();
+  await db.put('WASM', buffer);
+  return {
+    bin: buffer,
+    cache: false,
+  }
+}

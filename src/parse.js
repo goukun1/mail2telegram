@@ -1,4 +1,5 @@
 import PostalMime from 'postal-mime';
+import {parseMail as wasmParseEmail } from 'gomail-wasm'
 import {convert} from 'html-to-text';
 import './types.js';
 
@@ -45,6 +46,31 @@ async function streamToArrayBuffer(stream, streamSize) {
   return result;
 }
 
+/**
+ * @typedef {Object} EmailParseResult
+ * @property {string} text - The text content of the email.
+ * @property {string} html - The HTML content of the email.
+ */
+/**
+ * @param {Uint8Array} raw - The raw email message to be parsed.
+ * @param {function(): Promise<ArrayBuffer>} wasmloader - The function to load the WASM module.
+ * @return {Promise<EmailParseResult>} - A promise that resolves to the parsed email.
+ */
+async function parseMail(raw, wasmloader) {
+  if (wasmloader) {
+    try {
+      return await wasmParseEmail(raw, wasmloader);
+    } catch (e) {
+      console.error(`Error parsing email with WASM: ${e.message}`);
+    }
+  }
+  const parser = new PostalMime();
+  const email = await parser.parse(raw);
+  return {
+    text: email.text,
+    html: email.html,
+  };
+}
 
 /**
  * Parse an email message.
@@ -52,9 +78,10 @@ async function streamToArrayBuffer(stream, streamSize) {
  * @param {EmailMessage} message - The email message to be parsed.
  * @param {number} maxSize - The maximum size of the email in bytes.
  * @param {string} maxSizePolicy - The policy of emails that exceed the maximum size.
+ * @param {function(): Promise<ArrayBuffer>} wasmloader - The function to load the WASM module.
  * @return {Promise<EmailCache>} - A promise that resolves to the ID of the saved email.
  */
-export async function parseEmail(message, maxSize, maxSizePolicy) {
+export async function parseEmail(message, maxSize, maxSizePolicy, wasmloader) {
   const id = randomId(32);
   const cache = {
     id: id,
@@ -81,10 +108,7 @@ export async function parseEmail(message, maxSize, maxSizePolicy) {
   }
   try {
     const raw = await streamToArrayBuffer(message.raw, bufferSize);
-    const parser = new PostalMime();
-    const email = await parser.parse(raw);
-    // cache.messageId = email.messageId;
-    // cache.subject = email.subject;
+    const email = await parseMail(raw, wasmloader);
     if (email.html) {
       cache.html = email.html;
     }
