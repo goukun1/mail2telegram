@@ -34,7 +34,7 @@ export async function emailHandler(message: ForwardableEmailMessage, env: Enviro
     } = env;
 
     const dao = new Dao(DB);
-    const id = message.headers.get('Message-ID') || '';
+    const id = message.headers.get('Message-ID')?.trim() || crypto.randomUUID();
     const isBlock = await isMessageBlock(message, env);
     const isGuardian = GUARDIAN_MODE === 'true';
     const blockPolicy: BlockPolicy[] = (BLOCK_POLICY || 'telegram').split(',') as BlockPolicy[];
