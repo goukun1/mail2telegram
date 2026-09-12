@@ -129,7 +129,9 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
 
     return (
         <div className="reader">
-            {onBack ? <NavBar title={email.subject || '(no subject)'} onBack={onBack} /> : null}
+            {/* The subject is already shown in the header below, so the navbar
+                only carries the native back button and keeps its title empty. */}
+            {onBack ? <NavBar onBack={onBack} /> : null}
             <div className="reader__scroll">
                 <div className="reader__head">
                     <h1 className="reader__subject">{email.subject || '(no subject)'}</h1>

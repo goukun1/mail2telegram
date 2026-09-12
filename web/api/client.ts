@@ -128,6 +128,11 @@ export const api = {
         });
     },
 
+    /** Re-registers the Telegram webhook and bot commands (worker `/init`). */
+    rebindWebhook(): Promise<{ webhook?: { ok?: boolean; description?: string }; commands?: { ok?: boolean } }> {
+        return request('/init');
+    },
+
     getSettings(): Promise<{ settings: RuntimeSettings }> {
         return request<{ settings: RuntimeSettings }>('/api/settings');
     },

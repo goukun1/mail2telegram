@@ -4,7 +4,8 @@ import { Navbar } from 'konsta/react';
 import { useEffect, useRef } from 'react';
 
 export interface NavBarProps {
-    title: ReactNode;
+    /** Center title. Omit to leave the navbar title area empty. */
+    title?: ReactNode;
     /**
      * TMA back button handler. When set, the native Telegram back button is
      * shown while this navbar is mounted and drives navigation. When omitted the
@@ -57,7 +58,7 @@ export function NavBar({ title, onBack, close, right, className }: NavBarProps) 
         <Navbar
             centerTitle
             right={right}
-            title={title}
+            title={title ?? ''}
             className={`ios-navbar ${className ?? ''}`}
             bgClassName="ios-navbar__bg"
         />

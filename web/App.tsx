@@ -1,7 +1,7 @@
 import type { Folder, MeResponse } from './types';
 import { App as KonstaApp, Preloader } from 'konsta/react';
 import { useCallback, useEffect, useState } from 'react';
-import { HashRouter, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { HashRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from './api/client';
 import { AppProvider } from './AppContext';
 import { MessageReader } from './components/ios/MessageReader';
@@ -11,7 +11,12 @@ import { useDarkMode } from './hooks/useTheme';
 import { Sidebar } from './layout/Sidebar';
 import { MessageTabBar } from './layout/TabBar';
 import { InboxPage } from './pages/InboxPage';
-import { SettingsPage } from './pages/SettingsPage';
+import { AddressListPage } from './pages/settings/AddressListPage';
+import { BotPage } from './pages/settings/BotPage';
+import { ForwardingPage } from './pages/settings/ForwardingPage';
+import { HandlingPage } from './pages/settings/HandlingPage';
+import { SettingsHub } from './pages/settings/SettingsHub';
+import { SummariesPage } from './pages/settings/SummariesPage';
 
 const FOLDERS: Folder[] = ['inbox', 'spam', 'trash', 'sent'];
 
@@ -24,134 +29,94 @@ function parseFolder(value: string | null): Folder {
     return FOLDERS.includes(value as Folder) ? (value as Folder) : 'inbox';
 }
 
-function parseAddressTab(value: string | null): 'block' | 'white' | 'test' | null {
-    return value === 'block' || value === 'white' || value === 'test' ? value : null;
-}
-
-interface ShellProps {
-    me: MeResponse;
-    refreshMe: () => void;
-}
-
-function Shell({ me, refreshMe }: ShellProps) {
-    const navigate = useNavigate();
+/**
+ * Layout chrome around the routed pages.
+ *
+ * Width decides between the phone layout (single column plus tab bar) and the
+ * split layout (mailboxes sidebar plus content, never a tab bar). Settings is a
+ * normal route inside this layout, so neither layout needs a nested router.
+ */
+function Layout() {
     const location = useLocation();
     const [params] = useSearchParams();
+    const navigate = useNavigate();
     const [unread, setUnread] = useState(0);
 
-    // The layout is driven purely by the available width, never by platform:
-    //   < 720px   single column with the tab bar (phones)
-    //   >= 720px  mailboxes + list, reader opens over them
-    //   >= 1040px mailboxes + list + reader as three columns
     const split = useMediaQuery(`(min-width: ${SPLIT_MIN_WIDTH}px)`);
-    const readerColumn = useMediaQuery(`(min-width: ${READER_COLUMN_MIN_WIDTH}px)`);
-
     const folder = parseFolder(params.get('folder'));
     const selectedId = params.get('id');
     const isSettings = location.pathname.startsWith('/settings');
-    const onUnreadChange = useCallback((value: number) => setUnread(value), []);
 
+    const onUnreadChange = useCallback((value: number) => setUnread(value), []);
+    const openFolder = useCallback((key: Folder) => navigate(`/inbox?folder=${key}`), [navigate]);
     const closeReader = useCallback(() => {
         const next = new URLSearchParams(params);
         next.delete('id');
         navigate({ pathname: '/inbox', search: next.toString() });
     }, [navigate, params]);
 
-    const openSettings = useCallback(() => navigate('/settings'), [navigate]);
-    const openFolder = useCallback((key: Folder) => navigate(`/inbox?folder=${key}`), [navigate]);
-
-    const sidebarPane = (settingsActive: boolean) => (
-        <div className="split-column split-column--sidebar">
-            <Sidebar
-                folder={folder}
-                unread={unread}
-                isSettings={settingsActive}
-                onOpenSettings={openSettings}
-                onSelectFolder={openFolder}
-            />
-        </div>
-    );
-
-    // Split layout. Settings is a column, never a tab.
     if (split) {
         return (
-            <AppProvider value={{ me, refreshMe }}>
-                {isSettings ? (
-                    <div className="split-view split-view--sidebar">
-                        {sidebarPane(true)}
-                        <SettingsPage
-                            initialTab={parseAddressTab(params.get('tab'))}
-                            onBack={() => navigate('/inbox')}
-                        />
-                    </div>
-                ) : (
-                    <InboxPage
+            <div className="split-view split-view--sidebar">
+                <div className="split-column split-column--sidebar">
+                    <Sidebar
                         folder={folder}
-                        onFolderChange={openFolder}
-                        selectedId={selectedId}
-                        onSelect={(id) => {
-                            if (!id) {
-                                closeReader();
-                                return;
-                            }
-                            navigate(`/inbox?folder=${folder}&id=${id}`);
-                        }}
-                        showSidebar
-                        readerColumn={readerColumn}
-                        onUnreadChange={onUnreadChange}
-                        onOpenSettings={openSettings}
+                        unread={unread}
+                        isSettings={isSettings}
+                        onOpenSettings={() => navigate('/settings')}
+                        onSelectFolder={openFolder}
                     />
-                )}
-            </AppProvider>
+                </div>
+                <Outlet context={{ onUnreadChange }} />
+            </div>
         );
     }
 
-    // Compact phone layout: a single column with the tab bar at the bottom.
     return (
-        <AppProvider value={{ me, refreshMe }}>
-            <div className="app-shell">
-                <div className="app-shell__content">
-                    <Routes>
-                        <Route
-                            path="/settings"
-                            element={<SettingsPage initialTab={parseAddressTab(params.get('tab'))} onBack={() => navigate('/inbox')} />}
-                        />
-                        <Route
-                            path="*"
-                            element={(
-                                <InboxPage
-                                    folder={folder}
-                                    onFolderChange={openFolder}
-                                    selectedId={selectedId}
-                                    onSelect={(id) => {
-                                        if (!id) {
-                                            closeReader();
-                                            return;
-                                        }
-                                        navigate(`/inbox?folder=${folder}&id=${id}`);
-                                    }}
-                                    showSidebar={false}
-                                    readerColumn={false}
-                                    onUnreadChange={onUnreadChange}
-                                    onOpenSettings={openSettings}
-                                />
-                            )}
-                        />
-                    </Routes>
-                </div>
-                <MessageTabBar
-                    active={isSettings ? 'settings' : 'inbox'}
-                    unread={unread}
-                    onChange={tab => navigate(tab === 'settings' ? '/settings' : '/inbox')}
-                />
+        <div className="app-shell">
+            <div className="app-shell__content">
+                <Outlet context={{ onUnreadChange }} />
             </div>
-
+            <MessageTabBar
+                active={isSettings ? 'settings' : 'inbox'}
+                unread={unread}
+                onChange={tab => navigate(tab === 'settings' ? '/settings' : '/inbox')}
+            />
             {selectedId && !isSettings ? (
                 <div className="fixed inset-0 z-40 flex flex-col bg-[var(--ios-surface)]">
                     <MessageReader emailId={selectedId} onBack={closeReader} onDeleted={closeReader} />
                 </div>
             ) : null}
-        </AppProvider>
+        </div>
+    );
+}
+
+function InboxRoute() {
+    const [params] = useSearchParams();
+    const navigate = useNavigate();
+    const readerColumn = useMediaQuery(`(min-width: ${READER_COLUMN_MIN_WIDTH}px)`);
+    const split = useMediaQuery(`(min-width: ${SPLIT_MIN_WIDTH}px)`);
+    const folder = parseFolder(params.get('folder'));
+    const selectedId = params.get('id');
+    const { onUnreadChange } = useOutletContext<{ onUnreadChange: (value: number) => void }>();
+
+    return (
+        <InboxPage
+            folder={folder}
+            selectedId={selectedId}
+            onSelect={(id) => {
+                if (!id) {
+                    const next = new URLSearchParams(params);
+                    next.delete('id');
+                    navigate({ pathname: '/inbox', search: next.toString() });
+                    return;
+                }
+                navigate(`/inbox?folder=${folder}&id=${id}`);
+            }}
+            readerColumn={readerColumn}
+            hasSidebar={split}
+            onUnreadChange={onUnreadChange}
+        />
     );
 }
 
@@ -181,7 +146,25 @@ function AppInner() {
 
     return (
         <KonstaApp theme="ios" safeAreas dark={dark} className={dark ? 'dark' : ''}>
-            <Shell me={data} refreshMe={reload} />
+            <AppProvider value={{ me: data, refreshMe: reload }}>
+                <Routes>
+                    <Route element={<Layout />}>
+                        <Route path="/" element={<Navigate to="/inbox" replace />} />
+                        <Route path="/inbox" element={<InboxRoute />} />
+                        <Route path="/settings" element={<Outlet />}>
+                            <Route index element={<SettingsHub />} />
+                            <Route path="white" element={<AddressListPage type="white" />} />
+                            <Route path="block" element={<AddressListPage type="block" />} />
+                            <Route path="forwarding" element={<ForwardingPage />} />
+                            <Route path="summaries" element={<SummariesPage />} />
+                            <Route path="handling" element={<HandlingPage />} />
+                            <Route path="bot" element={<BotPage />} />
+                            <Route path="*" element={<Navigate to="/settings" replace />} />
+                        </Route>
+                        <Route path="*" element={<Navigate to="/inbox" replace />} />
+                    </Route>
+                </Routes>
+            </AppProvider>
         </KonstaApp>
     );
 }
@@ -190,9 +173,7 @@ function AppInner() {
 export function App() {
     return (
         <HashRouter>
-            <Routes>
-                <Route path="*" element={<AppInner />} />
-            </Routes>
+            <AppInner />
         </HashRouter>
     );
 }

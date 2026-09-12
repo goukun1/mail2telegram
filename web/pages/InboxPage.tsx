@@ -7,7 +7,6 @@ import { MessageList } from '../components/ios/MessageList';
 import { MessageReader } from '../components/ios/MessageReader';
 import { NavBar } from '../components/ios/NavBar';
 import { useAsync } from '../hooks/useAsync';
-import { Sidebar } from '../layout/Sidebar';
 
 const PAGE_SIZE = 30;
 
@@ -20,19 +19,17 @@ const FOLDER_TITLES: Record<Folder, string> = {
 
 export interface InboxPageProps {
     folder: Folder;
-    onFolderChange: (folder: Folder) => void;
     selectedId: string | null;
     onSelect: (id: string | null) => void;
-    /** Show the Mailboxes pane (split layout). */
-    showSidebar: boolean;
     /** The window is wide enough for the reader to be its own column. */
     readerColumn: boolean;
+    /** The layout provides a mailboxes sidebar, so the list needs no Close. */
+    hasSidebar: boolean;
     onUnreadChange: (unread: number) => void;
-    onOpenSettings: () => void;
 }
 
 /** iOS Mail message list with search and folder filters. */
-export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSidebar, readerColumn, onUnreadChange, onOpenSettings }: InboxPageProps) {
+export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSidebar, onUnreadChange }: InboxPageProps) {
     const [query, setQuery] = useState('');
     const [appliedQuery, setAppliedQuery] = useState('');
     const [limit, setLimit] = useState(PAGE_SIZE);
@@ -53,7 +50,6 @@ export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSi
 
     const emails = data?.emails ?? [];
     const hasMore = data ? emails.length < data.total : false;
-    const unreadCount = data?.unread ?? 0;
 
     useEffect(() => {
         if (data?.unread !== undefined) {
@@ -94,7 +90,7 @@ export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSi
                 // On the phone the root list offers Close; while a message is
                 // open the reader owns the native button instead, so the two
                 // never subscribe at the same time.
-                close={!showSidebar && !selectedId}
+                close={!hasSidebar && !selectedId}
                 right={(
                     <button
                         type="button"
@@ -153,61 +149,28 @@ export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSi
         </div>
     );
 
-    // iPadOS split layout: mailboxes, list and reader. When the window is too
-    // narrow for three columns the reader opens over the list, which is how
-    // iPadOS Mail behaves in a narrow window.
-    if (showSidebar) {
-        const sidebar = (
-            <div className="split-column split-column--sidebar">
-                <Sidebar
-                    folder={folder}
-                    unread={unreadCount}
-                    isSettings={false}
-                    onSelectFolder={onFolderChange}
-                    onOpenSettings={onOpenSettings}
-                />
-            </div>
-        );
-
-        if (!readerColumn) {
-            return (
-                <div className="split-view split-view--three split-view--narrow">
-                    {sidebar}
-                    {listColumn}
-                    {selectedId ? (
-                        <div className="fixed inset-0 z-40 flex flex-col bg-[var(--ios-surface)]">
-                            <MessageReader
-                                key={selectedId}
-                                emailId={selectedId}
-                                onBack={() => onSelect(null)}
-                                onChanged={reload}
-                                onDeleted={() => onSelect(null)}
-                            />
-                        </div>
-                    ) : null}
-                </div>
-            );
-        }
-
-        return (
-            <div className="split-view split-view--three">
-                {sidebar}
-                {listColumn}
-                <div className="split-column">
-                    {selectedId ? (
-                        <MessageReader
-                            key={selectedId}
-                            emailId={selectedId}
-                            onChanged={reload}
-                            onDeleted={() => onSelect(null)}
-                        />
-                    ) : (
-                        <div className="reader-empty">No Message Selected</div>
-                    )}
-                </div>
-            </div>
-        );
+    // When the window is wide enough the reader becomes its own column beside
+    // the list; otherwise the list fills the content area and the compact
+    // layout shows the reader as an overlay.
+    if (!readerColumn) {
+        return listColumn;
     }
 
-    return listColumn;
+    return (
+        <div className="split-view split-view--two">
+            {listColumn}
+            <div className="split-column">
+                {selectedId ? (
+                    <MessageReader
+                        key={selectedId}
+                        emailId={selectedId}
+                        onChanged={reload}
+                        onDeleted={() => onSelect(null)}
+                    />
+                ) : (
+                    <div className="reader-empty">No Message Selected</div>
+                )}
+            </div>
+        </div>
+    );
 }
