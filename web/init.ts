@@ -24,10 +24,26 @@ export function initApp({ debug }: InitOptions): void {
     viewport.mount.ifAvailable();
     viewport.bindCssVars.ifAvailable();
     viewport.expand.ifAvailable();
+    requestFullscreen();
 
     backButton.mount.ifAvailable();
 
     initData.restore();
+}
+
+/**
+ * Requests fullscreen by default. Silently ignored on Telegram clients that do
+ * not support it (Bot API < 8.0) or when the request is rejected.
+ */
+export function requestFullscreen(): void {
+    try {
+        const result = viewport.requestFullscreen.ifAvailable();
+        if (result.ok) {
+            result.data.catch(() => {});
+        }
+    } catch {
+        // fullscreen is a progressive enhancement
+    }
 }
 
 /** Platform reported by Telegram: `ios`, `android`, `macos`, `tdesktop`, `web`... */

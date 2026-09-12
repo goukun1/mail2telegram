@@ -19,8 +19,7 @@
     --ios-separator: rgba(60, 60, 67, 0.29);
     --ios-grouped-bg: #f2f2f7;
     --ios-surface: #ffffff;
-    --ios-navbar-blur: rgba(249, 249, 249, 0.94);
-    --ios-toolbar-blur: rgba(249, 249, 249, 0.94);
+    --ios-bar: #f9f9f9;
 
     --app-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Helvetica Neue', Arial, sans-serif;
     --tg-viewport-height: 100vh;
@@ -36,8 +35,18 @@
     --ios-separator: rgba(84, 84, 88, 0.6);
     --ios-grouped-bg: #000000;
     --ios-surface: #1c1c1e;
-    --ios-navbar-blur: rgba(22, 22, 22, 0.94);
-    --ios-toolbar-blur: rgba(22, 22, 22, 0.94);
+    --ios-bar: #161616;
+}
+
+/* Fullscreen support: Telegram exposes the device safe area through viewport
+   CSS variables, which is the only reliable source once the Mini App runs in
+   fullscreen and env() insets collapse. Take whichever is larger so the header
+   and tab bar stay clear of the notch and the home indicator. */
+.k-app.safe-areas {
+    --k-safe-area-top: max(env(safe-area-inset-top, 0px), var(--tg-viewport-safe-area-inset-top, 0px));
+    --k-safe-area-right: max(env(safe-area-inset-right, 0px), var(--tg-viewport-safe-area-inset-right, 0px));
+    --k-safe-area-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-viewport-safe-area-inset-bottom, 0px));
+    --k-safe-area-left: max(env(safe-area-inset-left, 0px), var(--tg-viewport-safe-area-inset-left, 0px));
 }
 
 html,
@@ -70,10 +79,15 @@ body {
 
 /* ------------------------------------------------------------------ navbar */
 
+/* Flat navigation bar: solid background, no frosted glass and no gradient
+   fade. The compact title is centered by Konsta's `centerTitle`. */
 .ios-navbar {
-    background: var(--ios-navbar-blur);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    background: var(--ios-bar);
+}
+
+/* Konsta layers a backdrop-blur strip and a gradient strip behind the bar. */
+.ios-navbar > div.absolute {
+    display: none !important;
 }
 
 .ios-navbar::after {
@@ -85,16 +99,35 @@ body {
     background: var(--ios-separator);
 }
 
-.ios-navbar .k-navbar-inner .hairline-b::after,
 .ios-navbar .hairline-b::after {
     display: none;
 }
 
-/* iOS large title typography. Konsta sets the size/weight; tighten the leading
-   to match Mail's 34pt large title. */
-.ios-navbar .font-bold.text-\[34px\] {
-    line-height: 41px;
-    letter-spacing: 0.37px;
+/* Konsta gives the Toggle a frosted "glass thumb" press highlight. Flatten it. */
+.k-toggle .shadow-ios-light-glass-thumb,
+.k-toggle .dark\:shadow-ios-dark-glass-thumb {
+    --tw-shadow: 0 0 #0000 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* The trailing slot is wrapped in Konsta's Glass. Clear the backdrop-blur
+   variables as well so the utility resolves to no filter regardless of how the
+   minifier orders the prefixed declarations. */
+.ios-navbar .k-glass {
+    --tw-backdrop-blur: initial;
+    --tw-backdrop-brightness: initial;
+    --tw-backdrop-contrast: initial;
+    --tw-backdrop-grayscale: initial;
+    --tw-backdrop-hue-rotate: initial;
+    --tw-backdrop-invert: initial;
+    --tw-backdrop-opacity: initial;
+    --tw-backdrop-saturate: initial;
+    --tw-backdrop-sepia: initial;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 /* ------------------------------------------------------------------ layout */
@@ -458,9 +491,7 @@ body {
 /* Bottom action toolbar in the message view. */
 .ios-toolbar {
     flex: 0 0 auto;
-    background: var(--ios-toolbar-blur);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    background: var(--ios-bar);
     border-top: 0.5px solid var(--ios-separator);
 }
 
@@ -468,7 +499,7 @@ body {
     display: flex;
     align-items: stretch;
     justify-content: space-around;
-    padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 0 calc(6px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 .ios-toolbar__button {
@@ -505,10 +536,8 @@ body {
     flex: 0 0 auto;
     display: flex;
     align-items: stretch;
-    padding: 4px 0 calc(4px + env(safe-area-inset-bottom, 0px));
-    background: var(--ios-toolbar-blur);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    padding: 4px 0 calc(4px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    background: var(--ios-bar);
     border-top: 0.5px solid var(--ios-separator);
 }
 

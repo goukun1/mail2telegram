@@ -5,8 +5,6 @@ import { useEffect, useRef } from 'react';
 
 export interface NavBarProps {
     title: ReactNode;
-    /** iOS large title style with a collapsing header. */
-    large?: boolean;
     /**
      * TMA back button handler. When set, the native Telegram back button is
      * shown while this navbar is mounted and drives navigation. When omitted the
@@ -21,16 +19,15 @@ export interface NavBarProps {
     /** Trailing controls, rendered on the right side of the navbar. */
     right?: ReactNode;
     className?: string;
-    scrollEl?: HTMLElement | null;
 }
 
 /**
- * iOS Mail style navigation bar.
+ * Flat iOS style navigation bar with a compact centered title.
  *
  * The only Telegram-native chrome in the app is the back / close button: it is
  * requested here, inside the navbar region, and nowhere else.
  */
-export function NavBar({ title, large, onBack, close, right, className, scrollEl }: NavBarProps) {
+export function NavBar({ title, onBack, close, right, className }: NavBarProps) {
     const handler = useRef(onBack);
     handler.current = onBack;
     const wantsButton = Boolean(onBack) || Boolean(close);
@@ -58,12 +55,11 @@ export function NavBar({ title, large, onBack, close, right, className, scrollEl
 
     return (
         <Navbar
-            large={large}
-            scrollEl={large ? (scrollEl ?? undefined) : undefined}
+            centerTitle
             right={right}
             title={title}
             className={`ios-navbar ${className ?? ''}`}
-            bgClassName="!bg-transparent"
+            bgClassName="ios-navbar__bg"
         />
     );
 }

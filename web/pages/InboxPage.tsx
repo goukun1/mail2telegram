@@ -87,8 +87,6 @@ export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSi
         <div className="split-column">
             <NavBar
                 title={FOLDER_TITLES[folder]}
-                large={!searching}
-                scrollEl={scrollRef.current}
                 // On the phone the root list offers Close; while a message is
                 // open the reader owns the native button instead, so the two
                 // never subscribe at the same time.
