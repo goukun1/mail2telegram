@@ -84,7 +84,7 @@ function Shell({ me, refreshMe }: ShellProps) {
     return (
         <AppProvider value={{ me, refreshMe }}>
             <div className="app-shell">
-                <div className="min-h-0 flex-1">
+                <div className="app-shell__content">
                     {isSettings ? (
                         <Routes>
                             <Route
