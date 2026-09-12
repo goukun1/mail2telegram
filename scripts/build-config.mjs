@@ -11,11 +11,14 @@
  *
  * Usage: node scripts/build-config.mjs
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const sourcePath = `${root}wrangler.jsonc`;
+// `wrangler.jsonc` is gitignored, so CI builds fall back to the tracked template.
+const sourcePath = existsSync(`${root}wrangler.jsonc`)
+    ? `${root}wrangler.jsonc`
+    : `${root}wrangler.example.jsonc`;
 const targetPath = `${root}wrangler.deploy.jsonc`;
 
 function fail(message) {
@@ -99,4 +102,4 @@ if (bucketName) {
 }
 
 writeFileSync(targetPath, `${JSON.stringify(config, null, 4)}\n`);
-console.log(`[build-config] wrote ${targetPath} (d1=${databaseName}, r2=${bucketName || 'disabled'})`);
+console.log(`[build-config] wrote ${targetPath} from ${sourcePath} (d1=${databaseName}, r2=${bucketName || 'disabled'})`);

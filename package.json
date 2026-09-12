@@ -12,7 +12,7 @@
     },
     "main": "src/index.ts",
     "scripts": {
-        "dev": "pnpm dev:web & pnpm dev:worker",
+        "dev": "concurrently -k -n web,worker -c cyan,magenta \"pnpm dev:web\" \"pnpm dev:worker\"",
         "dev:web": "vite",
         "dev:worker": "wrangler dev",
         "build": "tsc --noEmit && vite build",

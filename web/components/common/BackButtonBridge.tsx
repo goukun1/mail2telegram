@@ -10,8 +10,11 @@ export function BackButtonBridge() {
     const navigate = useNavigate();
     const location = useLocation();
 
+    // Settings, or an opened email in compact mode, both need a way back.
+    const hasOpenEmail = location.pathname === '/inbox' && new URLSearchParams(location.search).has('id');
+    const canGoBack = location.pathname !== '/inbox' || hasOpenEmail;
+
     useEffect(() => {
-        const canGoBack = location.pathname !== '/inbox' && location.pathname !== '/';
         if (canGoBack) {
             backButton.show.ifAvailable();
         } else {
@@ -24,7 +27,7 @@ export function BackButtonBridge() {
             }
             backButton.hide.ifAvailable();
         };
-    }, [location.pathname, navigate]);
+    }, [canGoBack, navigate]);
 
     return null;
 }
