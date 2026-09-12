@@ -1,11 +1,11 @@
 import type { EmailListResponse, Folder } from '../types';
-import { useEffect, useState } from 'react';
 import { Searchbar, Segmented, SegmentedButton } from 'konsta/react';
+import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import { useAsync } from '../hooks/useAsync';
+import { StatePlaceholder } from '../components/common/Placeholder';
 import { MailList } from '../components/mail/MailList';
 import { MailReader } from '../components/mail/MailReader';
-import { StatePlaceholder } from '../components/common/Placeholder';
+import { useAsync } from '../hooks/useAsync';
 import { FOLDERS } from '../layout/Sidebar';
 
 const PAGE_SIZE = 30;
@@ -51,7 +51,6 @@ export function InboxPage({
         if (totalUnread !== undefined) {
             onUnreadChange(totalUnread);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [totalUnread]);
 
     // Debounce the search box into the applied query.

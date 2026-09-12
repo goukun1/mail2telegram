@@ -48,7 +48,6 @@ export function useAsync<T>(factory: () => Promise<T>, deps: unknown[] = []): As
         return () => {
             cancelled = true;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [...deps, nonce]);
 
     const reload = useCallback(() => setNonce(value => value + 1), []);

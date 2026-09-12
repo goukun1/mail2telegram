@@ -1,12 +1,12 @@
 import type { EmailDetailResponse } from '../../types';
-import { useEffect, useMemo, useState } from 'react';
 import { Block, Button, Card, Preloader } from 'konsta/react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import { useAsync } from '../../hooks/useAsync';
 import { useDarkMode } from '../../hooks/useTheme';
 import { formatBytes, formatFullDate, senderLabel } from '../../lib/format';
-import { buildEmailDocument } from '../../lib/sanitize';
 import { haptic } from '../../lib/haptics';
+import { buildEmailDocument } from '../../lib/sanitize';
 import { StatePlaceholder } from '../common/Placeholder';
 import { AttachmentList } from './AttachmentList';
 import { ReplySheet } from './ReplySheet';
@@ -50,7 +50,6 @@ export function MailReader({ emailId, onChanged, onDeleted }: MailReaderProps) {
                 })
                 .catch(() => {});
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [email?.id, email?.is_read]);
 
     const document = useMemo(() => {

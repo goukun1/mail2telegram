@@ -4,7 +4,7 @@ import { validate } from '@tma.js/init-data-node/web';
 import { json, Router } from 'itty-router';
 import { Dao } from '../../db';
 import { loadSettings, saveSettings } from '../../db/settings';
-import { hydrateEmail, replyToEmail, testAddressAgainstLists, summarizeEmail } from '../../mail';
+import { hydrateEmail, replyToEmail, summarizeEmail, testAddressAgainstLists } from '../../mail';
 import { createTelegramBotAPI, telegramCommands, telegramWebhookHandler } from '../../telegram';
 
 class HTTPError extends Error {

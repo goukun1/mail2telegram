@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Block, Button, List, ListInput, Sheet } from 'konsta/react';
+import { useState } from 'react';
 import { api } from '../../api/client';
 
 export interface ReplySheetProps {
@@ -47,7 +47,7 @@ export function ReplySheet({ opened, emailId, onClose }: ReplySheetProps) {
                 <List strongIos outlineIos className="!my-0">
                     <ListInput
                         type="textarea"
-                        input={
+                        input={(
                             <textarea
                                 value={text}
                                 onChange={event => setText(event.target.value)}
@@ -55,7 +55,7 @@ export function ReplySheet({ opened, emailId, onClose }: ReplySheetProps) {
                                 rows={6}
                                 className="w-full resize-none bg-transparent text-[15px] outline-none"
                             />
-                        }
+                        )}
                     />
                 </List>
                 {error ? <div className="mt-2 text-[13px] text-red-600">{error}</div> : null}

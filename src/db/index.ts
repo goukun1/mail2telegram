@@ -7,7 +7,6 @@ import type {
     Folder,
     MailStatusRecord,
     ParsedEmail,
-    TelegramMessageRecord,
 } from '../types';
 
 export interface EmailListOptions {

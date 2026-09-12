@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { backButton } from '@tma.js/sdk-react';
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 /**

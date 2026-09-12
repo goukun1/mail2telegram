@@ -1,5 +1,4 @@
-import { miniApp } from '@tma.js/sdk-react';
-import { useSignal } from '@tma.js/sdk-react';
+import { miniApp, useSignal } from '@tma.js/sdk-react';
 
 function readSystemDark(): boolean {
     return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;

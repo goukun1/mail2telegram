@@ -1,25 +1,24 @@
 import type { AddressType, Folder, MeResponse } from './types';
-import { useCallback, useState } from 'react';
 import { App as KonstaApp, Preloader } from 'konsta/react';
+import { useCallback, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api/client';
 import { AppProvider } from './AppContext';
+import { BackButtonBridge } from './components/common/BackButtonBridge';
+import { StatePlaceholder } from './components/common/Placeholder';
+import { MailReader } from './components/mail/MailReader';
 import { useAsync } from './hooks/useAsync';
-import { useDarkMode } from './hooks/useTheme';
 import { useMediaQuery } from './hooks/useMediaQuery';
+import { useDarkMode } from './hooks/useTheme';
 import { isDesktopPlatform } from './init';
 import { AppShell } from './layout/AppShell';
 import { TabBar } from './layout/TabBar';
 import { InboxPage } from './pages/InboxPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { BackButtonBridge } from './components/common/BackButtonBridge';
-import { MailReader } from './components/mail/MailReader';
-import { StatePlaceholder } from './components/common/Placeholder';
 
-function InboxRoute({ regular, folder, unread, onUnreadChange }: {
+function InboxRoute({ regular, folder, onUnreadChange }: {
     regular: boolean;
     folder: Folder;
-    unread: number;
     onUnreadChange: (value: number) => void;
 }) {
     const [params] = useSearchParams();
@@ -101,7 +100,7 @@ function Shell({ me, refreshMe }: { me: MeResponse; refreshMe: () => void }) {
                     <Route path="/" element={<Navigate to="/inbox" replace />} />
                     <Route
                         path="/inbox"
-                        element={<InboxRoute regular={regular} folder={folder} unread={unread} onUnreadChange={onUnreadChange} />}
+                        element={<InboxRoute regular={regular} folder={folder} onUnreadChange={onUnreadChange} />}
                     />
                     <Route path="/settings" element={<SettingsRoute regular={regular} />} />
                     <Route path="*" element={<Navigate to="/inbox" replace />} />
@@ -111,7 +110,7 @@ function Shell({ me, refreshMe }: { me: MeResponse; refreshMe: () => void }) {
                 <TabBar
                     active={isSettings ? 'settings' : 'inbox'}
                     unread={unread}
-                    onChange={(tab) => navigate(tab === 'settings' ? '/settings' : '/inbox')}
+                    onChange={tab => navigate(tab === 'settings' ? '/settings' : '/inbox')}
                 />
             ) : null}
         </AppProvider>

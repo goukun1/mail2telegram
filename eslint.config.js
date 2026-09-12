@@ -19,6 +19,7 @@ const config = antfu(
             '.vscode/**',
             '.wrangler/**',
             'build/**',
+            'dist/**',
             'node_modules/**',
         ],
     },
@@ -39,6 +40,11 @@ const config = antfu(
             'padding-line-between-statements': 'off',
             'no-console': 'off',
             'style/brace-style': ['error', '1tbs', { allowSingleLine: true }],
+            // Compact inline ternaries are idiomatic in JSX conditional rendering.
+            'style/multiline-ternary': 'off',
+            // The React Hooks plugin is not part of the base config, but the
+            // disables are still referenced in hooks and pages.
+            'react-hooks/exhaustive-deps': 'off',
         },
     },
 );

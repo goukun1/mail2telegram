@@ -1,5 +1,5 @@
 import type { Folder } from '../types';
-import { List, ListItem, ListButton } from 'konsta/react';
+import { List, ListButton, ListItem } from 'konsta/react';
 
 export const FOLDERS: { key: Folder; label: string; icon: string }[] = [
     { key: 'inbox', label: 'Inbox', icon: 'tray' },

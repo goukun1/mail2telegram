@@ -63,12 +63,18 @@ export const api = {
 
     listEmails(query: EmailQuery = {}): Promise<EmailListResponse> {
         const params = new URLSearchParams();
-        if (query.folder) params.set('folder', query.folder);
-        if (query.q) params.set('q', query.q);
-        if (query.starred !== undefined) params.set('starred', `${query.starred}`);
-        if (query.unread !== undefined) params.set('unread', `${query.unread}`);
-        if (query.limit !== undefined) params.set('limit', `${query.limit}`);
-        if (query.offset !== undefined) params.set('offset', `${query.offset}`);
+        if (query.folder)
+            params.set('folder', query.folder);
+        if (query.q)
+            params.set('q', query.q);
+        if (query.starred !== undefined)
+            params.set('starred', `${query.starred}`);
+        if (query.unread !== undefined)
+            params.set('unread', `${query.unread}`);
+        if (query.limit !== undefined)
+            params.set('limit', `${query.limit}`);
+        if (query.offset !== undefined)
+            params.set('offset', `${query.offset}`);
         const suffix = params.toString();
         return request<EmailListResponse>(`/api/emails${suffix ? `?${suffix}` : ''}`);
     },

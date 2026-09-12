@@ -1,6 +1,6 @@
 import type { Address, AddressTestResponse, AddressType } from '../types';
+import { Block, Button, Card, List, ListInput, ListItem } from 'konsta/react';
 import { useState } from 'react';
-import { Block, Button, Card, List, ListButton, ListInput, ListItem } from 'konsta/react';
 import { api } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { haptic } from '../lib/haptics';

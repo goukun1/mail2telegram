@@ -1,6 +1,6 @@
 import type { Attachment } from '../../types';
-import { useState } from 'react';
 import { List, ListItem } from 'konsta/react';
+import { useState } from 'react';
 import { fetchAttachmentBlob } from '../../api/client';
 import { formatBytes } from '../../lib/format';
 

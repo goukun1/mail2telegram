@@ -1,6 +1,6 @@
 import type { AddressType, RuntimeSettings } from '../types';
-import { useEffect, useState } from 'react';
 import { Block, Button, List, ListInput, ListItem, Preloader, Segmented, SegmentedButton, Toggle } from 'konsta/react';
+import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { haptic } from '../lib/haptics';
