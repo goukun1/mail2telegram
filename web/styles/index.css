@@ -574,6 +574,44 @@ body {
     text-align: center;
 }
 
+/* ------------------------------------------------------------- segmented */
+
+/* iOS style segmented control.
+   Konsta implements the active pill as an absolutely positioned span whose
+   offset is measured in JavaScript; that is fragile. Draw the pill on the active
+   button itself instead and hide Konsta's highlight layer. */
+.ios-segmented {
+    border-radius: 9px;
+    background: rgba(120, 120, 128, 0.16);
+}
+
+.ios-segmented > span {
+    display: none !important;
+}
+
+.ios-segmented button {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.08px;
+    border-radius: 7px;
+    color: var(--ios-text);
+}
+
+.ios-segmented button.k-segmented-strong-button-active {
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.06);
+    font-weight: 600;
+}
+
+.dark .ios-segmented {
+    background: rgba(120, 120, 128, 0.32);
+}
+
+.dark .ios-segmented button.k-segmented-strong-button-active {
+    background: #636366;
+    box-shadow: none;
+}
+
 /* -------------------------------------------------------------- settings */
 
 .settings-section-title {

@@ -31,11 +31,21 @@ export function initApp({ debug }: InitOptions): void {
     initData.restore();
 }
 
+/** Platforms that run as a phone app and benefit from fullscreen. */
+function isMobilePlatform(): boolean {
+    const platform = getPlatform();
+    return platform === 'ios' || platform === 'android';
+}
+
 /**
- * Requests fullscreen by default. Silently ignored on Telegram clients that do
- * not support it (Bot API < 8.0) or when the request is rejected.
+ * Requests fullscreen on phone clients only. Desktop clients (macOS, Telegram
+ * Desktop, web) keep their normal window chrome. Silently ignored when the
+ * client does not support fullscreen (Bot API < 8.0) or rejects the request.
  */
 export function requestFullscreen(): void {
+    if (!isMobilePlatform()) {
+        return;
+    }
     try {
         const result = viewport.requestFullscreen.ifAvailable();
         if (result.ok) {
@@ -53,10 +63,4 @@ export function getPlatform(): string {
     } catch {
         return 'web';
     }
-}
-
-/** True on native desktop clients, where the iPad style split view is used. */
-export function isDesktopPlatform(): boolean {
-    const platform = getPlatform();
-    return platform === 'macos' || platform === 'tdesktop';
 }

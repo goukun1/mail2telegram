@@ -210,7 +210,7 @@ export function SettingsPage({ initialTab, onBack }: SettingsPageProps) {
                 <div className="px-4 pt-3">
                     <div className="mb-2 text-[13px] text-[var(--ios-gray)]">Summary Language</div>
                     <div className="overflow-x-auto pb-1">
-                        <Segmented className="w-max">
+                        <Segmented strong className="ios-segmented !w-max">
                             {SUMMARY_LANGS.map(lang => (
                                 <SegmentedButton
                                     key={lang}
@@ -246,7 +246,7 @@ export function SettingsPage({ initialTab, onBack }: SettingsPageProps) {
                 </List>
                 <div className="px-4 pt-3">
                     <div className="mb-2 text-[13px] text-[var(--ios-gray)]">Oversized Mail</div>
-                    <Segmented className="w-max">
+                    <Segmented strong className="ios-segmented !w-max">
                         <SegmentedButton active={draft.maxEmailSizePolicy === 'truncate'} onClick={() => update('maxEmailSizePolicy', 'truncate')}>Truncate</SegmentedButton>
                         <SegmentedButton active={draft.maxEmailSizePolicy === 'continue'} onClick={() => update('maxEmailSizePolicy', 'continue')}>Continue</SegmentedButton>
                         <SegmentedButton active={draft.maxEmailSizePolicy === 'unhandled'} onClick={() => update('maxEmailSizePolicy', 'unhandled')}>Headers</SegmentedButton>

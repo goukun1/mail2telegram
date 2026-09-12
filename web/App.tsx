@@ -9,7 +9,6 @@ import { SettingsNav } from './components/ios/SettingsNav';
 import { useAsync } from './hooks/useAsync';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useDarkMode } from './hooks/useTheme';
-import { isDesktopPlatform } from './init';
 import { MessageTabBar } from './layout/TabBar';
 import { InboxPage } from './pages/InboxPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -31,8 +30,10 @@ function Shell({ me, refreshMe }: ShellProps) {
     const [params] = useSearchParams();
     const [unread, setUnread] = useState(0);
 
-    const wide = useMediaQuery('(min-width: 900px)');
-    const regular = wide || isDesktopPlatform();
+    // Layout follows the available width so resizing the window switches between
+    // the split view and the single column. Phone clients are always narrow, so
+    // they naturally get the compact layout.
+    const regular = useMediaQuery('(min-width: 900px)');
     const folder = parseFolder(params.get('folder'));
     const selectedId = params.get('id');
     const isSettings = location.pathname.startsWith('/settings');
