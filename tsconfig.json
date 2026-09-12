@@ -1,24 +1,38 @@
 {
     "compilerOptions": {
-        "composite": true,
         "target": "ESNext",
         "lib": [
             "ESNext",
-            "DOM"
+            "DOM",
+            "DOM.Iterable"
         ],
-        "rootDir": ".",
         "module": "ESNext",
         "moduleResolution": "bundler",
-        "types": ["node"],
+        "jsx": "react-jsx",
+        "types": [
+            "node"
+        ],
         "allowJs": true,
         "strict": true,
-        "declaration": true,
-        "declarationMap": true,
-        "outDir": "build",
-        "removeComments": true,
-        "sourceMap": true,
+        "noEmit": true,
         "skipLibCheck": true,
-        "esModuleInterop": true
+        "esModuleInterop": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "paths": {
+            "@/*": [
+                "./web/*"
+            ]
+        }
     },
-    "exclude": ["**/node_modules", "**/build"]
+    "include": [
+        "src",
+        "web",
+        "scripts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "build"
+    ]
 }

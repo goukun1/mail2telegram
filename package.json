@@ -1,8 +1,8 @@
 {
     "name": "mail2telegram",
     "type": "module",
-    "version": "1.0.0",
-    "description": "Forward email to telegram",
+    "version": "2.0.0",
+    "description": "Forward email to telegram with a Telegram Mini App inbox",
     "author": "TBXark",
     "license": "MIT",
     "homepage": "https://github.com/TBXark/mail2telegram",
@@ -10,38 +10,50 @@
         "type": "git",
         "url": "https://github.com/TBXark/mail2telegram"
     },
-    "exports": {
-        "import": "./index.js"
-    },
     "main": "src/index.ts",
-    "files": [
-        "src/index.ts"
-    ],
     "scripts": {
-        "dev": "wrangler dev",
-        "pub": "wrangler deploy",
-        "build": "node esbuild.config.js",
-        "lint": "eslint --fix src/index.ts src",
+        "dev": "pnpm dev:web & pnpm dev:worker",
+        "dev:web": "vite",
+        "dev:worker": "wrangler dev",
+        "build": "tsc --noEmit && vite build",
+        "build:web": "vite build",
+        "deploy:config": "node scripts/build-config.mjs",
+        "db:migrate:local": "wrangler d1 migrations apply DB --local",
+        "db:migrate:remote": "node scripts/build-config.mjs && wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc",
+        "deploy": "node scripts/build-config.mjs && wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc && vite build && wrangler deploy --config wrangler.deploy.jsonc",
+        "lint": "eslint --fix src web scripts",
         "test": "tsx src/test.ts",
         "wrangler": "wrangler"
     },
     "dependencies": {
         "@tma.js/init-data-node": "^2.0.8",
+        "@tma.js/sdk-react": "^3.0.23",
+        "dompurify": "^3.4.15",
         "html-to-text": "^10.0.0",
         "itty-router": "^5.0.24",
-        "postal-mime": "^2.7.5"
+        "konsta": "^5.4.0",
+        "postal-mime": "^2.7.5",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "react-router-dom": "^7.18.3"
     },
     "devDependencies": {
         "@antfu/eslint-config": "^9.1.0",
         "@cloudflare/workers-types": "^4.20260702.1",
+        "@tailwindcss/vite": "^4.3.3",
         "@types/html-to-text": "^9.0.4",
         "@types/node": "^26.1.0",
-        "esbuild": "^0.28.1",
+        "@types/react": "^18.3.27",
+        "@types/react-dom": "^18.3.7",
+        "@vitejs/plugin-react": "^5.1.0",
+        "concurrently": "^10.0.5",
         "eslint": "^10.6.0",
         "eslint-plugin-format": "^2.0.1",
+        "tailwindcss": "^4.3.3",
         "telegram-bot-api-types": "^10.1.0",
         "tsx": "^4.23.0",
         "typescript": "^6.0.3",
-        "wrangler": "^4.107.0"
+        "vite": "^7.3.6",
+        "wrangler": "^4.131.1"
     }
 }

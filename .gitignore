@@ -146,6 +146,11 @@ dist
 # build
 wrangler.toml
 wrangler.jsonc
+wrangler.deploy.jsonc
+.dev.vars
 .idea
+.zcode
 .wrangler
 example
+dist
+build

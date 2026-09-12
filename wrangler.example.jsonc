@@ -1,14 +1,35 @@
 {
+    "$schema": "./node_modules/wrangler/config-schema.json",
     "name": "mail2telegram",
     "main": "src/index.ts",
     "compatibility_date": "2025-09-15",
     "compatibility_flags": [
         "nodejs_compat_v2"
     ],
-    "kv_namespaces": [
+    // The frontend SPA built by Vite into ./dist/client.
+    // API and webhook routes are handled by the Worker first.
+    "assets": {
+        "directory": "./dist/client",
+        "not_found_handling": "single-page-application",
+        "run_worker_first": [
+            "/api/*",
+            "/init",
+            "/email/*",
+            "/telegram/*"
+        ]
+    },
+    // Real ids are injected by scripts/build-config.mjs via DEPLOY_* build variables.
+    "d1_databases": [
         {
             "binding": "DB",
-            "id": ""
+            "database_name": "mail2telegram",
+            "database_id": ""
+        }
+    ],
+    "r2_buckets": [
+        {
+            "binding": "BUCKET",
+            "bucket_name": ""
         }
     ],
     "ai": {
@@ -24,9 +45,9 @@
         // "OPENAI_COMPLETIONS_API": "https://openrouter.ai/api/v1/chat/completions",
         // "OPENAI_CHAT_MODEL": "openai/gpt-4o-mini",
         // "SUMMARY_TARGET_LANG": "chinese",
-        // "WHITE_LIST": "Suggested settings in the Telegram mini apps",
-        // "BLOCK_LIST": "Suggested settings in the Telegram mini apps",
-        // "MAIL_TTL": "3600",
+        // "WHITE_LIST": "[\"@example.com$\"]",
+        // "BLOCK_LIST": "[\"spam@example.com\"]",
+        // "MAIL_TTL": "86400",
         "GUARDIAN_MODE": "false",
         // "MAX_EMAIL_SIZE": "524288",
         "MAX_EMAIL_SIZE_POLICY": "truncate",
