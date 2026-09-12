@@ -1,24 +1,22 @@
-export const tmaModeDescription: { [key: string]: string } = {
-    test: 'Test an email address',
-    white: 'Manage the white list',
-    block: 'Manage the block list',
-};
-
 export const telegramCommands = [
+    {
+        command: 'start',
+        description: '/start - Open the mail Mini App',
+    },
     {
         command: 'id',
         description: '/id - Get your chat ID',
     },
     {
         command: 'test',
-        description: `/test - ${tmaModeDescription.test}`,
+        description: '/test - Test an email address against the lists',
     },
     {
         command: 'white',
-        description: `/white - ${tmaModeDescription.white}`,
+        description: '/white - Open the white list in the Mini App',
     },
     {
         command: 'block',
-        description: `/block - ${tmaModeDescription.block}`,
+        description: '/block - Open the block list in the Mini App',
     },
 ];

@@ -1,5 +1,5 @@
+import { emailHandler } from './handler/email';
 import { fetchHandler } from './handler/fetch';
-import { emailHandler } from './handler/mail';
 import './polyfill';
 
 export default {
