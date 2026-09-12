@@ -71,9 +71,15 @@ body {
     background: var(--ios-grouped-bg);
 }
 
-/* Konsta App wrapper fills the Mini App viewport. */
+/* Konsta App wrapper fills the Mini App viewport.
+   Height is based on the document chain (html/body/#root are all 100%) rather
+   than on --tg-viewport-stable-height: some desktop clients report that variable
+   as 0 or omit it, which previously collapsed the shell so only the tab bar
+   rendered. */
 .k-app {
-    min-height: var(--tg-viewport-stable-height);
+    height: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
     background: var(--ios-grouped-bg);
 }
 
@@ -135,7 +141,10 @@ body {
 .app-shell {
     display: flex;
     flex-direction: column;
-    height: var(--tg-viewport-stable-height);
+    /* Never use --tg-viewport-stable-height here: it can be 0 on desktop
+       clients, which collapses the content area and leaves only the tab bar. */
+    height: 100%;
+    min-height: 0;
     background: var(--ios-grouped-bg);
 }
 
