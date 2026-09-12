@@ -1,7 +1,7 @@
 import type * as Telegram from 'telegram-bot-api-types';
 import type { EmailRecord, Environment, RuntimeSettings } from '../types';
 import { checkAddressStatus } from './check';
-import { summarizedByOpenAI, summarizedByWorkerAI } from './summarization';
+import { summarizeEmail } from './summarization';
 
 export interface EmailDetailParams {
     text: string;
@@ -26,8 +26,7 @@ export type EmailRender = (
 ) => Promise<EmailDetailParams>;
 
 function sendableText(mail: EmailRecord): string {
-    const body = mail.body_text || (mail.body_html ? '' : '');
-    return body;
+    return mail.body_text ?? '';
 }
 
 export async function renderEmailListMode(
@@ -108,18 +107,10 @@ export async function renderEmailPreviewMode(mail: EmailRecord, env: Environment
 }
 
 export async function renderEmailSummaryMode(mail: EmailRecord, env: Environment, settings: RuntimeSettings): Promise<EmailDetailParams> {
-    const { AI } = env;
     const req = renderEmailDetail('', mail.id);
-    const prompt = `Summarize the following text in approximately 50 words with ${settings.summaryTargetLang}\n\n${sendableText(mail)}`;
-
     try {
-        if (AI && settings.workersAiModel) {
-            req.text = await summarizedByWorkerAI(AI, settings.workersAiModel, prompt);
-        } else if (settings.openaiApiKey) {
-            req.text = await summarizedByOpenAI(settings.openaiApiKey, settings.openaiCompletionsApi, settings.openaiChatModel, prompt);
-        } else {
-            req.text = 'Sorry, no summarization provider is configured.';
-        }
+        // Same provider selection and body truncation as the Mini App endpoint.
+        req.text = await summarizeEmail(mail, env, settings);
     } catch (e) {
         req.text = `Failed to summarize the email: ${(e as Error).message}`;
     }

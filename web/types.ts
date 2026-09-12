@@ -19,8 +19,10 @@ export interface Email {
     date: string;
     is_read: number;
     is_starred: number;
-    body_html: string | null;
-    body_text: string | null;
+    /** List rows carry a short `snippet` instead of the full bodies. */
+    snippet?: string | null;
+    body_html?: string | null;
+    body_text?: string | null;
     size: number;
     in_reply_to: string | null;
     thread_id: string | null;
@@ -50,7 +52,6 @@ export interface RuntimeSettings {
     blockPolicy: BlockPolicy[];
     forwardList: string[];
     guardianMode: boolean;
-    mailTtl: number;
     maxEmailSize: number;
     maxEmailSizePolicy: MaxEmailSizePolicy;
     summaryEnabled: boolean;
@@ -62,6 +63,10 @@ export interface RuntimeSettings {
     forwardEnabled: boolean;
     /** Days of mail history kept by the daily cron; 0 disables auto cleanup. Defaults to 7. */
     autoCleanupDays: number;
+    /** Store inbound attachments in R2. */
+    attachmentSaveEnabled: boolean;
+    /** Skip saving individual attachments larger than this many bytes. */
+    attachmentMaxSize: number;
 }
 
 export interface TelegramUser {

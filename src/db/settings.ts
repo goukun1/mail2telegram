@@ -3,10 +3,11 @@ import { Dao, loadArrayFromRaw } from './index';
 
 export const SETTING_KEYS = {
     autoCleanupDays: 'auto_cleanup_days',
+    attachmentSaveEnabled: 'attachment_save_enabled',
+    attachmentMaxSize: 'attachment_max_size',
     blockPolicy: 'block_policy',
     forwardList: 'forward_list',
     guardianMode: 'guardian_mode',
-    mailTtl: 'mail_ttl',
     maxEmailSize: 'max_email_size',
     maxEmailSizePolicy: 'max_email_size_policy',
     summaryEnabled: 'summary_enabled',
@@ -49,10 +50,11 @@ function toMaxSizePolicy(value: string | undefined): MaxEmailSizePolicy {
 export function defaultSettings(env: Environment): RuntimeSettings {
     return {
         autoCleanupDays: toInt(env.AUTO_CLEANUP_DAYS, 7),
+        attachmentSaveEnabled: toBool(env.ATTACHMENT_SAVE_ENABLED, true),
+        attachmentMaxSize: toInt(env.ATTACHMENT_MAX_SIZE, 25 * 1024 * 1024),
         blockPolicy: toBlockPolicy(env.BLOCK_POLICY),
         forwardList: (env.FORWARD_LIST || '').split(',').map(item => item.trim()).filter(Boolean),
         guardianMode: toBool(env.GUARDIAN_MODE),
-        mailTtl: toInt(env.MAIL_TTL, 60 * 60 * 24),
         maxEmailSize: toInt(env.MAX_EMAIL_SIZE, 512 * 1024),
         maxEmailSizePolicy: toMaxSizePolicy(env.MAX_EMAIL_SIZE_POLICY),
         summaryEnabled: Boolean((env.AI && env.WORKERS_AI_MODEL) || env.OPENAI_API_KEY),
@@ -68,10 +70,18 @@ export function defaultSettings(env: Environment): RuntimeSettings {
 /** Merge deployment defaults with the overrides stored in D1. */
 export function mergeSettings(base: RuntimeSettings, stored: Record<string, string>): RuntimeSettings {
     const result = { ...base };
+    // Guards are uniformly `!== undefined` so an explicitly saved empty
+    // string clears the stored value instead of being silently ignored.
     if (stored[SETTING_KEYS.autoCleanupDays] !== undefined) {
         result.autoCleanupDays = toInt(stored[SETTING_KEYS.autoCleanupDays], result.autoCleanupDays);
     }
-    if (stored[SETTING_KEYS.blockPolicy]) {
+    if (stored[SETTING_KEYS.attachmentSaveEnabled] !== undefined) {
+        result.attachmentSaveEnabled = toBool(stored[SETTING_KEYS.attachmentSaveEnabled], result.attachmentSaveEnabled);
+    }
+    if (stored[SETTING_KEYS.attachmentMaxSize] !== undefined) {
+        result.attachmentMaxSize = toInt(stored[SETTING_KEYS.attachmentMaxSize], result.attachmentMaxSize);
+    }
+    if (stored[SETTING_KEYS.blockPolicy] !== undefined) {
         result.blockPolicy = toBlockPolicy(stored[SETTING_KEYS.blockPolicy]);
     }
     if (stored[SETTING_KEYS.forwardList] !== undefined) {
@@ -80,13 +90,10 @@ export function mergeSettings(base: RuntimeSettings, stored: Record<string, stri
     if (stored[SETTING_KEYS.guardianMode] !== undefined) {
         result.guardianMode = toBool(stored[SETTING_KEYS.guardianMode], result.guardianMode);
     }
-    if (stored[SETTING_KEYS.mailTtl]) {
-        result.mailTtl = toInt(stored[SETTING_KEYS.mailTtl], result.mailTtl);
-    }
-    if (stored[SETTING_KEYS.maxEmailSize]) {
+    if (stored[SETTING_KEYS.maxEmailSize] !== undefined) {
         result.maxEmailSize = toInt(stored[SETTING_KEYS.maxEmailSize], result.maxEmailSize);
     }
-    if (stored[SETTING_KEYS.maxEmailSizePolicy]) {
+    if (stored[SETTING_KEYS.maxEmailSizePolicy] !== undefined) {
         result.maxEmailSizePolicy = toMaxSizePolicy(stored[SETTING_KEYS.maxEmailSizePolicy]);
     }
     if (stored[SETTING_KEYS.summaryEnabled] !== undefined) {
@@ -98,13 +105,13 @@ export function mergeSettings(base: RuntimeSettings, stored: Record<string, stri
     if (stored[SETTING_KEYS.workersAiModel] !== undefined) {
         result.workersAiModel = stored[SETTING_KEYS.workersAiModel];
     }
-    if (stored[SETTING_KEYS.openaiChatModel]) {
+    if (stored[SETTING_KEYS.openaiChatModel] !== undefined) {
         result.openaiChatModel = stored[SETTING_KEYS.openaiChatModel];
     }
-    if (stored[SETTING_KEYS.openaiCompletionsApi]) {
+    if (stored[SETTING_KEYS.openaiCompletionsApi] !== undefined) {
         result.openaiCompletionsApi = stored[SETTING_KEYS.openaiCompletionsApi];
     }
-    if (stored[SETTING_KEYS.summaryTargetLang]) {
+    if (stored[SETTING_KEYS.summaryTargetLang] !== undefined) {
         result.summaryTargetLang = stored[SETTING_KEYS.summaryTargetLang];
     }
     if (stored[SETTING_KEYS.forwardEnabled] !== undefined) {
@@ -126,6 +133,12 @@ export async function saveSettings(dao: Dao, patch: Partial<RuntimeSettings>): P
     if (patch.autoCleanupDays !== undefined) {
         entries[SETTING_KEYS.autoCleanupDays] = `${patch.autoCleanupDays}`;
     }
+    if (patch.attachmentSaveEnabled !== undefined) {
+        entries[SETTING_KEYS.attachmentSaveEnabled] = `${patch.attachmentSaveEnabled}`;
+    }
+    if (patch.attachmentMaxSize !== undefined) {
+        entries[SETTING_KEYS.attachmentMaxSize] = `${patch.attachmentMaxSize}`;
+    }
     if (patch.blockPolicy !== undefined) {
         entries[SETTING_KEYS.blockPolicy] = patch.blockPolicy.join(',');
     }
@@ -134,9 +147,6 @@ export async function saveSettings(dao: Dao, patch: Partial<RuntimeSettings>): P
     }
     if (patch.guardianMode !== undefined) {
         entries[SETTING_KEYS.guardianMode] = `${patch.guardianMode}`;
-    }
-    if (patch.mailTtl !== undefined) {
-        entries[SETTING_KEYS.mailTtl] = `${patch.mailTtl}`;
     }
     if (patch.maxEmailSize !== undefined) {
         entries[SETTING_KEYS.maxEmailSize] = `${patch.maxEmailSize}`;

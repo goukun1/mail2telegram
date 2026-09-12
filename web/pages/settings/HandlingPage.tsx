@@ -4,26 +4,7 @@ import { formatBytes } from '../../lib/format';
 import { SettingsSubPage } from './SettingsSubPage';
 import { useSettingsDraft } from './useSettingsDraft';
 
-/** Seconds rendered as a rough human duration, e.g. "about 3 days". */
-function formatDuration(seconds: number): string {
-    if (seconds <= 0) {
-        return 'forever';
-    }
-    const units: [number, string][] = [
-        [86400, 'day'],
-        [3600, 'hour'],
-        [60, 'minute'],
-    ];
-    for (const [size, label] of units) {
-        if (seconds >= size) {
-            const value = Math.round(seconds / size);
-            return `about ${value} ${label}${value === 1 ? '' : 's'}`;
-        }
-    }
-    return `about ${seconds} seconds`;
-}
-
-/** Retention, size limits and duplicate suppression. */
+/** Retention, size limits, attachments and duplicate suppression. */
 export function HandlingPage() {
     const { draft, loading, error, reload, update } = useSettingsDraft();
 
@@ -32,12 +13,6 @@ export function HandlingPage() {
             {draft ? (
                 <>
                     <List strongIos outlineIos className="!mt-3">
-                        <ListInput
-                            type="number"
-                            label="Retention (seconds)"
-                            value={`${draft.mailTtl}`}
-                            onChange={(e: any) => update('mailTtl', Number.parseInt(e.target.value, 10) || 0)}
-                        />
                         <ListInput
                             type="number"
                             label="Auto Cleanup (days)"
@@ -50,18 +25,9 @@ export function HandlingPage() {
                             value={`${draft.maxEmailSize}`}
                             onChange={(e: any) => update('maxEmailSize', Number.parseInt(e.target.value, 10) || 0)}
                         />
-                        <ToggleRow
-                            title="Guardian Mode"
-                            subtitle="Skip duplicate notifications for the same message"
-                            checked={draft.guardianMode}
-                            onChange={value => update('guardianMode', value)}
-                        />
                     </List>
                     <div className="settings-note">
-                        Notifications are kept for
-                        {' '}
-                        {formatDuration(draft.mailTtl)}
-                        ; messages over
+                        Messages over
                         {' '}
                         {formatBytes(draft.maxEmailSize)}
                         {' '}
@@ -76,7 +42,32 @@ export function HandlingPage() {
                         </Segmented>
                     </div>
                     <div className="settings-note">
-                        Retention applies to the notification cache. Oversized policy decides whether the body is truncated, parsed fully, or only the headers are kept. A daily cron deletes mail older than Auto Cleanup days, together with its attachments (0 keeps everything); use Clear Mail for one-off cleanups.
+                        Oversized policy decides whether the body is truncated, parsed fully, or only the headers are kept. A daily cron deletes mail older than Auto Cleanup days, together with its attachments (0 keeps everything); use Clear Mail for one-off cleanups.
+                    </div>
+                    <div className="settings-section-title">Attachments</div>
+                    <List strongIos outlineIos className="!mt-0">
+                        <ToggleRow
+                            title="Auto-save Attachments"
+                            subtitle="Store incoming attachments in R2"
+                            checked={draft.attachmentSaveEnabled}
+                            onChange={value => update('attachmentSaveEnabled', value)}
+                        />
+                        {draft.attachmentSaveEnabled ? (
+                            <ListInput
+                                type="number"
+                                label="Max Attachment Size (bytes)"
+                                value={`${draft.attachmentMaxSize}`}
+                                onChange={(e: any) => update('attachmentMaxSize', Number.parseInt(e.target.value, 10) || 0)}
+                            />
+                        ) : null}
+                    </List>
+                    <div className="settings-note">
+                        {draft.attachmentSaveEnabled
+                            ? `Single attachments over ${formatBytes(draft.attachmentMaxSize)} are skipped; the rest stay downloadable in the Mini App until cleanup.`
+                            : 'Attachments are not stored, so the Mini App cannot list or serve them.'}
+                    </div>
+                    <div className="settings-note">
+                        Duplicate notifications for the same Message-ID are always suppressed.
                     </div>
                 </>
             ) : null}

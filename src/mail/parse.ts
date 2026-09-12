@@ -85,7 +85,12 @@ export async function parseEmail(
         base.date = email.date ? new Date(email.date).toISOString() : base.date;
         base.inReplyTo = email.inReplyTo?.trim() || null;
         base.references = (email.references || '').split(/\s+/).map(ref => ref.trim()).filter(Boolean);
-        base.rawHeaders = JSON.stringify(Object.fromEntries((email.headers || []).map(header => [header.key, header.value])));
+        // Repeated header names (e.g. `Received`) are joined instead of collapsed.
+        const headerMap: Record<string, string> = {};
+        for (const header of email.headers || []) {
+            headerMap[header.key] = headerMap[header.key] ? `${headerMap[header.key]}\n${header.value}` : header.value;
+        }
+        base.rawHeaders = JSON.stringify(headerMap);
         base.html = email.html || null;
         base.text = email.text || '';
         if (base.html && !base.text) {

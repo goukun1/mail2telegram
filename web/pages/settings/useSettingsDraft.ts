@@ -36,16 +36,6 @@ export function useSettingsDraft(): SettingsDraft {
     const mounted = useRef(true);
 
     useEffect(() => {
-        mounted.current = true;
-        return () => {
-            mounted.current = false;
-            if (timer.current) {
-                clearTimeout(timer.current);
-            }
-        };
-    }, []);
-
-    useEffect(() => {
         if (data?.settings) {
             setDraft({ ...data.settings });
         }
@@ -77,6 +67,20 @@ export function useSettingsDraft(): SettingsDraft {
             }
         }
     }, [setData]);
+
+    useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+            if (timer.current) {
+                clearTimeout(timer.current);
+            }
+            // Navigating away within the debounce window must still deliver
+            // the pending edit; `flush` skips local state updates through the
+            // `mounted` guard but the request itself goes out.
+            void flush();
+        };
+    }, [flush]);
 
     const update = useCallback(<K extends keyof RuntimeSettings>(key: K, value: RuntimeSettings[K]) => {
         setDraft(current => (current ? { ...current, [key]: value } : current));

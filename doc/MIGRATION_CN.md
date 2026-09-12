@@ -21,7 +21,7 @@
 | 推送按钮               | `Preview` `Summary` `Text` `HTML`      | `Preview` `Summary` `Open`（深链到 Mini App 详情页）|
 | 可选绑定               | `AI`                                   | `AI`、`BUCKET`（R2）、`KV`                        |
 | 构建                   | esbuild                                | Vite（Mini App 构建到 `dist/client`）             |
-| 部署                   | `wrangler deploy` 或复制粘贴脚本       | Workers Builds（`pnpm deploy`）或命令行 + D1 迁移 |
+| 部署                   | `wrangler deploy` 或复制粘贴脚本       | Workers Builds（`pnpm run deploy`）或命令行 + D1 迁移 |
 
 保持不变的部分：Bot Token、Email Routing 的 catch-all 配置、推送消息版式、回复推送即可回信，以及全部 AI 摘要选项。
 
@@ -123,7 +123,7 @@ npx wrangler kv namespace create mail2telegram       # 可选
 2. 在 Cloudflare 控制台进入 **Workers & Pages → Create → Workers → Connect to Git**，选择该仓库。
 3. 设置命令：
    - **Build command**: `pnpm build`
-   - **Deploy command**: `pnpm deploy`
+   - **Deploy command**: `pnpm run deploy`
 4. 添加 **build variables**：
 
    | Build variable                  | 必填 | 说明                                       |
@@ -134,7 +134,7 @@ npx wrangler kv namespace create mail2telegram       # 可选
    | `DEPLOY_R2_PREVIEW_BUCKET_NAME` | 否   | 预览部署使用的 R2 存储桶。                 |
    | `DEPLOY_KV_NAMESPACE_ID`        | 否   | 记录首次 `/start` 的 KV 命名空间 id。      |
 
-   `pnpm deploy` 会把这些变量注入生成的（已 gitignore 的）`wrangler.deploy.jsonc`，应用 D1 迁移，构建 Mini App 并部署。
+   `pnpm run deploy` 会把这些变量注入生成的（已 gitignore 的）`wrangler.deploy.jsonc`，应用 D1 迁移，构建 Mini App 并部署。（不带 `run` 的 `pnpm deploy` 会和 pnpm 内置的 workspace 命令冲突。）
 5. 在 **Settings → Variables and Secrets** 中，按 README 的[配置](../README_CN.md#配置)一表添加运行参数。`TELEGRAM_TOKEN`、`RESEND_API_KEY` 请放入加密的 **Secrets** 区域。
 
 #### 方式 B —— GitHub Actions
@@ -175,10 +175,10 @@ cp wrangler.example.jsonc wrangler.jsonc
 然后执行：
 
 ```bash
-npx wrangler d1 migrations apply DB --remote   # 建表
-pnpm build                                     # 类型检查 + 构建 Mini App
-npx wrangler deploy
+pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 ```
+
+`scripts/build-config.mjs` 会把上面的 id 写入生成的 `wrangler.deploy.jsonc`。`DEPLOY_*` 环境变量（供 CI 使用）优先于 `wrangler.jsonc` 中的值；`local` 占位绑定会被跳过，不会部署。
 
 ### 3. 配置 Cloudflare Email Routing
 
@@ -201,7 +201,7 @@ npx wrangler deploy
 | `TELEGRAM_ID` / `TELEGRAM_TOKEN` / `DOMAIN` | 相同 | 相同 |
 | `FORWARD_LIST`            | 备份地址                               | 相同；同时作为 Mini App 转发设置的初始值          |
 | `BLOCK_POLICY`            | 仅环境变量                             | 环境变量为默认值，可在 Mini App 中修改            |
-| `MAIL_TTL`                | `Text` / `HTML` 网页链接的过期时间     | Mini App 中显示的默认保留时间；开启自动清理后，每日定时任务会按保留天数修剪 D1 历史 |
+| `MAIL_TTL`                | `Text` / `HTML` 网页链接的过期时间     | 已废弃 —— 2.0 的邮件保存在 D1 中，直到自动清理（或“清除邮件”）删除；该变量会被忽略 |
 | `AUTO_CLEANUP_DAYS`       | —                                      | 可选的每日清理保留天数初始值；默认 7 天，0 表示永久保留；可在 Mini App 的 Mail Handling 中修改 |
 | `GUARDIAN_MODE`           | 基于 KV 去重（消耗 KV 写入）          | 基于 D1 去重（无额外开销）；默认关闭，可在 Mini App 修改 |
 | `MAX_EMAIL_SIZE` / `MAX_EMAIL_SIZE_POLICY` | 相同 | 相同；邮件大小同时入库 |

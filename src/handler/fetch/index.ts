@@ -75,6 +75,8 @@ function parseFolder(value: string | null | undefined): Folder | 'all' {
     return allowed.includes(value as Folder) ? (value as Folder) : 'inbox';
 }
 
+const FOLDERS: Folder[] = ['inbox', 'spam', 'trash', 'sent'];
+
 function parseAddressType(value: unknown): AddressType {
     if (value === 'block' || value === 'white') {
         return value;
@@ -144,6 +146,10 @@ function createRouter(env: Environment): RouterType {
         };
     });
 
+    // Legacy view endpoint kept for the Text/HTML buttons on notifications
+    // sent by 1.0. Access control is the unguessable mail id, so the document
+    // is forced into an opaque origin: `sandbox` (without allow-scripts) keeps
+    // email HTML off the worker origin that hosts the authenticated API.
     router.get('/email/:id', async (req: IRequest): Promise<Response> => {
         const id = req.params.id;
         const mode = req.query.mode || 'text';
@@ -157,6 +163,8 @@ function createRouter(env: Environment): RouterType {
         return new Response(text, {
             headers: {
                 'content-type': isHtml ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8',
+                'content-security-policy': 'sandbox',
+                'x-content-type-options': 'nosniff',
             },
         });
     });
@@ -208,6 +216,9 @@ function createRouter(env: Environment): RouterType {
 
     router.patch('/api/emails/:id', auth, async (req: IRequest): Promise<any> => {
         const body = await req.json() as { isRead?: boolean; isStarred?: boolean; folder?: Folder };
+        if (body.folder !== undefined && !FOLDERS.includes(body.folder)) {
+            throw new HTTPError(400, 'Invalid folder');
+        }
         const record = await dao.getEmail(req.params.id);
         if (!record) {
             throw new HTTPError(404, 'Email not found');
@@ -276,6 +287,12 @@ function createRouter(env: Environment): RouterType {
             throw new HTTPError(404, 'Email not found');
         }
         await replyToEmail(env.RESEND_API_KEY, record, body.text);
+        try {
+            await dao.recordSentReply(record, body.text);
+        } catch (e) {
+            // The reply itself went out; only the Sent-folder copy failed.
+            console.error('[reply] record.failed', (e as Error).message);
+        }
         return { success: true };
     });
 

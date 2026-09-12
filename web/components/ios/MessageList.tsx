@@ -177,7 +177,7 @@ function MessageRow({ email, selected, onSelect }: { email: Email; selected: boo
                     {email.subject || '(no subject)'}
                 </div>
                 <div className="message-row__preview">
-                    {email.body_text || ''}
+                    {email.snippet || ''}
                 </div>
             </div>
         </div>

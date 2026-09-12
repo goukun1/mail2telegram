@@ -1,5 +1,5 @@
-import type { ForwardableEmailMessage } from '@cloudflare/workers-types';
-import type { AttachmentRecord, EmailRecord, Environment, ParsedEmailResult } from '../types';
+import type { ExecutionContext, ForwardableEmailMessage } from '@cloudflare/workers-types';
+import type { AttachmentRecord, EmailRecord, Environment, ParsedEmailResult, RuntimeSettings } from '../types';
 import { Dao } from '../db';
 import { loadSettings } from '../db/settings';
 import { hydrateEmail, isMessageBlock, parseEmail, renderEmailListMode } from '../mail';
@@ -7,44 +7,48 @@ import { createTelegramBotAPI } from '../telegram';
 
 const BODY_INLINE_LIMIT = 900 * 1024;
 
-export interface PersistResult {
-    email: EmailRecord;
-    folder: 'inbox' | 'spam';
-}
-
 async function persistEmail(
     env: Environment,
     dao: Dao,
     parsed: ParsedEmailResult,
     folder: 'inbox' | 'spam',
     rawSize: number,
-    truncated: boolean,
+    settings: RuntimeSettings,
 ): Promise<EmailRecord> {
     const id = crypto.randomUUID();
     const attachmentRecords: AttachmentRecord[] = [];
 
-    if (env.BUCKET) {
-        for (const attachment of parsed.attachments) {
+    if (env.BUCKET && settings.attachmentSaveEnabled && parsed.attachments.length > 0) {
+        const bucket = env.BUCKET;
+        // The puts are independent: run them concurrently and let one failure
+        // drop only its own attachment.
+        const stored = await Promise.all(parsed.attachments.map(async (attachment): Promise<AttachmentRecord | null> => {
+            if (attachment.content.byteLength > settings.attachmentMaxSize) {
+                console.error('[email] attachment.skip.oversize', attachment.filename, attachment.content.byteLength);
+                return null;
+            }
             const attachmentId = crypto.randomUUID();
             const key = `attachments/${id}/${attachmentId}/${attachment.filename}`;
             try {
-                await env.BUCKET.put(key, attachment.content, {
+                await bucket.put(key, attachment.content, {
                     httpMetadata: { contentType: attachment.mimetype },
-                });
-                attachmentRecords.push({
-                    id: attachmentId,
-                    email_id: id,
-                    filename: attachment.filename,
-                    mimetype: attachment.mimetype,
-                    size: attachment.content.byteLength,
-                    content_id: attachment.contentId,
-                    disposition: attachment.disposition,
-                    r2_key: key,
                 });
             } catch (e) {
                 console.error('[email] attachment.store.failed', attachment.filename, (e as Error).message);
+                return null;
             }
-        }
+            return {
+                id: attachmentId,
+                email_id: id,
+                filename: attachment.filename,
+                mimetype: attachment.mimetype,
+                size: attachment.content.byteLength,
+                content_id: attachment.contentId,
+                disposition: attachment.disposition,
+                r2_key: key,
+            };
+        }));
+        attachmentRecords.push(...stored.filter((record): record is AttachmentRecord => record !== null));
     }
 
     let bodyHtml = parsed.html;
@@ -68,7 +72,7 @@ async function persistEmail(
         {
             ...parsed,
             html: bodyHtml,
-            text: truncated && bodyText ? bodyText : (bodyText ?? ''),
+            text: bodyText ?? '',
         },
         {
             id,
@@ -88,17 +92,23 @@ async function persistEmail(
     return stored;
 }
 
-export async function sendMailToTelegram(mail: EmailRecord, env: Environment): Promise<number[]> {
+/** One delivered notification: which chat got it and the Telegram message id. */
+export interface TelegramNotification {
+    chatId: string;
+    messageId: number;
+}
+
+export async function sendMailToTelegram(mail: EmailRecord, env: Environment): Promise<TelegramNotification[]> {
     const { TELEGRAM_TOKEN, TELEGRAM_ID } = env;
     const settings = await loadSettings(env);
     const hydrated = await hydrateEmail(mail, env.BUCKET);
     const api = createTelegramBotAPI(TELEGRAM_TOKEN);
-    const messageIds: number[] = [];
-    for (const id of TELEGRAM_ID.split(',').map(item => item.trim()).filter(Boolean)) {
-        // Only numeric positive chat ids are private chats, which are the only
-        // chats that accept a `web_app` button for the Open action. Group,
-        // channel and @username destinations omit it rather than risk a send
-        // failure with an unsupported button.
+    const chats = TELEGRAM_ID.split(',').map(item => item.trim()).filter(Boolean);
+    // Only numeric positive chat ids are private chats, which are the only
+    // chats that accept a `web_app` button for the Open action. Group,
+    // channel and @username destinations omit it rather than risk a send
+    // failure with an unsupported button.
+    const outcomes = await Promise.allSettled(chats.map(async (id): Promise<TelegramNotification> => {
         const req = await renderEmailListMode(hydrated, env, settings, {
             chatType: /^\d+$/.test(id) ? 'private' : 'group',
         });
@@ -106,21 +116,35 @@ export async function sendMailToTelegram(mail: EmailRecord, env: Environment): P
             chat_id: id,
             ...req,
         });
-        messageIds.push(msg.result.message_id);
-    }
-    return messageIds;
+        return { chatId: id, messageId: msg.result.message_id };
+    }));
+    // One failing chat must not lose the message ids of the others.
+    return outcomes
+        .filter((outcome): outcome is PromiseFulfilledResult<TelegramNotification> => outcome.status === 'fulfilled')
+        .map(outcome => outcome.value);
 }
 
-export async function emailHandler(message: ForwardableEmailMessage, env: Environment): Promise<void> {
+/**
+ * Background half of a delivery. The email is already persisted when this
+ * runs, so a slow or failing Telegram API is only logged — it can no longer
+ * delay the mail or bounce it back to the sender.
+ */
+async function notifyTelegram(mail: EmailRecord, env: Environment, dao: Dao): Promise<void> {
+    try {
+        const notifications = await sendMailToTelegram(mail, env);
+        await Promise.all(notifications.map(({ chatId, messageId }) =>
+            dao.saveTelegramMessage(messageId, chatId, mail.id),
+        ));
+    } catch (e) {
+        console.error('[email] telegram.notify.failed', mail.id, (e as Error).message);
+    }
+}
+
+export async function emailHandler(message: ForwardableEmailMessage, env: Environment, ctx: ExecutionContext): Promise<void> {
     const dao = new Dao(env.DB);
     const id = message.headers.get('Message-ID')?.trim() || crypto.randomUUID();
-    const isBlock = await isMessageBlock(message, env);
     const settings = await loadSettings(env);
-    const isGuardian = settings.guardianMode;
-    const status = isGuardian
-        ? (await dao.getMailStatus(id)) ?? { message_id: id, telegram: 0, forwards: '[]', updated_at: '' }
-        : null;
-    const forwarded = new Set<string>(status ? JSON.parse(status.forwards) as string[] : []);
+    const isBlock = await isMessageBlock(message, env);
 
     // Reject the email
     if (isBlock && settings.blockPolicy.includes('reject')) {
@@ -128,46 +152,41 @@ export async function emailHandler(message: ForwardableEmailMessage, env: Enviro
         return;
     }
 
-    // Forward to email
-    try {
-        const blockForward = isBlock && settings.blockPolicy.includes('forward');
-        const forwardList = blockForward || !settings.forwardEnabled ? [] : settings.forwardList;
-        for (const forward of forwardList) {
-            const address = forward.trim();
-            if (!address || forwarded.has(address)) {
-                continue;
-            }
-            try {
-                await message.forward(address);
-                forwarded.add(address);
-                if (isGuardian && status) {
-                    await dao.upsertMailStatus(id, { telegram: Boolean(status.telegram), forwards: [...forwarded] });
-                }
-            } catch (e) {
-                console.error('[email] forward.failed', address, (e as Error).message);
-            }
+    // Delivery journal keyed by Message-ID. Email Routing re-runs the worker
+    // when the handler throws, so the journal is what turns a redelivery into
+    // a no-op instead of a duplicate forward, row or notification.
+    const status = await dao.getMailStatus(id) ?? { message_id: id, telegram: 0, forwards: '[]', updated_at: '' };
+    const forwarded = new Set(JSON.parse(status.forwards) as string[]);
+
+    // Forward to email; one bad address only skips itself.
+    const blockForward = isBlock && settings.blockPolicy.includes('forward');
+    const forwardList = blockForward || !settings.forwardEnabled ? [] : settings.forwardList;
+    for (const forward of forwardList) {
+        const address = forward.trim();
+        if (!address || forwarded.has(address)) {
+            continue;
         }
-    } catch (e) {
-        console.error('[email] forward.error', (e as Error).message);
+        try {
+            await message.forward(address);
+            forwarded.add(address);
+            await dao.upsertMailStatus(id, { telegram: Boolean(status.telegram), forwards: [...forwarded] });
+        } catch (e) {
+            console.error('[email] forward.failed', address, (e as Error).message);
+        }
     }
 
-    // Parse, persist and push to Telegram
-    try {
-        const blockTelegram = isBlock && settings.blockPolicy.includes('telegram');
-        const alreadySent = Boolean(status?.telegram);
-        if (!alreadySent && !blockTelegram) {
-            const parsed = await parseEmail(message, settings.maxEmailSize, settings.maxEmailSizePolicy);
-            const folder = isBlock ? 'spam' : 'inbox';
-            const stored = await persistEmail(env, dao, parsed, folder, message.rawSize, parsed.truncated);
-            const messageIds = await sendMailToTelegram(stored, env);
-            for (const messageId of messageIds) {
-                await dao.saveTelegramMessage(messageId, stored.id);
-            }
-        }
-        if (isGuardian && status) {
-            await dao.upsertMailStatus(id, { telegram: true, forwards: [...forwarded] });
-        }
-    } catch (e) {
-        console.error('[email] telegram.error', (e as Error).message);
+    // Parse and persist. Persisting is the transaction boundary: a failure
+    // here propagates so Email Routing retries delivery, while the journal
+    // above and the Message-ID lookup keep that retry from duplicating work.
+    const blockTelegram = isBlock && settings.blockPolicy.includes('telegram');
+    if (!status.telegram && !blockTelegram) {
+        const parsed = await parseEmail(message, settings.maxEmailSize, settings.maxEmailSizePolicy);
+        const folder = isBlock ? 'spam' : 'inbox';
+        // Journal and row update are not atomic; a crash between them must
+        // not insert the message twice, hence the lookup before the insert.
+        const stored = await dao.getEmailByMessageId(parsed.messageId)
+            ?? await persistEmail(env, dao, parsed, folder, message.rawSize, settings);
+        await dao.upsertMailStatus(id, { telegram: true, forwards: [...forwarded] });
+        ctx.waitUntil(notifyTelegram(stored, env, dao));
     }
 }

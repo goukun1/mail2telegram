@@ -21,7 +21,7 @@ This guide covers two scenarios:
 | Push buttons           | `Preview` `Summary` `Text` `HTML`      | `Preview` `Summary` `Open` (deep link into the Mini App) |
 | Optional bindings      | `AI`                                   | `AI`, `BUCKET` (R2), `KV`                         |
 | Build                  | esbuild                                | Vite (Mini App built into `dist/client`)          |
-| Deployment             | `wrangler deploy` or copy-paste script | Workers Builds (`pnpm deploy`) or CLI with D1 migrations |
+| Deployment             | `wrangler deploy` or copy-paste script | Workers Builds (`pnpm run deploy`) or CLI with D1 migrations |
 
 What stays the same: your bot token, the Email Routing catch-all configuration, the push message layout, replying to a push to answer the sender, and all AI summary options.
 
@@ -123,7 +123,7 @@ Note the D1 database id.
 2. In the Cloudflare dashboard: **Workers & Pages → Create → Workers → Connect to Git**, select the repository.
 3. Set the commands:
    - **Build command**: `pnpm build`
-   - **Deploy command**: `pnpm deploy`
+   - **Deploy command**: `pnpm run deploy`
 4. Add the **build variables**:
 
    | Build variable                  | Required | Description                                             |
@@ -134,7 +134,7 @@ Note the D1 database id.
    | `DEPLOY_R2_PREVIEW_BUCKET_NAME` | No       | R2 bucket used for preview deployments.                 |
    | `DEPLOY_KV_NAMESPACE_ID`        | No       | KV namespace id for first-time `/start` memory.         |
 
-   `pnpm deploy` injects these into a generated, gitignored `wrangler.deploy.jsonc`, applies D1 migrations, builds the Mini App and deploys.
+   `pnpm run deploy` injects these into a generated, gitignored `wrangler.deploy.jsonc`, applies D1 migrations, builds the Mini App and deploys. (`pnpm deploy` without `run` collides with pnpm's built-in workspace command.)
 5. Under **Settings → Variables and Secrets**, add the runtime variables from the README's [Configuration](../README.md#configuration) table. Put `TELEGRAM_TOKEN` and `RESEND_API_KEY` in the encrypted **Secrets** section.
 
 #### Option B — GitHub Actions
@@ -175,10 +175,10 @@ Edit `wrangler.jsonc`:
 Then:
 
 ```bash
-npx wrangler d1 migrations apply DB --remote   # create the tables
-pnpm build                                     # typecheck + build the Mini App
-npx wrangler deploy
+pnpm run deploy   # applies D1 migrations, builds the Mini App, deploys the worker
 ```
+
+`scripts/build-config.mjs` copies the ids above into a generated `wrangler.deploy.jsonc`. `DEPLOY_*` environment variables (used by CI) take precedence over the values in `wrangler.jsonc`; a `local` placeholder binding is skipped instead of deployed.
 
 ### 3. Configure Cloudflare Email Routing
 
@@ -201,7 +201,7 @@ In 2.0 all behavior settings live in the Mini App. The legacy variables below ar
 | `TELEGRAM_ID` / `TELEGRAM_TOKEN` / `DOMAIN` | same | same |
 | `FORWARD_LIST` | backup addresses | same; also seeds the Mini App forwarding setting |
 | `BLOCK_POLICY` | env only | env is the default; editable in the Mini App |
-| `MAIL_TTL` | expiry of the `Text` / `HTML` web links | default retention shown in the Mini App; D1 history is pruned by the daily cron when Auto Cleanup is on |
+| `MAIL_TTL` | expiry of the `Text` / `HTML` web links | obsolete — 2.0 keeps mail in D1 until Auto Cleanup (or Clear Mail) removes it; the variable is ignored |
 | `AUTO_CLEANUP_DAYS` | — | optional initial value (days) for the daily mail cleanup cron; defaults to 7, 0 keeps mail forever; editable in the Mini App under Mail Handling |
 | `GUARDIAN_MODE` | KV-based dedup (extra KV writes) | D1-based dedup (no extra cost); default off; editable in the Mini App |
 | `MAX_EMAIL_SIZE` / `MAX_EMAIL_SIZE_POLICY` | same | same; size is also stored per mail |

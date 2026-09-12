@@ -17,7 +17,7 @@ function bypassSourceFiles(req: { url?: string }): string | undefined {
     return undefined;
 }
 
-const proxyTargets = ['/api', '/init', '/email', '/telegram', '/tma'];
+const proxyTargets = ['/api', '/init', '/email', '/telegram'];
 const proxy = Object.fromEntries(proxyTargets.map(path => [path, {
     target: WORKER_ORIGIN,
     changeOrigin: true,

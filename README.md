@@ -39,7 +39,7 @@ Email ──▶ Telegram push with quick action buttons
 
 Deployment is documented in the [Migration & Deployment Guide](doc/MIGRATION.md) ([中文](doc/MIGRATION_CN.md)), which covers fresh installs of 2.0 and the upgrade path from 1.0.
 
-The short version: create a D1 database (plus an optional R2 bucket and KV namespace), connect the repository to Cloudflare Workers Builds with `pnpm build` / `pnpm deploy` and the `DEPLOY_*` build variables, then point the Email Routing catch-all at the worker and call `/init` once.
+The short version: create a D1 database (plus an optional R2 bucket and KV namespace), connect the repository to Cloudflare Workers Builds with `pnpm build` / `pnpm run deploy` and the `DEPLOY_*` build variables (or keep the real ids in your gitignored `wrangler.jsonc` and run `pnpm run deploy` locally), then point the Email Routing catch-all at the worker and call `/init` once.
 
 ## Configuration
 

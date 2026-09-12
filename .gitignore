@@ -158,3 +158,4 @@ build
 /.claude/skills
 /.grok/skills
 skills-lock.json
+/code_review

@@ -45,6 +45,12 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Lint
+              run: pnpm exec eslint src web scripts
+
+            - name: Test
+              run: pnpm test
+
             - name: Generate deploy config
               run: pnpm run deploy:config
               env:

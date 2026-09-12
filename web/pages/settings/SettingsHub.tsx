@@ -50,7 +50,7 @@ export function SettingsHub() {
         { path: 'white', title: 'Always Deliver', value: `${counts('white')}` },
         { path: 'forwarding', title: 'Forwarding', value: settings.forwardEnabled ? 'On' : 'Off' },
         { path: 'summaries', title: 'Summaries', value: settings.summaryEnabled ? settings.summaryTargetLang : 'Off' },
-        { path: 'handling', title: 'Mail Handling', value: `${Math.round(settings.mailTtl / 3600)}h` },
+        { path: 'handling', title: 'Mail Handling', value: settings.autoCleanupDays > 0 ? `${settings.autoCleanupDays}d cleanup` : 'no auto cleanup' },
         { path: 'cleanup', title: 'Clear Mail', value: '' },
         { path: 'bot', title: 'Bot & Webhook', value: '' },
     ];

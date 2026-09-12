@@ -91,6 +91,7 @@ export interface AddressRecord {
 
 export interface TelegramMessageRecord {
     telegram_message_id: string;
+    chat_id: string;
     email_id: string;
     created_at: string;
 }
@@ -107,7 +108,6 @@ export interface RuntimeSettings {
     blockPolicy: BlockPolicy[];
     forwardList: string[];
     guardianMode: boolean;
-    mailTtl: number;
     maxEmailSize: number;
     maxEmailSizePolicy: MaxEmailSizePolicy;
     summaryEnabled: boolean;
@@ -119,6 +119,10 @@ export interface RuntimeSettings {
     forwardEnabled: boolean;
     /** Days of mail history kept by the daily cron; 0 disables auto cleanup. */
     autoCleanupDays: number;
+    /** Store inbound attachments in R2; requires the BUCKET binding. */
+    attachmentSaveEnabled: boolean;
+    /** Skip saving individual attachments larger than this many bytes. */
+    attachmentMaxSize: number;
 }
 export interface Environment {
     TELEGRAM_TOKEN: string;
@@ -128,9 +132,10 @@ export interface Environment {
     BLOCK_LIST: string;
     WHITE_LIST: string;
     BLOCK_POLICY: string;
-    MAIL_TTL: string;
     MAX_EMAIL_SIZE?: string;
     MAX_EMAIL_SIZE_POLICY?: MaxEmailSizePolicy;
+    ATTACHMENT_SAVE_ENABLED?: string;
+    ATTACHMENT_MAX_SIZE?: string;
     OPENAI_API_KEY?: string;
     OPENAI_COMPLETIONS_API?: string;
     OPENAI_CHAT_MODEL?: string;

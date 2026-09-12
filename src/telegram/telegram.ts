@@ -97,6 +97,21 @@ function handleStartCommand(env: Environment): TelegramMessageHandler {
     };
 }
 
+/** Chat ids (or @usernames) allowed to interact with the bot commands. */
+function allowedChats(env: Environment): string[] {
+    return env.TELEGRAM_ID.split(',').map(item => item.trim()).filter(Boolean);
+}
+
+/** True when the update comes from a chat the owner configured in TELEGRAM_ID. */
+function isAllowedChat(env: Environment, chat: Telegram.Chat): boolean {
+    const allowed = allowedChats(env);
+    if (allowed.includes(`${chat.id}`)) {
+        return true;
+    }
+    const username = chat.username ? `@${chat.username}`.toLowerCase() : null;
+    return username !== null && allowed.some(item => item.toLowerCase() === username);
+}
+
 async function handleReplyEmailCommand(message: Telegram.Message, env: Environment): Promise<void> {
     const { TELEGRAM_TOKEN, RESEND_API_KEY, DB } = env;
     const dao = new Dao(DB);
@@ -125,7 +140,7 @@ async function handleReplyEmailCommand(message: Telegram.Message, env: Environme
             await reply('Please reply to a message to resend.');
             return;
         }
-        const emailId = await dao.getEmailIdByTelegramMessage(messageID);
+        const emailId = await dao.getEmailIdByTelegramMessage(message.chat.id, messageID);
         if (!emailId) {
             await reply('Message not found.');
             return;
@@ -137,6 +152,12 @@ async function handleReplyEmailCommand(message: Telegram.Message, env: Environme
         }
         logTelegram('reply_email.send', { chatId: message.chat.id, messageId: message.message_id, emailId });
         await replyToEmail(RESEND_API_KEY, mail, message.text);
+        try {
+            await dao.recordSentReply(mail, message.text);
+        } catch (e) {
+            // The reply itself went out; only the Sent-folder copy failed.
+            logTelegramError('reply_email.record.failed', e, { chatId: message.chat.id, emailId });
+        }
         await reply('Reply sent successfully.');
     } catch (e) {
         logTelegramError('reply_email.error', e, { chatId: message.chat.id, messageId: message.message_id });
@@ -152,16 +173,24 @@ async function telegramCommandHandler(message: Telegram.Message, env: Environmen
         hasText: !!message?.text,
         isReply: !!message?.reply_to_message,
     });
+    // Strangers get no response at all: commands, the Mini App card and the
+    // reply-to-email flow are for the chats the owner configured.
+    if (!isAllowedChat(env, message.chat)) {
+        logTelegram('message.unauthorized_chat', { chatId: message.chat.id, messageId: message.message_id });
+        return;
+    }
     if (message?.reply_to_message) {
         await handleReplyEmailCommand(message, env);
         return;
     }
-    let [command] = message.text?.split(/ (.*)/) || [''];
-    if (!command.startsWith('/')) {
-        logTelegram('message.invalid_command', { command, chatId: message.chat.id, messageId: message.message_id });
+    const text = message.text || '';
+    if (!text.startsWith('/')) {
+        // Plain chat text is not a command; stay quiet instead of answering
+        // every message with the Mini App card.
+        logTelegram('message.ignored', { chatId: message.chat.id, messageId: message.message_id });
         return;
     }
-    command = command.substring(1);
+    const command = text.split(' ')[0].substring(1);
     if (command === 'start') {
         logTelegram('command.start', { chatId: message.chat.id, messageId: message.message_id });
     } else {

@@ -27,6 +27,17 @@ const EMAIL_COLUMNS = `id, message_id, folder, subject, sender, sender_name, rec
     date, is_read, is_starred, body_html, body_text, raw_key, size, in_reply_to,
     references_json, thread_id, raw_headers, has_attachments, created_at`;
 
+/**
+ * List queries carry a truncated plain-text preview instead of the full bodies:
+ * a page of emails would otherwise drag megabytes of HTML, and R2-offloaded
+ * bodies only exist as `bodies/…` pointers in D1 (their snippet is NULL).
+ */
+const EMAIL_LIST_COLUMNS = `id, message_id, folder, subject, sender, sender_name, recipient, cc, bcc,
+    date, is_read, is_starred, size, in_reply_to,
+    references_json, thread_id, has_attachments, created_at,
+    CASE WHEN body_text LIKE 'bodies/%' OR body_text LIKE 'attachments/%' THEN NULL
+         ELSE substr(body_text, 1, 220) END AS snippet`;
+
 /** D1 caps bound parameters per query, so id lists are split into chunks. */
 const ID_CHUNK_SIZE = 80;
 
@@ -155,8 +166,10 @@ export class Dao {
             bindings.push(folder);
         }
         if (options.query) {
-            conditions.push('(subject LIKE ? OR sender LIKE ? OR body_text LIKE ?)');
-            const like = `%${options.query}%`;
+            // Search matches inline bodies only; bodies offloaded to R2 are not
+            // present in D1 and are silently out of scope for `q`.
+            conditions.push(`(subject LIKE ? ESCAPE '\\' OR sender LIKE ? ESCAPE '\\' OR body_text LIKE ? ESCAPE '\\')`);
+            const like = `%${options.query.replace(/[\\%_]/g, ch => `\\${ch}`)}%`;
             bindings.push(like, like, like);
         }
         if (options.starred !== undefined) {
@@ -176,7 +189,7 @@ export class Dao {
         ).bind(...bindings).first<{ total: number }>();
 
         const rows = await this.db.prepare(
-            `SELECT ${EMAIL_COLUMNS} FROM emails ${where} ORDER BY date DESC LIMIT ? OFFSET ?`,
+            `SELECT ${EMAIL_LIST_COLUMNS} FROM emails ${where} ORDER BY date DESC LIMIT ? OFFSET ?`,
         ).bind(...bindings, limit, offset).all<EmailRecord>();
 
         return {
@@ -378,19 +391,49 @@ export class Dao {
         }
     }
 
-    // ----------------------------------------------------- telegram mapping
-
-    async saveTelegramMessage(telegramMessageId: number, emailId: string): Promise<void> {
-        await this.db.prepare(
-            `INSERT INTO telegram_messages (telegram_message_id, email_id, created_at) VALUES (?, ?, ?)
-             ON CONFLICT (telegram_message_id) DO UPDATE SET email_id = excluded.email_id`,
-        ).bind(`${telegramMessageId}`, emailId, new Date().toISOString()).run();
+    /** Persist a reply sent through Resend so it shows up in the Sent folder. */
+    async recordSentReply(original: EmailRecord, text: string): Promise<void> {
+        const subject = original.subject.startsWith('Re: ') ? original.subject : `Re: ${original.subject}`;
+        await this.insertEmail(
+            {
+                messageId: crypto.randomUUID(),
+                from: original.recipient,
+                fromName: null,
+                to: original.sender,
+                cc: null,
+                bcc: null,
+                subject,
+                text,
+                html: null,
+                inReplyTo: original.message_id,
+                references: original.message_id ? [original.message_id] : [],
+                date: new Date().toISOString(),
+                rawHeaders: null,
+                attachments: [],
+            },
+            {
+                id: crypto.randomUUID(),
+                folder: 'sent',
+                size: text.length,
+            },
+        );
     }
 
-    async getEmailIdByTelegramMessage(telegramMessageId: number | string): Promise<string | null> {
+    // ----------------------------------------------------- telegram mapping
+
+    async saveTelegramMessage(telegramMessageId: number, chatId: number | string, emailId: string): Promise<void> {
+        await this.db.prepare(
+            `INSERT INTO telegram_messages (telegram_message_id, chat_id, email_id, created_at) VALUES (?, ?, ?, ?)
+             ON CONFLICT (telegram_message_id) DO UPDATE SET chat_id = excluded.chat_id, email_id = excluded.email_id`,
+        ).bind(`${telegramMessageId}`, `${chatId}`, emailId, new Date().toISOString()).run();
+    }
+
+    async getEmailIdByTelegramMessage(chatId: number | string, telegramMessageId: number | string): Promise<string | null> {
+        // Telegram message ids are per-chat, so the chat must match the chat the
+        // notification was actually sent to.
         const row = await this.db.prepare(
-            'SELECT email_id FROM telegram_messages WHERE telegram_message_id = ?',
-        ).bind(`${telegramMessageId}`).first<{ email_id: string }>();
+            'SELECT email_id FROM telegram_messages WHERE telegram_message_id = ? AND chat_id = ?',
+        ).bind(`${telegramMessageId}`, `${chatId}`).first<{ email_id: string }>();
         return row?.email_id ?? null;
     }
 

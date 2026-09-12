@@ -19,4 +19,8 @@ export async function scheduledHandler(_event: ScheduledController, env: Environ
     if (result.emails > 0 || result.attachments > 0) {
         console.log(`[cron] cleanup removed ${result.emails} emails and ${result.attachments} attachments (older than ${cutoff})`);
     }
+    // The pass is capped, so a large backlog needs several daily runs.
+    if (result.remaining > 0) {
+        console.log(`[cron] cleanup ${result.remaining} emails still in range; the next run continues`);
+    }
 }
