@@ -1,41 +1,45 @@
-import { Tabbar, TabbarLink } from 'konsta/react';
+import type { ComponentType } from 'react';
+import { GearIcon, MailIcon } from '../components/ios/Icons';
 
-export interface TabBarProps {
+export interface MessageTabBarProps {
     active: 'inbox' | 'settings';
     unread: number;
     onChange: (tab: 'inbox' | 'settings') => void;
 }
 
-function TabIcon({ label, active }: { label: string; active: boolean }) {
-    return (
-        <span
-            className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[12px] font-semibold"
-            style={{
-                background: active ? 'var(--tg-theme-link-color, #007aff)' : 'color-mix(in srgb, currentColor 14%, transparent)',
-                color: active ? '#fff' : 'inherit',
-            }}
-            aria-hidden
-        >
-            {label}
-        </span>
-    );
+interface Tab {
+    key: 'inbox' | 'settings';
+    label: string;
+    Icon: ComponentType<{ size?: number }>;
 }
 
-export function TabBar({ active, unread, onChange }: TabBarProps) {
+const TABS: Tab[] = [
+    { key: 'inbox', label: 'Mail', Icon: MailIcon },
+    { key: 'settings', label: 'Settings', Icon: GearIcon },
+];
+
+/** iOS style bottom tab bar with the unread badge on Mail. */
+export function MessageTabBar({ active, unread, onChange }: MessageTabBarProps) {
     return (
-        <Tabbar labels icons className="left-0 bottom-0 fixed">
-            <TabbarLink
-                active={active === 'inbox'}
-                onClick={() => onChange('inbox')}
-                icon={<TabIcon label="In" active={active === 'inbox'} />}
-                label={unread > 0 ? `Inbox (${unread})` : 'Inbox'}
-            />
-            <TabbarLink
-                active={active === 'settings'}
-                onClick={() => onChange('settings')}
-                icon={<TabIcon label="St" active={active === 'settings'} />}
-                label="Settings"
-            />
-        </Tabbar>
+        <div className="ios-tabbar">
+            {TABS.map(({ key, label, Icon }) => {
+                const selected = active === key;
+                return (
+                    <button
+                        key={key}
+                        type="button"
+                        className="ios-tabbar__item"
+                        style={{ color: selected ? 'var(--ios-blue)' : 'var(--ios-gray)' }}
+                        onClick={() => onChange(key)}
+                    >
+                        <span className="relative">
+                            <Icon size={26} />
+                            {key === 'inbox' && unread > 0 ? <span className="ios-tabbar__badge">{unread > 99 ? '99+' : unread}</span> : null}
+                        </span>
+                        <span className="ios-tabbar__label">{label}</span>
+                    </button>
+                );
+            })}
+        </div>
     );
 }

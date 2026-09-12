@@ -1,0 +1,261 @@
+import type { EmailDetailResponse } from '../../types';
+import { List, ListItem, Preloader } from 'konsta/react';
+import { useEffect, useMemo, useState } from 'react';
+import { api, fetchAttachmentBlob } from '../../api/client';
+import { useAsync } from '../../hooks/useAsync';
+import { useDarkMode } from '../../hooks/useTheme';
+import { formatBytes, formatFullDate, initialOf, senderLabel } from '../../lib/format';
+import { haptic } from '../../lib/haptics';
+import { buildEmailDocument } from '../../lib/sanitize';
+import { AttachmentIcon, FlagIcon, ReplyIcon, SparkleIcon, StarIcon, TrashIcon } from './Icons';
+import { NavBar } from './NavBar';
+import { ReplySheet } from './ReplySheet';
+
+export interface MessageReaderProps {
+    emailId: string;
+    onChanged?: () => void;
+    onDeleted?: () => void;
+    /**
+     * When provided, a navbar with the native Telegram back button is rendered
+     * for the compact (single column) layout. In the split layout the reader has
+     * no navigation bar, matching iPadOS Mail.
+     */
+    onBack?: () => void;
+}
+
+/** iOS Mail message view: header, body, attachments and a bottom action bar. */
+export function MessageReader({ emailId, onChanged, onDeleted, onBack }: MessageReaderProps) {
+    const dark = useDarkMode();
+    const { data, loading, error, reload, setData } = useAsync<EmailDetailResponse>(
+        () => api.getEmail(emailId),
+        [emailId],
+    );
+    const [showHtml, setShowHtml] = useState(true);
+    const [summary, setSummary] = useState<string | null>(null);
+    const [busy, setBusy] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [replyOpen, setReplyOpen] = useState(false);
+
+    const email = data?.email;
+
+    useEffect(() => {
+        setShowHtml(true);
+        setSummary(null);
+        setActionError(null);
+        setBusy(null);
+    }, [emailId]);
+
+    useEffect(() => {
+        if (email && email.is_read === 0) {
+            api.updateEmail(email.id, { isRead: true })
+                .then(() => {
+                    setData(prev => (prev ? { ...prev, email: { ...prev.email, is_read: 1 } } : prev));
+                    onChanged?.();
+                })
+                .catch(() => {});
+        }
+    }, [email?.id, email?.is_read]);
+
+    const bodyDocument = useMemo(
+        () => (email?.body_html ? buildEmailDocument(email.body_html, dark) : null),
+        [email?.body_html, dark],
+    );
+
+    if (loading && !data) {
+        return <div className="spin-center"><Preloader /></div>;
+    }
+    if (error || !email || !data) {
+        return (
+            <div className="reader-empty">
+                <div>
+                    <p className="mb-3">{error?.message || 'This message could not be loaded.'}</p>
+                    <button type="button" className="text-[var(--ios-blue)]" onClick={reload}>Try Again</button>
+                </div>
+            </div>
+        );
+    }
+
+    const run = async (key: string, task: () => Promise<void>) => {
+        setBusy(key);
+        setActionError(null);
+        try {
+            await task();
+        } catch (e) {
+            setActionError((e as Error).message);
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    const toggleStar = () => run('star', async () => {
+        const next = email.is_starred === 0;
+        haptic.selection();
+        await api.updateEmail(email.id, { isStarred: next });
+        setData(prev => (prev ? { ...prev, email: { ...prev.email, is_starred: next ? 1 : 0 } } : prev));
+        onChanged?.();
+    });
+
+    const toggleRead = () => run('read', async () => {
+        const markUnread = email.is_read === 1;
+        await api.updateEmail(email.id, { isRead: !markUnread });
+        setData(prev => (prev ? { ...prev, email: { ...prev.email, is_read: markUnread ? 0 : 1 } } : prev));
+        onChanged?.();
+    });
+
+    const remove = () => run('delete', async () => {
+        haptic.impact();
+        await api.deleteEmail(email.id);
+        onDeleted?.();
+    });
+
+    const summarize = () => run('summary', async () => {
+        const result = await api.summarize(email.id);
+        setSummary(result.summary);
+    });
+
+    const download = (attachmentId: string, filename: string) => run(attachmentId, async () => {
+        const blob = await fetchAttachmentBlob(email.id, attachmentId);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    });
+
+    const hasHtml = Boolean(email.body_html);
+
+    return (
+        <div className="reader">
+            {onBack ? <NavBar title={email.subject || '(no subject)'} onBack={onBack} /> : null}
+            <div className="reader__scroll">
+                <div className="reader__head">
+                    <h1 className="reader__subject">{email.subject || '(no subject)'}</h1>
+                    <div className="reader__from">
+                        <span className="reader__avatar" style={{ background: selectedAvatarColor(email.sender) }}>
+                            {initialOf(senderLabel(email))}
+                        </span>
+                        <span className="reader__from-main">
+                            <span className="reader__from-name">{senderLabel(email)}</span>
+                            <br />
+                            <span className="reader__from-addr">{email.sender}</span>
+                        </span>
+                        <span className="reader__date">
+                            {formatFullDate(email.date)}
+                            <br />
+                            {email.is_starred ? '★ ' : ''}
+                            {formatBytes(email.size)}
+                        </span>
+                    </div>
+                    <div className="reader__recipient reader__to" style={{ marginTop: 10, fontSize: 13, color: 'var(--ios-gray)' }}>
+                        {`To: ${email.recipient}`}
+                        {email.cc ? ` · Cc: ${email.cc}` : ''}
+                    </div>
+                </div>
+
+                {hasHtml && email.body_text ? (
+                    <div className="flex gap-2 px-4 pb-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowHtml(true)}
+                            className={`rounded-full px-3 py-1 text-[13px] ${showHtml ? 'bg-[var(--ios-blue)] text-white' : 'bg-black/5 dark:bg-white/10'}`}
+                        >
+                            HTML
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowHtml(false)}
+                            className={`rounded-full px-3 py-1 text-[13px] ${!showHtml ? 'bg-[var(--ios-blue)] text-white' : 'bg-black/5 dark:bg-white/10'}`}
+                        >
+                            Plain Text
+                        </button>
+                    </div>
+                ) : null}
+
+                {showHtml && bodyDocument ? (
+                    <iframe
+                        title="Message content"
+                        className="reader__frame"
+                        sandbox="allow-popups allow-popups-to-escape-sandbox"
+                        srcDoc={bodyDocument}
+                    />
+                ) : (
+                    <div className="reader__text">{email.body_text || 'No content.'}</div>
+                )}
+
+                {summary ? (
+                    <>
+                        <div className="reader__section-title">Summary</div>
+                        <div className="reader__text">{summary}</div>
+                    </>
+                ) : null}
+
+                {data.attachments.length > 0 ? (
+                    <>
+                        <div className="reader__section-title">
+                            {data.attachments.length === 1 ? '1 Attachment' : `${data.attachments.length} Attachments`}
+                        </div>
+                        <List strongIos outlineIos className="!my-0">
+                            {data.attachments.map(attachment => (
+                                <ListItem
+                                    key={attachment.id}
+                                    link
+                                    media={<AttachmentIcon size={22} />}
+                                    onClick={() => download(attachment.id, attachment.filename)}
+                                    title={attachment.filename}
+                                    after={busy === attachment.id ? 'Saving…' : formatBytes(attachment.size)}
+                                />
+                            ))}
+                        </List>
+                    </>
+                ) : null}
+
+                {actionError ? <div className="settings-note" style={{ color: '#ff3b30' }}>{actionError}</div> : null}
+                <div style={{ height: 12 }} />
+            </div>
+
+            <div className="ios-toolbar">
+                <div className="ios-toolbar__inner">
+                    {data.resendEnabled ? (
+                        <button type="button" className="ios-toolbar__button" onClick={() => setReplyOpen(true)}>
+                            <ReplyIcon size={24} />
+                            <span>Reply</span>
+                        </button>
+                    ) : null}
+                    {data.summaryEnabled ? (
+                        <button type="button" className="ios-toolbar__button" disabled={busy === 'summary'} onClick={summarize}>
+                            <SparkleIcon size={24} />
+                            <span>{busy === 'summary' ? 'Working' : 'Summarize'}</span>
+                        </button>
+                    ) : null}
+                    <button type="button" className="ios-toolbar__button" onClick={toggleRead}>
+                        <FlagIcon size={24} />
+                        <span>{email.is_read === 0 ? 'Read' : 'Unread'}</span>
+                    </button>
+                    <button type="button" className="ios-toolbar__button" onClick={toggleStar}>
+                        <StarIcon size={24} />
+                        <span>{email.is_starred ? 'Unstar' : 'Star'}</span>
+                    </button>
+                    <button type="button" className="ios-toolbar__button ios-toolbar__button--danger" onClick={remove}>
+                        <TrashIcon size={24} />
+                        <span>Delete</span>
+                    </button>
+                </div>
+            </div>
+
+            <ReplySheet opened={replyOpen} emailId={email.id} onClose={() => setReplyOpen(false)} />
+        </div>
+    );
+}
+
+const AVATAR_COLORS = ['#007aff', '#34c759', '#ff9500', '#af52de', '#ff2d55', '#5856d6', '#00c7be'];
+
+function selectedAvatarColor(seed: string): string {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i += 1) {
+        hash = (hash * 31 + seed.charCodeAt(i)) % 997;
+    }
+    return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}

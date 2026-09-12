@@ -1,14 +1,43 @@
 @import 'tailwindcss';
 @import 'konsta/theme.css';
 
+/* Konsta's theme.css uses @source paths relative to itself, which no longer
+   resolve once it is @import-ed. Point Tailwind at the package explicitly so
+   every `k-*` component class and utility it references is generated. */
+@source "../../node_modules/konsta/react";
+@source "../../node_modules/konsta/shared";
+@source "../../node_modules/konsta/styles";
+
+/* ------------------------------------------------------------------ tokens */
+
 :root {
-    --app-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Roboto, sans-serif;
+    color-scheme: light;
+    --ios-blue: #007aff;
+    --ios-gray: #8e8e93;
+    --ios-gray-2: #c7c7cc;
+    --ios-text: #000000;
+    --ios-separator: rgba(60, 60, 67, 0.29);
+    --ios-grouped-bg: #f2f2f7;
+    --ios-surface: #ffffff;
+    --ios-navbar-blur: rgba(249, 249, 249, 0.94);
+    --ios-toolbar-blur: rgba(249, 249, 249, 0.94);
+
+    --app-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Helvetica Neue', Arial, sans-serif;
     --tg-viewport-height: 100vh;
     --tg-viewport-stable-height: 100vh;
-    --tg-safe-area-inset-top: env(safe-area-inset-top, 0px);
-    --tg-safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
-    --tg-content-safe-area-inset-top: env(safe-area-inset-top, 0px);
-    --tg-content-safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.dark {
+    color-scheme: dark;
+    --ios-blue: #0a84ff;
+    --ios-gray: #8e8e93;
+    --ios-gray-2: #48484a;
+    --ios-text: #ffffff;
+    --ios-separator: rgba(84, 84, 88, 0.6);
+    --ios-grouped-bg: #000000;
+    --ios-surface: #1c1c1e;
+    --ios-navbar-blur: rgba(22, 22, 22, 0.94);
+    --ios-toolbar-blur: rgba(22, 22, 22, 0.94);
 }
 
 html,
@@ -17,59 +46,114 @@ body,
     height: 100%;
 }
 
+/* Explicit colors: without these, `color-scheme: light dark` lets the browser
+   pick a UA default (white text) that can disagree with our own palette. */
+html {
+    background: var(--ios-grouped-bg);
+}
+
 body {
     margin: 0;
     font-family: var(--app-font);
+    color: var(--ios-text);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     overscroll-behavior-y: none;
+    background: var(--ios-grouped-bg);
 }
 
-/* The Konsta App wrapper needs an explicit height to fill the Mini App viewport. */
+/* Konsta App wrapper fills the Mini App viewport. */
 .k-app {
     min-height: var(--tg-viewport-stable-height);
+    background: var(--ios-grouped-bg);
 }
 
-/* Layout shells ---------------------------------------------------------- */
+/* ------------------------------------------------------------------ navbar */
+
+.ios-navbar {
+    background: var(--ios-navbar-blur);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.ios-navbar::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 0.5px;
+    background: var(--ios-separator);
+}
+
+.ios-navbar .k-navbar-inner .hairline-b::after,
+.ios-navbar .hairline-b::after {
+    display: none;
+}
+
+/* iOS large title typography. Konsta sets the size/weight; tighten the leading
+   to match Mail's 34pt large title. */
+.ios-navbar .font-bold.text-\[34px\] {
+    line-height: 41px;
+    letter-spacing: 0.37px;
+}
+
+/* ------------------------------------------------------------------ layout */
 
 .app-shell {
     display: flex;
     flex-direction: column;
-    min-height: var(--tg-viewport-stable-height);
+    height: var(--tg-viewport-stable-height);
+    background: var(--ios-grouped-bg);
 }
 
-.app-shell__body {
+.page-scroll {
     flex: 1 1 auto;
     min-height: 0;
-    display: flex;
-    height: var(--tg-viewport-stable-height);
-}
-
-.split-pane {
-    min-height: 0;
     overflow-y: auto;
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    -webkit-overflow-scrolling: touch;
+    background: var(--ios-grouped-bg);
 }
 
-.split-pane:last-child {
-    border-right: none;
-}
-
-.split-view--sidebar {
-    width: 220px;
-    flex: 0 0 220px;
+/* iPadOS split view: sidebar, list, reader. */
+.split-view {
+    display: grid;
+    width: 100%;
+    height: 100%;
     min-height: 0;
-    overflow-y: auto;
-    background: var(--tg-theme-secondary-bg-color, #f1f1f1);
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.split-view--three {
+    grid-template-columns: 260px 340px minmax(360px, 1fr);
 }
 
 .split-view--two {
-    display: grid;
-    grid-template-columns: minmax(280px, 1fr) minmax(340px, 1.5fr);
-    width: 100%;
+    grid-template-columns: 340px minmax(360px, 1fr);
+}
+
+.split-view--list {
+    grid-template-columns: minmax(320px, 1fr);
+}
+
+.split-view--sidebar {
+    grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.split-column {
+    min-width: 0;
     min-height: 0;
-    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--ios-surface);
+    border-right: 0.5px solid var(--ios-separator);
+}
+
+.split-column:last-child {
+    border-right: none;
+}
+
+.split-column--sidebar {
+    background: var(--ios-grouped-bg);
 }
 
 .reader-empty {
@@ -77,131 +161,422 @@ body {
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: var(--tg-theme-hint-color, #999);
-    font-size: 15px;
-    padding: 24px;
+    padding: 32px;
     text-align: center;
+    color: var(--ios-gray);
+    font-size: 15px;
+    background: var(--ios-grouped-bg);
 }
 
-/* Mail list -------------------------------------------------------------- */
+/* -------------------------------------------------------------- mailbox list */
 
-.mail-row {
+.mailbox-list {
+    padding: 0;
+}
+
+.mailbox-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
     cursor: pointer;
+    background: var(--ios-surface);
 }
 
-.mail-row--unread .mail-row__subject {
+.mailbox-row + .mailbox-row {
+    border-top: 0.5px solid var(--ios-separator);
+    margin-top: 0;
+}
+
+.mailbox-row__icon {
+    flex: 0 0 auto;
+    width: 29px;
+    height: 29px;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+}
+
+.mailbox-row__icon svg {
+    width: 17px;
+    height: 17px;
+}
+
+.mailbox-row__label {
+    flex: 1 1 auto;
+    font-size: 17px;
+    color: var(--ios-text, #000);
+}
+
+.mailbox-row__count {
+    font-size: 17px;
+    color: var(--ios-gray);
+    min-width: 12px;
+    text-align: right;
+}
+
+.mailbox-row__chevron {
+    flex: 0 0 auto;
+    color: var(--ios-gray-2);
+}
+
+.dark .mailbox-row__label {
+    color: #fff;
+}
+
+/* -------------------------------------------------------------- message list */
+
+.message-row {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px 12px 16px;
+    cursor: pointer;
+    position: relative;
+    background: var(--ios-surface);
+}
+
+.message-row::after {
+    content: '';
+    position: absolute;
+    left: 16px;
+    right: 0;
+    bottom: 0;
+    height: 0.5px;
+    background: var(--ios-separator);
+}
+
+.message-row--unread .message-row__sender {
     font-weight: 600;
 }
 
-.mail-row__subject {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+.message-row__dot {
+    flex: 0 0 auto;
+    width: 10px;
+    padding-top: 6px;
+    display: flex;
+    justify-content: flex-start;
 }
 
-.mail-row__preview {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    color: var(--tg-theme-hint-color, #8e8e93);
-    font-size: 13px;
+.message-row__dot span {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--ios-blue);
 }
 
-.mail-row__meta {
+.message-row__dot--read span {
+    background: transparent;
+}
+
+.message-row__body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.message-row__top {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.message-row__sender {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--ios-text, #000);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.message-row__time {
+    flex: 0 0 auto;
+    font-size: 15px;
+    color: var(--ios-gray);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 3px;
 }
 
-.mail-row__unread-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 999px;
-    background: var(--tg-theme-link-color, #007aff);
-    flex: 0 0 auto;
+.message-row__subject {
+    margin-top: 1px;
+    font-size: 15px;
+    line-height: 20px;
+    color: var(--ios-text, #000);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
-/* Email reader ----------------------------------------------------------- */
+.message-row__preview {
+    margin-top: 1px;
+    font-size: 15px;
+    line-height: 20px;
+    color: var(--ios-gray);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.message-row__star {
+    color: #ff9500;
+    margin-right: 2px;
+}
+
+.dark .message-row__sender,
+.dark .message-row__subject {
+    color: #fff;
+}
+
+/* Search + filter header above the list. */
+.list-header {
+    background: var(--ios-surface);
+    border-bottom: 0.5px solid var(--ios-separator);
+}
+
+.list-header .k-searchbar {
+    padding-inline: 0;
+}
+
+/* -------------------------------------------------------------- reader */
 
 .reader {
     display: flex;
     flex-direction: column;
     height: 100%;
     min-height: 0;
+    background: var(--ios-surface);
 }
 
-.reader__header {
+.reader__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.reader__head {
     padding: 12px 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background: var(--ios-surface);
 }
 
 .reader__subject {
-    font-size: 19px;
+    margin: 0;
+    font-size: 17px;
+    line-height: 23px;
     font-weight: 600;
-    line-height: 1.3;
-    margin: 0 0 6px;
+    color: var(--ios-text, #000);
 }
 
 .reader__from {
-    font-size: 14px;
-    color: var(--tg-theme-text-color, #000);
-}
-
-.reader__to {
-    font-size: 12px;
-    color: var(--tg-theme-hint-color, #8e8e93);
-}
-
-.reader__body {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-    padding: 0;
-}
-
-.reader__frame {
-    width: 100%;
-    height: 100%;
-    min-height: 320px;
-    border: 0;
-    background: #fff;
-}
-
-.reader__text {
-    padding: 16px;
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-size: 15px;
-    line-height: 1.5;
-}
-
-.attachment-row {
+    margin-top: 12px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
 }
 
-.attachment-row__name {
+.reader__avatar {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 500;
+    color: #fff;
+    background: var(--ios-gray);
+}
+
+.reader__from-main {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.reader__from-name {
+    font-size: 16px;
+    color: var(--ios-text, #000);
+}
+
+.reader__from-addr {
+    font-size: 13px;
+    color: var(--ios-gray);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+.reader__date {
+    flex: 0 0 auto;
+    font-size: 13px;
+    color: var(--ios-gray);
+    text-align: right;
+}
+
+.reader__frame {
+    display: block;
+    width: 100%;
+    min-height: 60vh;
+    border: 0;
+    background: transparent;
+}
+
+.reader__text {
+    padding: 16px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--ios-text, #000);
+}
+
+.reader__section-title {
+    padding: 16px 16px 6px;
+    font-size: 13px;
+    color: var(--ios-gray);
+    text-transform: uppercase;
+}
+
+/* Bottom action toolbar in the message view. */
+.ios-toolbar {
+    flex: 0 0 auto;
+    background: var(--ios-toolbar-blur);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-top: 0.5px solid var(--ios-separator);
+}
+
+.ios-toolbar__inner {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
+}
+
+.ios-toolbar__button {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 2px;
+    background: none;
+    border: 0;
+    color: var(--ios-blue);
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.ios-toolbar__button:disabled {
+    color: var(--ios-gray-2);
+    cursor: default;
+}
+
+.ios-toolbar__button svg {
+    width: 24px;
+    height: 24px;
+}
+
+.ios-toolbar__button--danger {
+    color: #ff3b30;
+}
+
+/* --------------------------------------------------------------- tab bar */
+
+.ios-tabbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: stretch;
+    padding: 4px 0 calc(4px + env(safe-area-inset-bottom, 0px));
+    background: var(--ios-toolbar-blur);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-top: 0.5px solid var(--ios-separator);
+}
+
+.ios-tabbar__item {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 0 2px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.ios-tabbar__label {
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.ios-tabbar__badge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #ff3b30;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    text-align: center;
+}
+
+/* -------------------------------------------------------------- settings */
+
+.settings-section-title {
+    padding: 22px 16px 7px;
+    font-size: 13px;
+    color: var(--ios-gray);
+    text-transform: uppercase;
+}
+
+.settings-note {
+    padding: 7px 16px 0;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ios-gray);
+}
+
+.settings-hero {
+    padding: 20px 16px 8px;
+    font-size: 34px;
+    line-height: 41px;
+    font-weight: 700;
+    color: var(--ios-text, #000);
+}
+
+.k-list-item .settings-remove {
+    color: #ff3b30;
+    font-size: 17px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+/* -------------------------------------------------------------- misc */
+
+.spin-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 0;
+}
+
+.icon-inline {
+    display: inline-flex;
+    align-items: center;
+}
+
 .k-list .group-title {
     text-transform: none;
-}
-
-.settings-hint {
-    padding: 6px 16px 12px;
-    font-size: 12px;
-    color: var(--tg-theme-hint-color, #8e8e93);
-    line-height: 1.4;
-}
-
-.dark .reader__header,
-.dark .split-pane {
-    border-color: rgba(255, 255, 255, 0.12);
 }
