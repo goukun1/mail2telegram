@@ -57,6 +57,20 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
         }
     }, [data?.unread, onUnreadChange]);
 
+    // Swipe-to-delete: move the message to trash (or erase it when already
+    // there) and drop the selection if the open message was the one removed.
+    const removeEmail = async (email: Email) => {
+        try {
+            await api.deleteEmail(email.id);
+        } catch {
+            return;
+        }
+        if (email.id === selectedId) {
+            onSelect(null);
+        }
+        reload();
+    };
+
     useEffect(() => {
         const timer = setTimeout(() => {
             setAppliedQuery(query);
@@ -142,6 +156,7 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
                         emails={emails}
                         selectedId={selectedId}
                         onSelect={(email: Email) => onSelect(email.id)}
+                        onDelete={removeEmail}
                         onEndReached={hasMore ? () => setLimit(value => value + PAGE_SIZE) : undefined}
                     />
                 )}
