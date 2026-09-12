@@ -3,11 +3,11 @@ import { Searchbar, Segmented, SegmentedButton } from 'konsta/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { CloseIcon, SearchIcon } from '../components/ios/Icons';
-import { MAILBOXES } from '../components/ios/MailboxList';
 import { MessageList } from '../components/ios/MessageList';
 import { MessageReader } from '../components/ios/MessageReader';
 import { NavBar } from '../components/ios/NavBar';
 import { useAsync } from '../hooks/useAsync';
+import { Sidebar } from '../layout/Sidebar';
 
 const PAGE_SIZE = 30;
 
@@ -23,13 +23,16 @@ export interface InboxPageProps {
     onFolderChange: (folder: Folder) => void;
     selectedId: string | null;
     onSelect: (id: string | null) => void;
-    /** Show the Mailboxes pane (iPadOS three column layout). */
+    /** Show the Mailboxes pane (split layout). */
     showSidebar: boolean;
+    /** The window is wide enough for the reader to be its own column. */
+    readerColumn: boolean;
     onUnreadChange: (unread: number) => void;
+    onOpenSettings: () => void;
 }
 
 /** iOS Mail message list with search and folder filters. */
-export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSidebar, onUnreadChange }: InboxPageProps) {
+export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSidebar, readerColumn, onUnreadChange, onOpenSettings }: InboxPageProps) {
     const [query, setQuery] = useState('');
     const [appliedQuery, setAppliedQuery] = useState('');
     const [limit, setLimit] = useState(PAGE_SIZE);
@@ -50,6 +53,7 @@ export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSi
 
     const emails = data?.emails ?? [];
     const hasMore = data ? emails.length < data.total : false;
+    const unreadCount = data?.unread ?? 0;
 
     useEffect(() => {
         if (data?.unread !== undefined) {
@@ -149,15 +153,45 @@ export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSi
         </div>
     );
 
-    // iPadOS three column layout: mailboxes, list and reader side by side.
+    // iPadOS split layout: mailboxes, list and reader. When the window is too
+    // narrow for three columns the reader opens over the list, which is how
+    // iPadOS Mail behaves in a narrow window.
     if (showSidebar) {
+        const sidebar = (
+            <div className="split-column split-column--sidebar">
+                <Sidebar
+                    folder={folder}
+                    unread={unreadCount}
+                    isSettings={false}
+                    onSelectFolder={onFolderChange}
+                    onOpenSettings={onOpenSettings}
+                />
+            </div>
+        );
+
+        if (!readerColumn) {
+            return (
+                <div className="split-view split-view--three split-view--narrow">
+                    {sidebar}
+                    {listColumn}
+                    {selectedId ? (
+                        <div className="fixed inset-0 z-40 flex flex-col bg-[var(--ios-surface)]">
+                            <MessageReader
+                                key={selectedId}
+                                emailId={selectedId}
+                                onBack={() => onSelect(null)}
+                                onChanged={reload}
+                                onDeleted={() => onSelect(null)}
+                            />
+                        </div>
+                    ) : null}
+                </div>
+            );
+        }
+
         return (
             <div className="split-view split-view--three">
-                <div className="split-column split-column--sidebar">
-                    <div className="page-scroll">
-                        <MailboxPane folder={folder} onFolderChange={onFolderChange} />
-                    </div>
-                </div>
+                {sidebar}
                 {listColumn}
                 <div className="split-column">
                     {selectedId ? (
@@ -176,23 +210,4 @@ export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSi
     }
 
     return listColumn;
-}
-
-function MailboxPane({ folder, onFolderChange }: { folder: Folder; onFolderChange: (folder: Folder) => void }) {
-    return (
-        <div>
-            {MAILBOXES.map(({ key, label, color, Icon }) => (
-                <button
-                    key={key}
-                    type="button"
-                    className="mailbox-row w-full text-left"
-                    style={{ background: folder === key ? 'rgba(120,120,128,0.14)' : 'transparent', border: 0 }}
-                    onClick={() => onFolderChange(key)}
-                >
-                    <span className="mailbox-row__icon" style={{ background: color }}><Icon size={17} /></span>
-                    <span className="mailbox-row__label" style={{ fontWeight: folder === key ? 600 : 400 }}>{label}</span>
-                </button>
-            ))}
-        </div>
-    );
 }

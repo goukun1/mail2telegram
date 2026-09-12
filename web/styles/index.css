@@ -170,7 +170,10 @@ body {
 }
 
 .split-view--three {
-    grid-template-columns: 260px 340px minmax(360px, 1fr);
+    /* The reader may shrink so a small desktop window never overflows; below the
+       breakpoint the reader opens over the list instead (see --narrow). */
+    grid-template-columns: 260px 340px minmax(0, 1fr);
+    overflow: hidden;
 }
 
 .split-view--two {
@@ -201,6 +204,60 @@ body {
 
 .split-column--sidebar {
     background: var(--ios-grouped-bg);
+    overflow: hidden;
+}
+
+/* iPadOS Mailboxes sidebar with Settings pinned to the bottom left. */
+.ipad-sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.ipad-sidebar__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.ipad-sidebar__title {
+    padding: 14px 16px 6px;
+    font-size: 13px;
+    color: var(--ios-gray);
+    text-transform: uppercase;
+}
+
+.ipad-sidebar__footer {
+    flex: 0 0 auto;
+    border-top: 0.5px solid var(--ios-separator);
+    padding: 6px 8px calc(6px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+.ipad-sidebar__settings {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ios-text);
+    font-size: 15px;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.ipad-sidebar__settings.is-active {
+    background: rgba(120, 120, 128, 0.14);
+    font-weight: 600;
+}
+
+/* Narrow desktop windows: mailboxes + list only, the reader opens over them. */
+.split-view--narrow {
+    grid-template-columns: 220px minmax(0, 1fr) !important;
 }
 
 .reader-empty {
