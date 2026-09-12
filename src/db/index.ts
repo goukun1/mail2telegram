@@ -27,11 +27,40 @@ const EMAIL_COLUMNS = `id, message_id, folder, subject, sender, sender_name, rec
     date, is_read, is_starred, body_html, body_text, raw_key, size, in_reply_to,
     references_json, thread_id, raw_headers, has_attachments, created_at`;
 
+/** D1 caps bound parameters per query, so id lists are split into chunks. */
+const ID_CHUNK_SIZE = 80;
+
+/** Emails selected for removal, keeping the pointers needed to free R2 objects. */
+export interface EmailCleanupTarget {
+    id: string;
+    raw_key: string | null;
+    body_html: string | null;
+    body_text: string | null;
+}
+
+export interface AttachmentKeyRow {
+    id: string;
+    email_id: string;
+    r2_key: string;
+}
+
 function boolToInt(value: boolean | undefined): number | null {
     if (value === undefined) {
         return null;
     }
     return value ? 1 : 0;
+}
+
+function chunkIds(ids: string[]): string[][] {
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += ID_CHUNK_SIZE) {
+        chunks.push(ids.slice(i, i + ID_CHUNK_SIZE));
+    }
+    return chunks;
+}
+
+function placeholders(count: number): string {
+    return Array.from({ length: count }).fill('?').join(', ');
 }
 
 export class Dao {
@@ -178,8 +207,75 @@ export class Dao {
         await this.db.prepare(`UPDATE emails SET ${sets.join(', ')} WHERE id = ?`).bind(...bindings).run();
     }
 
-    async deleteEmail(id: string): Promise<void> {
-        await this.db.prepare('DELETE FROM emails WHERE id = ?').bind(id).run();
+    async deleteEmailsByIds(ids: string[]): Promise<void> {
+        for (const part of chunkIds(ids)) {
+            await this.db.prepare(`DELETE FROM emails WHERE id IN (${placeholders(part.length)})`).bind(...part).run();
+        }
+    }
+
+    // -------------------------------------------------------- cleanup scans
+
+    /** Emails received before the cutoff (ISO time), or every email when null. */
+    async findCleanupTargets(before: string | null, limit: number): Promise<EmailCleanupTarget[]> {
+        const sql = `SELECT id, raw_key, body_html, body_text FROM emails ${before ? 'WHERE created_at < ?' : ''} ORDER BY created_at LIMIT ?`;
+        const rows = before
+            ? await this.db.prepare(sql).bind(before, limit).all<EmailCleanupTarget>()
+            : await this.db.prepare(sql).bind(limit).all<EmailCleanupTarget>();
+        return rows.results ?? [];
+    }
+
+    async countCleanupTargets(before: string | null): Promise<number> {
+        const row = before
+            ? await this.db.prepare('SELECT COUNT(*) AS total FROM emails WHERE created_at < ?').bind(before).first<{ total: number }>()
+            : await this.db.prepare('SELECT COUNT(*) AS total FROM emails').first<{ total: number }>();
+        return row?.total ?? 0;
+    }
+
+    /** Attachment rows belonging to emails inside the cleanup range. */
+    async findAttachmentsBefore(before: string | null, limit: number): Promise<AttachmentKeyRow[]> {
+        const sql = `SELECT a.id, a.email_id, a.r2_key FROM attachments a JOIN emails e ON e.id = a.email_id ${before ? 'WHERE e.created_at < ?' : ''} LIMIT ?`;
+        const rows = before
+            ? await this.db.prepare(sql).bind(before, limit).all<AttachmentKeyRow>()
+            : await this.db.prepare(sql).bind(limit).all<AttachmentKeyRow>();
+        return rows.results ?? [];
+    }
+
+    async countAttachmentsBefore(before: string | null): Promise<number> {
+        const sql = `SELECT COUNT(*) AS total FROM attachments a JOIN emails e ON e.id = a.email_id ${before ? 'WHERE e.created_at < ?' : ''}`;
+        const row = before
+            ? await this.db.prepare(sql).bind(before).first<{ total: number }>()
+            : await this.db.prepare(sql).first<{ total: number }>();
+        return row?.total ?? 0;
+    }
+
+    async findAttachmentKeys(emailIds: string[]): Promise<Pick<AttachmentRecord, 'id' | 'r2_key'>[]> {
+        const result: Pick<AttachmentRecord, 'id' | 'r2_key'>[] = [];
+        for (const part of chunkIds(emailIds)) {
+            const rows = await this.db.prepare(
+                `SELECT id, r2_key FROM attachments WHERE email_id IN (${placeholders(part.length)})`,
+            ).bind(...part).all<Pick<AttachmentRecord, 'id' | 'r2_key'>>();
+            result.push(...(rows.results ?? []));
+        }
+        return result;
+    }
+
+    async deleteAttachmentsByIds(ids: string[]): Promise<void> {
+        for (const part of chunkIds(ids)) {
+            await this.db.prepare(`DELETE FROM attachments WHERE id IN (${placeholders(part.length)})`).bind(...part).run();
+        }
+    }
+
+    /** Drop has_attachments on range emails whose attachments are all gone. */
+    async clearAttachmentFlags(before: string | null): Promise<void> {
+        const sql = `UPDATE emails SET has_attachments = 0
+            WHERE has_attachments = 1
+              AND NOT EXISTS (SELECT 1 FROM attachments WHERE email_id = emails.id)
+            ${before ? 'AND created_at < ?' : ''}`;
+        if (before) {
+            await this.db.prepare(sql).bind(before).run();
+        } else {
+            await this.db.prepare(sql).run();
+        }
     }
 
     async countFolder(folder: Folder | 'all'): Promise<number> {

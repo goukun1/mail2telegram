@@ -32,7 +32,7 @@ export function SettingsSubPage({ title, loading, error, onRetry, children }: Se
                 <div className="reader-empty">
                     <div>
                         <p className="mb-3">{error.message}</p>
-                        {onRetry ? <button type="button" className="text-[var(--ios-blue)]" onClick={onRetry}>Try Again</button> : null}
+                        {onRetry ? <button type="button" className="text-button" onClick={onRetry}>Try Again</button> : null}
                     </div>
                 </div>
             </div>

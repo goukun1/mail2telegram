@@ -58,7 +58,7 @@ export async function summarizedByOpenAI(key: string, endpoint: string, model: s
 }
 
 export function summaryEnabled(env: Environment, settings: RuntimeSettings): boolean {
-    return settings.summaryEnabled && ((Boolean(env.AI) && Boolean(settings.workersAiModel)) || Boolean(env.OPENAI_API_KEY));
+    return settings.summaryEnabled && ((Boolean(env.AI) && Boolean(settings.workersAiModel)) || Boolean(settings.openaiApiKey));
 }
 
 /** Summarize an email body using the configured provider. */
@@ -68,8 +68,8 @@ export async function summarizeEmail(mail: EmailRecord, env: Environment, settin
     if (env.AI && settings.workersAiModel) {
         return await summarizedByWorkerAI(env.AI, settings.workersAiModel, prompt);
     }
-    if (env.OPENAI_API_KEY) {
-        return await summarizedByOpenAI(env.OPENAI_API_KEY, settings.openaiCompletionsApi, settings.openaiChatModel, prompt);
+    if (settings.openaiApiKey) {
+        return await summarizedByOpenAI(settings.openaiApiKey, settings.openaiCompletionsApi, settings.openaiChatModel, prompt);
     }
     throw new Error('No summarization provider is configured.');
 }

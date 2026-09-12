@@ -1,7 +1,6 @@
 import { List, ListItem, Preloader } from 'konsta/react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
-import { ChevronRightIcon } from '../../components/ios/Icons';
 import { NavBar } from '../../components/ios/NavBar';
 import { useAsync } from '../../hooks/useAsync';
 
@@ -36,7 +35,7 @@ export function SettingsHub() {
                 <div className="reader-empty">
                     <div>
                         <p className="mb-3">{error?.message || 'Settings could not be loaded.'}</p>
-                        <button type="button" className="text-[var(--ios-blue)]" onClick={reload}>Try Again</button>
+                        <button type="button" className="text-button" onClick={reload}>Try Again</button>
                     </div>
                 </div>
             </div>
@@ -52,6 +51,7 @@ export function SettingsHub() {
         { path: 'forwarding', title: 'Forwarding', value: settings.forwardEnabled ? 'On' : 'Off' },
         { path: 'summaries', title: 'Summaries', value: settings.summaryEnabled ? settings.summaryTargetLang : 'Off' },
         { path: 'handling', title: 'Mail Handling', value: `${Math.round(settings.mailTtl / 3600)}h` },
+        { path: 'cleanup', title: 'Clear Mail', value: '' },
         { path: 'bot', title: 'Bot & Webhook', value: '' },
     ];
 
@@ -65,12 +65,9 @@ export function SettingsHub() {
                             key={section.path}
                             link
                             title={section.title}
-                            after={(
-                                <span className="flex items-center gap-1 text-[15px] text-[var(--ios-gray)]">
-                                    {section.value}
-                                    <ChevronRightIcon size={14} />
-                                </span>
-                            )}
+                            /* Konsta's `link` already draws the trailing chevron,
+                               so the value alone goes in `after`. */
+                            after={<span className="text-[15px] text-[var(--ios-gray)]">{section.value}</span>}
                             onClick={() => navigate(`/settings/${section.path}`)}
                         />
                     ))}

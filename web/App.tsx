@@ -8,12 +8,15 @@ import { MessageReader } from './components/ios/MessageReader';
 import { useAsync } from './hooks/useAsync';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useDarkMode } from './hooks/useTheme';
+import { isTelegramEnvironment } from './init';
 import { Sidebar } from './layout/Sidebar';
 import { MessageTabBar } from './layout/TabBar';
 import { InboxPage } from './pages/InboxPage';
+import { LandingPage } from './pages/LandingPage';
 import { MailPage } from './pages/MailPage';
 import { AddressListPage } from './pages/settings/AddressListPage';
 import { BotPage } from './pages/settings/BotPage';
+import { CleanupPage } from './pages/settings/CleanupPage';
 import { ForwardingPage } from './pages/settings/ForwardingPage';
 import { HandlingPage } from './pages/settings/HandlingPage';
 import { SettingsHub } from './pages/settings/SettingsHub';
@@ -137,7 +140,22 @@ function InboxRoute() {
 
 function AppInner() {
     const dark = useDarkMode();
+    const [params, setParams] = useSearchParams();
     const { data, loading, error, reload } = useAsync<MeResponse>(() => api.me(), []);
+
+    // First-time /start opens the Mini App with ?setup=1; bind the webhook and
+    // set the bot menu button automatically, then drop the flag from the URL.
+    useEffect(() => {
+        if (params.get('setup') !== '1') {
+            return;
+        }
+        const next = new URLSearchParams(params);
+        next.delete('setup');
+        setParams(next, { replace: true });
+        api.rebindWebhook().catch((e) => {
+            console.error('[app] auto webhook setup failed', e);
+        });
+    }, [params, setParams]);
 
     // Keep the document palette in sync so `color-scheme`, our CSS variables and
     // Konsta's dark variants all describe the same theme.
@@ -145,15 +163,28 @@ function AppInner() {
         document.documentElement.classList.toggle('dark', dark);
     }, [dark]);
 
+    // `?landing` previews the non-Telegram landing page. Local development
+    // always authenticates through the mock environment, so the error branch
+    // that shows the landing in production is otherwise unreachable. It stays
+    // after the effects so the dark palette still applies to the landing.
+    if (new URLSearchParams(window.location.search).has('landing')) {
+        return <LandingPage />;
+    }
+
     if (loading && !data) {
         return <div className="spin-center" style={{ height: '100vh' }}><Preloader /></div>;
     }
     if (error || !data) {
+        // Outside Telegram, initData can never validate, so retrying is
+        // pointless; present the project landing page instead of a dead end.
+        if (!isTelegramEnvironment()) {
+            return <LandingPage />;
+        }
         return (
             <div className="reader-empty" style={{ height: '100vh' }}>
                 <div>
                     <p className="mb-3">{error?.message || 'Unable to authenticate with Telegram. Reopen the Mini App from the bot.'}</p>
-                    <button type="button" className="text-[var(--ios-blue)]" onClick={reload}>Try Again</button>
+                    <button type="button" className="text-button" onClick={reload}>Try Again</button>
                 </div>
             </div>
         );
@@ -174,6 +205,7 @@ function AppInner() {
                             <Route path="forwarding" element={<ForwardingPage />} />
                             <Route path="summaries" element={<SummariesPage />} />
                             <Route path="handling" element={<HandlingPage />} />
+                            <Route path="cleanup" element={<CleanupPage />} />
                             <Route path="bot" element={<BotPage />} />
                             <Route path="*" element={<Navigate to="/settings" replace />} />
                         </Route>

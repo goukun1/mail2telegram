@@ -1,4 +1,4 @@
-import type { Ai, D1Database, R2Bucket } from '@cloudflare/workers-types';
+import type { Ai, D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
 
 export type Folder = 'inbox' | 'spam' | 'trash' | 'sent';
 
@@ -111,13 +111,15 @@ export interface RuntimeSettings {
     maxEmailSize: number;
     maxEmailSizePolicy: MaxEmailSizePolicy;
     summaryEnabled: boolean;
+    openaiApiKey: string;
     workersAiModel: string;
     openaiChatModel: string;
     openaiCompletionsApi: string;
     summaryTargetLang: string;
     forwardEnabled: boolean;
+    /** Days of mail history kept by the daily cron; 0 disables auto cleanup. */
+    autoCleanupDays: number;
 }
-
 export interface Environment {
     TELEGRAM_TOKEN: string;
     TELEGRAM_ID: string;
@@ -125,7 +127,6 @@ export interface Environment {
     FORWARD_LIST: string;
     BLOCK_LIST: string;
     WHITE_LIST: string;
-    DISABLE_LOAD_REGEX_FROM_DB: string;
     BLOCK_POLICY: string;
     MAIL_TTL: string;
     MAX_EMAIL_SIZE?: string;
@@ -136,6 +137,8 @@ export interface Environment {
     WORKERS_AI_MODEL?: string;
     SUMMARY_TARGET_LANG?: string;
     GUARDIAN_MODE?: string;
+    /** Days of mail history kept by the daily cron; 0 disables it. Defaults to 7. */
+    AUTO_CLEANUP_DAYS?: string;
     RESEND_API_KEY?: string;
     DEBUG?: string;
     /** Local development only: accept Mini App requests without a valid signature. */
@@ -143,4 +146,6 @@ export interface Environment {
     DB: D1Database;
     BUCKET?: R2Bucket;
     AI?: Ai;
+    /** Optional KV store used to remember which chats already opened the Mini App. */
+    KV?: KVNamespace;
 }

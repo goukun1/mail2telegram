@@ -7,7 +7,6 @@ import { hydrateEmail, renderEmailDebugMode, renderEmailListMode, renderEmailPre
 import { createTelegramBotAPI } from './api';
 
 type TelegramMessageHandler = (message: Telegram.Message) => Promise<Response>;
-type CommandHandlerGroup = Record<string, TelegramMessageHandler>;
 
 function logTelegram(event: string, data?: Record<string, unknown>): void {
     console.log(`[telegram] ${event}${data ? ` ${JSON.stringify(data)}` : ''}`);
@@ -39,29 +38,55 @@ async function logTelegramResponse(method: string, response: Response): Promise<
     logTelegram('api.response', data);
 }
 
-function handleIDCommand(env: Environment): TelegramMessageHandler {
-    return async (msg: Telegram.Message): Promise<Response> => {
-        const text = `Your chat ID is ${msg.chat.id}`;
-        return await handleOpenMiniAppCommand('', text, env)(msg);
-    };
+/** KV key prefix marking that a chat already opened the Mini App once. */
+const START_KEY_PREFIX = 'start:';
+
+/**
+ * True the first time a chat runs /start, then remembered in KV so the setup
+ * prompt is only shown once. Without a KV binding every /start opens the app
+ * directly.
+ */
+async function consumeFirstStart(env: Environment, chatId: number): Promise<boolean> {
+    if (!env.KV) {
+        return false;
+    }
+    const key = `${START_KEY_PREFIX}${chatId}`;
+    if (await env.KV.get(key)) {
+        return false;
+    }
+    await env.KV.put(key, new Date().toISOString());
+    return true;
 }
 
-function handleOpenMiniAppCommand(mode: string, text: string | null, env: Environment): TelegramMessageHandler {
+function handleStartCommand(env: Environment): TelegramMessageHandler {
     return async (msg: Telegram.Message): Promise<Response> => {
         const { TELEGRAM_TOKEN, DOMAIN } = env;
+        const isPrivate = msg.chat.type === 'private';
+        let first = false;
+        // Only private chats can launch the Mini App, so group /start must not
+        // consume the first-time flag.
+        if (isPrivate) {
+            try {
+                first = await consumeFirstStart(env, msg.chat.id);
+            } catch (e) {
+                logTelegramError('start.kv_error', e, { chatId: msg.chat.id });
+            }
+        }
         const params: Telegram.SendMessageParams = {
             chat_id: msg.chat.id,
-            text: text || 'Open the mail Mini App to browse history, manage lists and settings.',
+            text: first
+                ? 'Welcome! Open the Mini App to finish binding this bot.'
+                : 'Open the mail Mini App to browse history, manage lists and settings.',
         };
-        if (msg.chat.type === 'private') {
-            const query = mode ? `#/settings?tab=${mode}` : '#/inbox';
+        if (isPrivate) {
             params.reply_markup = {
                 inline_keyboard: [
                     [
                         {
-                            text: 'Open Mini App',
+                            text: first ? 'Set Up & Open' : 'Open Mini App',
+                            // The setup flag makes the Mini App bind the webhook on load.
                             web_app: {
-                                url: `https://${DOMAIN}/${query}`,
+                                url: `https://${DOMAIN}/#/inbox${first ? '?setup=1' : ''}`,
                             },
                         },
                     ],
@@ -137,21 +162,13 @@ async function telegramCommandHandler(message: Telegram.Message, env: Environmen
         return;
     }
     command = command.substring(1);
-    const handlers: CommandHandlerGroup = {
-        start: handleOpenMiniAppCommand('', null, env),
-        id: handleIDCommand(env),
-        test: handleOpenMiniAppCommand('test', null, env),
-        white: handleOpenMiniAppCommand('white', null, env),
-        block: handleOpenMiniAppCommand('block', null, env),
-    };
-
-    if (handlers[command]) {
-        logTelegram('command.handle', { command, chatId: message.chat.id, messageId: message.message_id });
-        await handlers[command](message);
-        return;
+    if (command === 'start') {
+        logTelegram('command.start', { chatId: message.chat.id, messageId: message.message_id });
+    } else {
+        // /start is the only command; anything else just opens the Mini App.
+        logTelegram('command.fallback', { command, chatId: message.chat.id, messageId: message.message_id });
     }
-    logTelegram('command.unknown', { command, chatId: message.chat.id, messageId: message.message_id });
-    await handleOpenMiniAppCommand('', `Unknown command: ${command}, try /start.`, env)(message);
+    await handleStartCommand(env)(message);
 }
 
 async function telegramCallbackHandler(callback: Telegram.CallbackQuery, env: Environment): Promise<void> {

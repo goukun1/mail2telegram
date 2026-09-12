@@ -1,5 +1,6 @@
 import type { RuntimeSettings } from '../../types';
-import { List, ListItem, Toggle } from 'konsta/react';
+import { List } from 'konsta/react';
+import { ToggleRow } from '../../components/ios/ToggleRow';
 import { useSettingsDraft } from './useSettingsDraft';
 
 const BLOCK_POLICIES: { key: RuntimeSettings['blockPolicy'][number]; label: string }[] = [
@@ -29,10 +30,11 @@ export function BlockPolicySection() {
             <div className="settings-section-title">Blocked Mail Policy</div>
             <List strongIos outlineIos className="!mt-0">
                 {BLOCK_POLICIES.map(policy => (
-                    <ListItem
+                    <ToggleRow
                         key={policy.key}
                         title={policy.label}
-                        after={<Toggle checked={draft.blockPolicy.includes(policy.key)} onChange={() => toggle(policy.key)} />}
+                        checked={draft.blockPolicy.includes(policy.key)}
+                        onChange={() => toggle(policy.key)}
                     />
                 ))}
             </List>

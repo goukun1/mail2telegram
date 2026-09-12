@@ -64,3 +64,17 @@ export function getPlatform(): string {
         return 'web';
     }
 }
+
+/**
+ * True when real Telegram launch params are present, i.e. a Telegram client
+ * opened the page. Outside Telegram, initData can never validate, so the app
+ * shows the landing page instead of an auth error.
+ */
+export function isTelegramEnvironment(): boolean {
+    try {
+        retrieveLaunchParams();
+        return true;
+    } catch {
+        return false;
+    }
+}

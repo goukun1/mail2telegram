@@ -1,11 +1,12 @@
 import type { Email, EmailListResponse, Folder } from '../types';
-import { Searchbar, Segmented, SegmentedButton } from 'konsta/react';
+import { Preloader, Searchbar, Segmented, SegmentedButton } from 'konsta/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { CloseIcon, SearchIcon } from '../components/ios/Icons';
 import { MessageList } from '../components/ios/MessageList';
 import { MessageReader } from '../components/ios/MessageReader';
 import { NavBar } from '../components/ios/NavBar';
+import { PullToRefresh } from '../components/ios/PullToRefresh';
 import { useAsync } from '../hooks/useAsync';
 
 const PAGE_SIZE = 30;
@@ -15,6 +16,13 @@ const FOLDER_TITLES: Record<Folder, string> = {
     spam: 'Spam',
     trash: 'Trash',
     sent: 'Sent',
+};
+
+const FOLDER_HINTS: Record<Folder, string> = {
+    inbox: 'Messages you receive will appear here.',
+    spam: 'Junk mail will appear here.',
+    trash: 'Messages you delete will appear here.',
+    sent: 'Replies you send will appear here.',
 };
 
 export interface InboxPageProps {
@@ -36,6 +44,7 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
     const [filter, setFilter] = useState<'all' | 'unread' | 'starred'>('all');
     const [searching, setSearching] = useState(false);
     const scrollRef = useRef<HTMLDivElement | null>(null);
+    const searchRef = useRef<HTMLDivElement | null>(null);
 
     const { data, loading, error, reload } = useAsync<EmailListResponse>(
         () => api.listEmails({
@@ -56,6 +65,18 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
             onUnreadChange(data.unread);
         }
     }, [data?.unread, onUnreadChange]);
+
+    // Telegram parks the WebView in the background; picking the chat back up
+    // should show the mail that arrived meanwhile.
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                reload();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, [reload]);
 
     // Swipe-to-delete: move the message to trash (or erase it when already
     // there) and drop the selection if the open message was the one removed.
@@ -79,22 +100,37 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
         return () => clearTimeout(timer);
     }, [query]);
 
+    // Open search with the field focused, like iOS Mail; cancelling clears the
+    // active query so the list never keeps filtering invisibly.
+    useEffect(() => {
+        if (!searching) {
+            return;
+        }
+        searchRef.current?.querySelector('input')?.focus();
+    }, [searching]);
+
+    const closeSearch = () => {
+        setSearching(false);
+        setQuery('');
+        setAppliedQuery('');
+    };
+
     // Reset the scroll position when the folder, query or filter changes.
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: 0 });
     }, [folder, appliedQuery, filter]);
 
-    const emptyText = useMemo(() => {
+    const empty = useMemo(() => {
         if (appliedQuery) {
-            return `No messages matching \u201C${appliedQuery}\u201D.`;
+            return { title: 'No Results', subtitle: `No messages matching \u201C${appliedQuery}\u201D.` };
         }
         if (filter === 'unread') {
-            return 'No Unread Messages';
+            return { title: 'No Unread Mail', subtitle: '' };
         }
         if (filter === 'starred') {
-            return 'No Starred Messages';
+            return { title: 'No Starred Mail', subtitle: '' };
         }
-        return `No Messages in ${FOLDER_TITLES[folder]}`;
+        return { title: 'No Mail', subtitle: FOLDER_HINTS[folder] };
     }, [appliedQuery, filter, folder]);
 
     const listColumn = (
@@ -109,8 +145,8 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
                     <button
                         type="button"
                         aria-label={searching ? 'Close search' : 'Search'}
-                        className="p-1 text-[var(--ios-blue)]"
-                        onClick={() => setSearching(value => !value)}
+                        className="bar-button icon-hit p-1 text-[var(--ios-blue)]"
+                        onClick={() => (searching ? closeSearch() : setSearching(true))}
                     >
                         {searching ? <CloseIcon size={20} /> : <SearchIcon size={22} />}
                     </button>
@@ -118,7 +154,7 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
             />
             <div className="list-header">
                 {searching ? (
-                    <div className="px-2 py-1">
+                    <div className="px-2 py-1" ref={searchRef}>
                         <Searchbar
                             placeholder="Search"
                             value={query}
@@ -139,18 +175,21 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
                     </Segmented>
                 </div>
             </div>
-            <div className="page-scroll" ref={scrollRef}>
+            <PullToRefresh className="page-scroll" scrollRef={scrollRef} onRefresh={reload}>
                 {loading && emails.length === 0 ? (
-                    <div className="spin-center"><span className="text-[var(--ios-gray)]">Loading…</span></div>
+                    <div className="spin-center"><Preloader /></div>
                 ) : error ? (
                     <div className="reader-empty">
                         <div>
                             <p className="mb-3">{error.message}</p>
-                            <button type="button" className="text-[var(--ios-blue)]" onClick={reload}>Try Again</button>
+                            <button type="button" className="text-button" onClick={reload}>Try Again</button>
                         </div>
                     </div>
                 ) : emails.length === 0 ? (
-                    <div className="reader-empty">{emptyText}</div>
+                    <div className="empty-state">
+                        <div className="empty-state__title">{empty.title}</div>
+                        {empty.subtitle ? <div className="empty-state__subtitle">{empty.subtitle}</div> : null}
+                    </div>
                 ) : (
                     <MessageList
                         emails={emails}
@@ -160,7 +199,7 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
                         onEndReached={hasMore ? () => setLimit(value => value + PAGE_SIZE) : undefined}
                     />
                 )}
-            </div>
+            </PullToRefresh>
         </div>
     );
 

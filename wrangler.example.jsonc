@@ -6,6 +6,11 @@
     "compatibility_flags": [
         "nodejs_compat_v2"
     ],
+    // Daily cron that deletes mail older than the auto cleanup retention
+    // (Settings → Mail Handling → Auto Cleanup, 0 disables it).
+    "triggers": {
+        "crons": ["0 3 * * *"]
+    },
     // The frontend SPA built by Vite into ./dist/client.
     // API and webhook routes are handled by the Worker first.
     "assets": {
@@ -32,25 +37,28 @@
             "bucket_name": ""
         }
     ],
+    // Optional. Required only for the first-time /start setup prompt.
+    "kv_namespaces": [
+        {
+            "binding": "KV",
+            "id": ""
+        }
+    ],
     "ai": {
         "binding": "AI"
     },
+    // Only the bot identity is required here. Everything else (allow/block
+    // lists, forwarding, summaries, mail limits) is configured in the Mini App
+    // under Settings. Legacy variables are still honored and can be migrated
+    // via Settings → Bot & Webhook → Import from Environment.
     "vars": {
         "DOMAIN": "mail2telegram.YOUR_NAME.workers.dev",
         "TELEGRAM_ID": "YOUR_TELEGRAM_ID",
         "TELEGRAM_TOKEN": "YOUR_TELEGRAM_TOKEN",
-        "FORWARD_LIST": "YOUR_BACKUP_EMAIL",
-        // "WORKERS_AI_MODEL": "@cf/meta/llama-3-8b-instruct", // Remove the comment to enable Workers AI
-        // "OPENAI_API_KEY": "sk-", // Remove the comment to enable OpenAI
-        // "OPENAI_COMPLETIONS_API": "https://openrouter.ai/api/v1/chat/completions",
-        // "OPENAI_CHAT_MODEL": "openai/gpt-4o-mini",
-        // "SUMMARY_TARGET_LANG": "chinese",
-        // "WHITE_LIST": "[\"@example.com$\"]",
-        // "BLOCK_LIST": "[\"spam@example.com\"]",
-        // "MAIL_TTL": "86400",
-        "GUARDIAN_MODE": "false",
-        // "MAX_EMAIL_SIZE": "524288",
-        "MAX_EMAIL_SIZE_POLICY": "truncate",
         "DEBUG": "false"
+        // Optional secret, add via the dashboard instead:
+        // "RESEND_API_KEY": "re_..."  // enables replying to emails
+        // The OpenAI-compatible API key, endpoint and model are configured in
+        // the Mini App under Settings → Summaries.
     }
 }

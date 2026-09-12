@@ -2,10 +2,13 @@ import type {
     Address,
     AddressTestResponse,
     AddressType,
+    CleanupPreviewResponse,
+    CleanupResponse,
     Email,
     EmailDetailResponse,
     EmailListResponse,
     Folder,
+    ImportEnvResponse,
     MeResponse,
     RuntimeSettings,
 } from '../types';
@@ -24,9 +27,13 @@ function authHeader(): string {
     return `tma ${raw}`;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, auth = true): Promise<T> {
     const headers = new Headers(init.headers);
-    headers.set('Authorization', authHeader());
+    if (auth) {
+        // retrieveRawInitData throws outside Telegram; only public routes may
+        // skip this header.
+        headers.set('Authorization', authHeader());
+    }
     if (init.body) {
         headers.set('Content-Type', 'application/json');
     }
@@ -94,6 +101,23 @@ export const api = {
         return request<{ success: boolean }>(`/api/emails/${id}`, { method: 'DELETE' });
     },
 
+    previewCleanup(params: { days?: number; all?: boolean }): Promise<CleanupPreviewResponse> {
+        const query = new URLSearchParams();
+        if (params.all) {
+            query.set('all', 'true');
+        } else {
+            query.set('days', `${params.days}`);
+        }
+        return request<CleanupPreviewResponse>(`/api/emails/cleanup/preview?${query.toString()}`);
+    },
+
+    cleanupEmails(params: { days?: number; all?: boolean; attachmentsOnly?: boolean }): Promise<CleanupResponse> {
+        return request<CleanupResponse>('/api/emails/cleanup', {
+            method: 'POST',
+            body: JSON.stringify(params),
+        });
+    },
+
     summarize(id: string): Promise<{ summary: string }> {
         return request<{ summary: string }>(`/api/emails/${id}/summary`, { method: 'POST' });
     },
@@ -128,9 +152,15 @@ export const api = {
         });
     },
 
-    /** Re-registers the Telegram webhook and bot commands (worker `/init`). */
-    rebindWebhook(): Promise<{ webhook?: { ok?: boolean; description?: string }; commands?: { ok?: boolean } }> {
-        return request('/init');
+    /** Re-registers the Telegram webhook, commands and menu button (worker `/init`). */
+    rebindWebhook(): Promise<{
+        webhook?: { ok?: boolean; description?: string };
+        commands?: { ok?: boolean };
+        menuButton?: { ok?: boolean };
+    }> {
+        // `/init` is public and parameter-less, so it also works from the
+        // landing page where no initData exists.
+        return request('/init', {}, false);
     },
 
     getSettings(): Promise<{ settings: RuntimeSettings }> {
@@ -142,6 +172,11 @@ export const api = {
             method: 'PUT',
             body: JSON.stringify(patch),
         });
+    },
+
+    /** Copies env-derived settings and address lists into stored settings. */
+    importEnvSettings(): Promise<ImportEnvResponse> {
+        return request<ImportEnvResponse>('/api/settings/import', { method: 'POST' });
     },
 
     attachmentUrl(emailId: string, attachmentId: string): string {

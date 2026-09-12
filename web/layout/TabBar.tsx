@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { GearIcon, MailIcon } from '../components/ios/Icons';
+import { haptic } from '../lib/haptics';
 
 export interface MessageTabBarProps {
     active: 'inbox' | 'settings';
@@ -21,16 +22,22 @@ const TABS: Tab[] = [
 /** iOS style bottom tab bar with the unread badge on Mail. */
 export function MessageTabBar({ active, unread, onChange }: MessageTabBarProps) {
     return (
-        <div className="ios-tabbar">
+        <nav className="ios-tabbar">
             {TABS.map(({ key, label, Icon }) => {
                 const selected = active === key;
                 return (
                     <button
                         key={key}
                         type="button"
+                        aria-current={selected || undefined}
                         className="ios-tabbar__item"
                         style={{ color: selected ? 'var(--ios-blue)' : 'var(--ios-gray)' }}
-                        onClick={() => onChange(key)}
+                        onClick={() => {
+                            if (!selected) {
+                                haptic.selection();
+                            }
+                            onChange(key);
+                        }}
                     >
                         <span className="relative">
                             <Icon size={26} />
@@ -40,6 +47,6 @@ export function MessageTabBar({ active, unread, onChange }: MessageTabBarProps) 
                     </button>
                 );
             })}
-        </div>
+        </nav>
     );
 }

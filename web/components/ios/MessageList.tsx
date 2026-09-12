@@ -105,6 +105,7 @@ function SwipeRow({ onDelete, children }: { onDelete?: () => void; children: Rea
                     type="button"
                     className="swipe-row__action"
                     tabIndex={openRef.current ? 0 : -1}
+                    aria-label="Delete message"
                     onClick={() => {
                         haptic.impact();
                         close();
@@ -150,8 +151,8 @@ function MessageRow({ email, selected, onSelect }: { email: Email; selected: boo
         <div
             role="button"
             tabIndex={0}
-            className={`message-row ${unread ? 'message-row--unread' : ''}`}
-            style={selected ? { background: 'var(--ios-blue)', color: '#fff' } : undefined}
+            aria-current={selected || undefined}
+            className={`message-row ${unread ? 'message-row--unread' : ''} ${selected ? 'message-row--selected' : ''}`}
             onClick={() => onSelect(email)}
             onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -164,18 +165,18 @@ function MessageRow({ email, selected, onSelect }: { email: Email; selected: boo
             </span>
             <div className="message-row__body">
                 <div className="message-row__top">
-                    <span className="message-row__sender" style={selected ? { color: '#fff' } : undefined}>
+                    <span className="message-row__sender">
                         {senderLabel(email)}
                     </span>
-                    <span className="message-row__time" style={selected ? { color: 'rgba(255,255,255,0.85)' } : undefined}>
-                        {email.is_starred ? <StarIcon size={13} className="message-row__star" /> : null}
+                    <span className="message-row__time">
+                        {email.is_starred ? <StarIcon size={13} filled className="message-row__star" /> : null}
                         {formatListDate(email.date)}
                     </span>
                 </div>
-                <div className="message-row__subject" style={selected ? { color: '#fff' } : undefined}>
+                <div className="message-row__subject">
                     {email.subject || '(no subject)'}
                 </div>
-                <div className="message-row__preview" style={selected ? { color: 'rgba(255,255,255,0.85)' } : undefined}>
+                <div className="message-row__preview">
                     {email.body_text || ''}
                 </div>
             </div>

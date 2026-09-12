@@ -39,6 +39,7 @@ export function Sidebar({ folder, unread, isSettings, onSelectFolder, onOpenSett
                         <button
                             key={key}
                             type="button"
+                            aria-current={selected || undefined}
                             className="mailbox-row w-full text-left"
                             style={{ background: selected ? 'rgba(120, 120, 128, 0.14)' : 'transparent', border: 0 }}
                             onClick={() => onSelectFolder(key)}

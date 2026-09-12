@@ -54,11 +54,14 @@ export interface RuntimeSettings {
     maxEmailSize: number;
     maxEmailSizePolicy: MaxEmailSizePolicy;
     summaryEnabled: boolean;
+    openaiApiKey: string;
     workersAiModel: string;
     openaiChatModel: string;
     openaiCompletionsApi: string;
     summaryTargetLang: string;
     forwardEnabled: boolean;
+    /** Days of mail history kept by the daily cron; 0 disables auto cleanup. Defaults to 7. */
+    autoCleanupDays: number;
 }
 
 export interface TelegramUser {
@@ -93,4 +96,21 @@ export interface AddressTestResponse {
     status: 'white' | 'block' | 'no_match';
     matchedWhite: string[];
     matchedBlock: string[];
+}
+
+export interface ImportEnvResponse {
+    settings: RuntimeSettings;
+    importedAddresses: { white: number; block: number };
+}
+
+export interface CleanupPreviewResponse {
+    emails: number;
+    attachments: number;
+}
+
+export interface CleanupResponse {
+    emails: number;
+    attachments: number;
+    /** Rows still inside the range; very large backlogs need another pass. */
+    remaining: number;
 }

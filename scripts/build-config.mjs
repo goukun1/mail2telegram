@@ -8,6 +8,7 @@
  *   DEPLOY_D1_DATABASE_NAME   (default: mail2telegram)
  *   DEPLOY_R2_BUCKET_NAME     (omit to remove the R2 binding)
  *   DEPLOY_R2_PREVIEW_BUCKET_NAME
+ *   DEPLOY_KV_NAMESPACE_ID    (omit to remove the KV binding)
  *
  * Usage: node scripts/build-config.mjs
  */
@@ -101,5 +102,18 @@ if (bucketName) {
     delete config.r2_buckets;
 }
 
+// KV remembers which chats already finished the first-time setup prompt.
+const kvNamespaceId = process.env.DEPLOY_KV_NAMESPACE_ID;
+if (kvNamespaceId) {
+    config.kv_namespaces = [
+        {
+            binding: 'KV',
+            id: kvNamespaceId,
+        },
+    ];
+} else {
+    delete config.kv_namespaces;
+}
+
 writeFileSync(targetPath, `${JSON.stringify(config, null, 4)}\n`);
-console.log(`[build-config] wrote ${targetPath} from ${sourcePath} (d1=${databaseName}, r2=${bucketName || 'disabled'})`);
+console.log(`[build-config] wrote ${targetPath} from ${sourcePath} (d1=${databaseName}, r2=${bucketName || 'disabled'}, kv=${kvNamespaceId || 'disabled'})`);

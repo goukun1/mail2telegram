@@ -19,6 +19,22 @@ const THEME_PARAMS = {
     text_color: '#000000',
 } as const;
 
+const DARK_THEME_PARAMS = {
+    accent_text_color: '#62bcf9',
+    bg_color: '#1c1c1e',
+    button_color: '#2481cc',
+    button_text_color: '#ffffff',
+    destructive_text_color: '#ff453a',
+    header_bg_color: '#1c1c1e',
+    hint_color: '#8e8e93',
+    link_color: '#6ab2ff',
+    secondary_bg_color: '#000000',
+    section_bg_color: '#1c1c1e',
+    section_header_text_color: '#8e8e93',
+    subtitle_text_color: '#9a9a9a',
+    text_color: '#ffffff',
+} as const;
+
 /**
  * Installs a mock Telegram environment during local development so the Mini App
  * renders outside Telegram. Returns true when the mock was installed. Should
@@ -29,12 +45,15 @@ export async function setupMockEnv(): Promise<boolean> {
         return false;
     }
 
-    // `?platform=ios` makes it easy to preview the phone layout in a browser.
-    const platform = new URLSearchParams(window.location.search).get('platform') || 'tdesktop';
+    // `?platform=ios` makes it easy to preview the phone layout in a browser and
+    // `?theme=dark` previews the dark palette.
+    const query = new URLSearchParams(window.location.search);
+    const platform = query.get('platform') || 'tdesktop';
+    const themeParams = query.get('theme') === 'dark' ? DARK_THEME_PARAMS : THEME_PARAMS;
 
     mockTelegramEnv({
         launchParams: new URLSearchParams([
-            ['tgWebAppThemeParams', JSON.stringify(THEME_PARAMS)],
+            ['tgWebAppThemeParams', JSON.stringify(themeParams)],
             ['tgWebAppData', new URLSearchParams([
                 ['auth_date', `${Math.floor(Date.now() / 1000)}`],
                 ['hash', 'mock-hash'],
@@ -47,7 +66,7 @@ export async function setupMockEnv(): Promise<boolean> {
         onEvent: (event: MockEvent, next: () => void) => {
             switch (event.name) {
                 case 'web_app_request_theme':
-                    emitEvent('theme_changed', { theme_params: { ...THEME_PARAMS } });
+                    emitEvent('theme_changed', { theme_params: { ...themeParams } });
                     break;
                 case 'web_app_request_viewport':
                     emitEvent('viewport_changed', {

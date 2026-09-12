@@ -3,7 +3,8 @@ import type { AddressType, Environment, Folder, RuntimeSettings } from '../../ty
 import { validate } from '@tma.js/init-data-node/web';
 import { json, Router } from 'itty-router';
 import { Dao } from '../../db';
-import { loadSettings, saveSettings } from '../../db/settings';
+import { purgeAttachments, purgeEmails, purgeEmailsByIds } from '../../db/cleanup';
+import { importSettingsFromEnv, loadSettings, saveSettings } from '../../db/settings';
 import { hydrateEmail, replyToEmail, summarizeEmail, testAddressAgainstLists } from '../../mail';
 import { createTelegramBotAPI, telegramCommands, telegramWebhookHandler } from '../../telegram';
 
@@ -88,6 +89,18 @@ function requireEmail(env: Environment): string {
     return env.TELEGRAM_TOKEN;
 }
 
+/** `all` clears the whole mailbox, otherwise `days` sets the cutoff in the past. */
+function parseCutoff(all: unknown, days: unknown): string | null {
+    if (all === true || all === 'true') {
+        return null;
+    }
+    const value = Number(days);
+    if (!Number.isFinite(value) || value <= 0) {
+        throw new HTTPError(400, 'Invalid cleanup range');
+    }
+    return new Date(Date.now() - value * 86400_000).toISOString();
+}
+
 function createRouter(env: Environment): RouterType {
     const router = Router({
         catch: errorHandler,
@@ -110,13 +123,24 @@ function createRouter(env: Environment): RouterType {
     router.get('/init', async (): Promise<any> => {
         requireEmail(env);
         const api = createTelegramBotAPI(TELEGRAM_TOKEN);
+        const miniAppUrl = `https://${DOMAIN}/#/inbox`;
         const webhook = await api.setWebhook({
             url: `https://${DOMAIN}/telegram/${TELEGRAM_TOKEN}/webhook`,
         });
         const commands = await api.setMyCommands({ commands: telegramCommands });
+        // Point the bot's menu button at the worker's Mini App so it opens without
+        // needing the /start button.
+        const menuButton = await api.setChatMenuButton({
+            menu_button: {
+                type: 'web_app',
+                text: 'Open Mail',
+                web_app: { url: miniAppUrl },
+            },
+        });
         return {
             webhook: await webhook.json(),
             commands: await commands.json(),
+            menuButton: await menuButton.json(),
         };
     });
 
@@ -202,11 +226,31 @@ function createRouter(env: Environment): RouterType {
             throw new HTTPError(404, 'Email not found');
         }
         if (record.folder === 'trash') {
-            await dao.deleteEmail(record.id);
+            // Erasing from trash also frees the stored attachments and bodies.
+            await purgeEmailsByIds(dao, BUCKET, [record]);
         } else {
             await dao.updateEmailFlags(record.id, { folder: 'trash' });
         }
         return { success: true };
+    });
+
+    // ------------------------------------------------------- mail cleanup
+
+    router.get('/api/emails/cleanup/preview', auth, async (req: IRequest): Promise<any> => {
+        const { all, days } = req.query;
+        const cutoff = parseCutoff(all, days);
+        return {
+            emails: await dao.countCleanupTargets(cutoff),
+            attachments: await dao.countAttachmentsBefore(cutoff),
+        };
+    });
+
+    router.post('/api/emails/cleanup', auth, async (req: IRequest): Promise<any> => {
+        const body = await req.json() as { days?: number; all?: boolean; attachmentsOnly?: boolean };
+        const cutoff = parseCutoff(body.all, body.days);
+        return body.attachmentsOnly
+            ? await purgeAttachments(dao, BUCKET, cutoff)
+            : await purgeEmails(dao, BUCKET, cutoff);
     });
 
     router.post('/api/emails/:id/summary', auth, async (req: IRequest): Promise<any> => {
@@ -295,6 +339,12 @@ function createRouter(env: Environment): RouterType {
         const patch = await req.json() as Partial<RuntimeSettings>;
         await saveSettings(dao, patch);
         return { settings: await loadSettings(env) };
+    });
+
+    // Copies the env-derived defaults and address lists into D1 so settings can
+    // be managed entirely from the Mini App.
+    router.post('/api/settings/import', auth, async (): Promise<any> => {
+        return await importSettingsFromEnv(dao, env);
     });
 
     // ------------------------------------------------------------ webhook

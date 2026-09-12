@@ -1,5 +1,5 @@
 import type { EmailDetailResponse } from '../../types';
-import { List, ListItem, Preloader } from 'konsta/react';
+import { List, ListItem, Preloader, Segmented, SegmentedButton } from 'konsta/react';
 import { useEffect, useMemo, useState } from 'react';
 import { api, fetchAttachmentBlob } from '../../api/client';
 import { useAsync } from '../../hooks/useAsync';
@@ -30,7 +30,7 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
         () => api.getEmail(emailId),
         [emailId],
     );
-    const [showHtml, setShowHtml] = useState(true);
+    const [showHtml, setShowHtml] = useState(false);
     const [summary, setSummary] = useState<string | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
     const email = data?.email;
 
     useEffect(() => {
-        setShowHtml(true);
+        setShowHtml(false);
         setSummary(null);
         setActionError(null);
         setBusy(null);
@@ -69,7 +69,7 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
             <div className="reader-empty">
                 <div>
                     <p className="mb-3">{error?.message || 'This message could not be loaded.'}</p>
-                    <button type="button" className="text-[var(--ios-blue)]" onClick={reload}>Try Again</button>
+                    <button type="button" className="text-button" onClick={reload}>Try Again</button>
                 </div>
             </div>
         );
@@ -126,6 +126,8 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
     });
 
     const hasHtml = Boolean(email.body_html);
+    // Plain text is the default view; emails without a text part fall back to HTML.
+    const preferHtml = showHtml || !email.body_text;
 
     return (
         <div className="reader">
@@ -151,32 +153,22 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
                             {formatBytes(email.size)}
                         </span>
                     </div>
-                    <div className="reader__recipient reader__to" style={{ marginTop: 10, fontSize: 13, color: 'var(--ios-gray)' }}>
+                    <div className="reader__to">
                         {`To: ${email.recipient}`}
                         {email.cc ? ` · Cc: ${email.cc}` : ''}
                     </div>
                 </div>
 
                 {hasHtml && email.body_text ? (
-                    <div className="flex gap-2 px-4 pb-2">
-                        <button
-                            type="button"
-                            onClick={() => setShowHtml(true)}
-                            className={`rounded-full px-3 py-1 text-[13px] ${showHtml ? 'bg-[var(--ios-blue)] text-white' : 'bg-black/5 dark:bg-white/10'}`}
-                        >
-                            HTML
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setShowHtml(false)}
-                            className={`rounded-full px-3 py-1 text-[13px] ${!showHtml ? 'bg-[var(--ios-blue)] text-white' : 'bg-black/5 dark:bg-white/10'}`}
-                        >
-                            Plain Text
-                        </button>
+                    <div className="px-4 pb-3">
+                        <Segmented strong className="ios-segmented">
+                            <SegmentedButton active={!preferHtml} onClick={() => setShowHtml(false)}>Plain Text</SegmentedButton>
+                            <SegmentedButton active={preferHtml} onClick={() => setShowHtml(true)}>HTML</SegmentedButton>
+                        </Segmented>
                     </div>
                 ) : null}
 
-                {showHtml && bodyDocument ? (
+                {preferHtml && bodyDocument ? (
                     <iframe
                         title="Message content"
                         className="reader__frame"
@@ -221,26 +213,43 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
             <div className="ios-toolbar">
                 <div className="ios-toolbar__inner">
                     {data.resendEnabled ? (
-                        <button type="button" className="ios-toolbar__button" onClick={() => setReplyOpen(true)}>
+                        <button type="button" className="ios-toolbar__button bar-button" onClick={() => setReplyOpen(true)}>
                             <ReplyIcon size={24} />
                             <span>Reply</span>
                         </button>
                     ) : null}
                     {data.summaryEnabled ? (
-                        <button type="button" className="ios-toolbar__button" disabled={busy === 'summary'} onClick={summarize}>
+                        <button type="button" className="ios-toolbar__button bar-button" disabled={busy === 'summary'} onClick={summarize}>
                             <SparkleIcon size={24} />
                             <span>{busy === 'summary' ? 'Working' : 'Summarize'}</span>
                         </button>
                     ) : null}
-                    <button type="button" className="ios-toolbar__button" onClick={toggleRead}>
+                    <button
+                        type="button"
+                        className="ios-toolbar__button bar-button"
+                        disabled={busy === 'read'}
+                        aria-pressed={email.is_read === 0}
+                        onClick={toggleRead}
+                    >
                         <FlagIcon size={24} />
                         <span>{email.is_read === 0 ? 'Read' : 'Unread'}</span>
                     </button>
-                    <button type="button" className="ios-toolbar__button" onClick={toggleStar}>
-                        <StarIcon size={24} />
+                    <button
+                        type="button"
+                        className="ios-toolbar__button bar-button"
+                        disabled={busy === 'star'}
+                        aria-pressed={email.is_starred === 1}
+                        onClick={toggleStar}
+                    >
+                        <StarIcon size={24} filled={email.is_starred === 1} />
                         <span>{email.is_starred ? 'Unstar' : 'Star'}</span>
                     </button>
-                    <button type="button" className="ios-toolbar__button ios-toolbar__button--danger" onClick={remove}>
+                    <button
+                        type="button"
+                        className="ios-toolbar__button ios-toolbar__button--danger bar-button"
+                        disabled={busy === 'delete'}
+                        onClick={remove}
+                    >
                         <TrashIcon size={24} />
                         <span>Delete</span>
                     </button>

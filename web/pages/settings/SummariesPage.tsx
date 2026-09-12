@@ -1,4 +1,5 @@
-import { List, ListInput, ListItem, Toggle } from 'konsta/react';
+import { List, ListInput } from 'konsta/react';
+import { ToggleRow } from '../../components/ios/ToggleRow';
 import { SettingsSubPage } from './SettingsSubPage';
 import { useSettingsDraft } from './useSettingsDraft';
 
@@ -21,9 +22,10 @@ export function SummariesPage() {
             {draft ? (
                 <>
                     <List strongIos outlineIos className="!mt-3">
-                        <ListItem
+                        <ToggleRow
                             title="Enable Summaries"
-                            after={<Toggle checked={draft.summaryEnabled} onChange={() => update('summaryEnabled', !draft.summaryEnabled)} />}
+                            checked={draft.summaryEnabled}
+                            onChange={value => update('summaryEnabled', value)}
                         />
                     </List>
                     {draft.summaryEnabled ? (
@@ -33,6 +35,14 @@ export function SummariesPage() {
                                 placeholder="@cf/meta/llama-3-8b-instruct"
                                 value={draft.workersAiModel}
                                 onChange={(e: any) => update('workersAiModel', e.target.value)}
+                                clearButton
+                            />
+                            <ListInput
+                                label="OpenAI API Key"
+                                type="password"
+                                placeholder="sk-..."
+                                value={draft.openaiApiKey}
+                                onChange={(e: any) => update('openaiApiKey', e.target.value)}
                                 clearButton
                             />
                             <ListInput

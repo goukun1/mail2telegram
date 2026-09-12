@@ -1,6 +1,8 @@
-import { Block, Button, Sheet } from 'konsta/react';
+import type { KeyboardEvent } from 'react';
+import { Sheet } from 'konsta/react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { haptic } from '../../lib/haptics';
 
 export interface ReplySheetProps {
     opened: boolean;
@@ -24,19 +26,32 @@ export function ReplySheet({ opened, emailId, onClose }: ReplySheetProps) {
     };
 
     const send = async () => {
-        if (!text.trim()) {
+        if (!text.trim() || sending) {
             return;
         }
         setSending(true);
         setError(null);
         try {
             await api.reply(emailId, text);
+            haptic.notification('success');
             setText('');
             onClose();
         } catch (e) {
+            haptic.notification('error');
             setError((e as Error).message);
         } finally {
             setSending(false);
+        }
+    };
+
+    // Desktop conveniences: Escape cancels, Cmd/Ctrl+Enter sends.
+    const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            close();
+        } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            void send();
         }
     };
 
@@ -44,33 +59,34 @@ export function ReplySheet({ opened, emailId, onClose }: ReplySheetProps) {
         <Sheet opened={opened} onBackdropClick={close} className="pb-safe">
             <div className="px-4 pt-2">
                 <div className="mb-2 flex items-center justify-between">
-                    <button type="button" className="text-[17px] text-[var(--ios-blue)]" onClick={close} disabled={sending}>
+                    <button
+                        type="button"
+                        className="bar-button text-button !my-0 !px-0"
+                        onClick={close}
+                        disabled={sending}
+                    >
                         Cancel
                     </button>
                     <span className="text-[17px] font-semibold">Reply</span>
                     <button
                         type="button"
-                        className="text-[17px] font-semibold text-[var(--ios-blue)] disabled:opacity-40"
+                        className="bar-button text-button !my-0 !px-0 font-semibold"
                         onClick={send}
                         disabled={sending || !text.trim()}
                     >
-                        {sending ? 'Sending' : 'Send'}
+                        {sending ? 'Sending…' : 'Send'}
                     </button>
                 </div>
                 <textarea
                     value={text}
                     onChange={event => setText(event.target.value)}
+                    onKeyDown={onKeyDown}
                     placeholder="Write your reply…"
                     rows={7}
                     autoFocus
                     className="w-full resize-none rounded-xl bg-black/5 p-3 text-[16px] leading-relaxed outline-none dark:bg-white/10"
                 />
                 {error ? <div className="mt-2 text-[13px] text-[#ff3b30]">{error}</div> : null}
-                <Block className="!mx-0 !my-3 !px-0">
-                    <Button rounded large className="w-full" onClick={send} disabled={sending || !text.trim()}>
-                        {sending ? 'Sending…' : 'Send Reply'}
-                    </Button>
-                </Block>
             </div>
         </Sheet>
     );

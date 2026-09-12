@@ -2,6 +2,7 @@ import type { BlockPolicy, Environment, MaxEmailSizePolicy, RuntimeSettings } fr
 import { Dao, loadArrayFromRaw } from './index';
 
 export const SETTING_KEYS = {
+    autoCleanupDays: 'auto_cleanup_days',
     blockPolicy: 'block_policy',
     forwardList: 'forward_list',
     guardianMode: 'guardian_mode',
@@ -9,6 +10,7 @@ export const SETTING_KEYS = {
     maxEmailSize: 'max_email_size',
     maxEmailSizePolicy: 'max_email_size_policy',
     summaryEnabled: 'summary_enabled',
+    openaiApiKey: 'openai_api_key',
     workersAiModel: 'workers_ai_model',
     openaiChatModel: 'openai_chat_model',
     openaiCompletionsApi: 'openai_completions_api',
@@ -46,6 +48,7 @@ function toMaxSizePolicy(value: string | undefined): MaxEmailSizePolicy {
 /** Defaults derived from deployment variables. */
 export function defaultSettings(env: Environment): RuntimeSettings {
     return {
+        autoCleanupDays: toInt(env.AUTO_CLEANUP_DAYS, 7),
         blockPolicy: toBlockPolicy(env.BLOCK_POLICY),
         forwardList: (env.FORWARD_LIST || '').split(',').map(item => item.trim()).filter(Boolean),
         guardianMode: toBool(env.GUARDIAN_MODE),
@@ -53,6 +56,7 @@ export function defaultSettings(env: Environment): RuntimeSettings {
         maxEmailSize: toInt(env.MAX_EMAIL_SIZE, 512 * 1024),
         maxEmailSizePolicy: toMaxSizePolicy(env.MAX_EMAIL_SIZE_POLICY),
         summaryEnabled: Boolean((env.AI && env.WORKERS_AI_MODEL) || env.OPENAI_API_KEY),
+        openaiApiKey: env.OPENAI_API_KEY || '',
         workersAiModel: env.WORKERS_AI_MODEL || '',
         openaiChatModel: env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',
         openaiCompletionsApi: env.OPENAI_COMPLETIONS_API || 'https://api.openai.com/v1/chat/completions',
@@ -64,6 +68,9 @@ export function defaultSettings(env: Environment): RuntimeSettings {
 /** Merge deployment defaults with the overrides stored in D1. */
 export function mergeSettings(base: RuntimeSettings, stored: Record<string, string>): RuntimeSettings {
     const result = { ...base };
+    if (stored[SETTING_KEYS.autoCleanupDays] !== undefined) {
+        result.autoCleanupDays = toInt(stored[SETTING_KEYS.autoCleanupDays], result.autoCleanupDays);
+    }
     if (stored[SETTING_KEYS.blockPolicy]) {
         result.blockPolicy = toBlockPolicy(stored[SETTING_KEYS.blockPolicy]);
     }
@@ -84,6 +91,9 @@ export function mergeSettings(base: RuntimeSettings, stored: Record<string, stri
     }
     if (stored[SETTING_KEYS.summaryEnabled] !== undefined) {
         result.summaryEnabled = toBool(stored[SETTING_KEYS.summaryEnabled], result.summaryEnabled);
+    }
+    if (stored[SETTING_KEYS.openaiApiKey] !== undefined) {
+        result.openaiApiKey = stored[SETTING_KEYS.openaiApiKey];
     }
     if (stored[SETTING_KEYS.workersAiModel] !== undefined) {
         result.workersAiModel = stored[SETTING_KEYS.workersAiModel];
@@ -113,6 +123,9 @@ export async function loadSettings(env: Environment): Promise<RuntimeSettings> {
 /** Persist a partial update made from the Mini App. */
 export async function saveSettings(dao: Dao, patch: Partial<RuntimeSettings>): Promise<void> {
     const entries: Record<string, string> = {};
+    if (patch.autoCleanupDays !== undefined) {
+        entries[SETTING_KEYS.autoCleanupDays] = `${patch.autoCleanupDays}`;
+    }
     if (patch.blockPolicy !== undefined) {
         entries[SETTING_KEYS.blockPolicy] = patch.blockPolicy.join(',');
     }
@@ -134,6 +147,9 @@ export async function saveSettings(dao: Dao, patch: Partial<RuntimeSettings>): P
     if (patch.summaryEnabled !== undefined) {
         entries[SETTING_KEYS.summaryEnabled] = `${patch.summaryEnabled}`;
     }
+    if (patch.openaiApiKey !== undefined) {
+        entries[SETTING_KEYS.openaiApiKey] = patch.openaiApiKey.trim();
+    }
     if (patch.workersAiModel !== undefined) {
         entries[SETTING_KEYS.workersAiModel] = patch.workersAiModel;
     }
@@ -150,4 +166,39 @@ export async function saveSettings(dao: Dao, patch: Partial<RuntimeSettings>): P
         entries[SETTING_KEYS.forwardEnabled] = `${patch.forwardEnabled}`;
     }
     await dao.setSettings(entries);
+}
+
+export interface ImportEnvResult {
+    settings: RuntimeSettings;
+    importedAddresses: { white: number; block: number };
+}
+
+/**
+ * One-click migration: persist every env-derived setting (and the env white /
+ * block lists) into D1 so the deployment no longer depends on those variables.
+ */
+export async function importSettingsFromEnv(dao: Dao, env: Environment): Promise<ImportEnvResult> {
+    await saveSettings(dao, defaultSettings(env));
+
+    const existing = new Set(
+        (await dao.listAddresses()).map(item => `${item.type}:${item.address.toLowerCase()}`),
+    );
+    const importedAddresses = { white: 0, block: 0 };
+    const seeds: { type: 'white' | 'block'; patterns: string[] }[] = [
+        { type: 'white', patterns: loadArrayFromRaw(env.WHITE_LIST) },
+        { type: 'block', patterns: loadArrayFromRaw(env.BLOCK_LIST) },
+    ];
+    for (const seed of seeds) {
+        for (const pattern of seed.patterns) {
+            const key = `${seed.type}:${pattern.toLowerCase()}`;
+            if (existing.has(key)) {
+                continue;
+            }
+            existing.add(key);
+            await dao.addAddress(pattern, seed.type, 'Imported from environment');
+            importedAddresses[seed.type] += 1;
+        }
+    }
+
+    return { settings: await loadSettings(env), importedAddresses };
 }

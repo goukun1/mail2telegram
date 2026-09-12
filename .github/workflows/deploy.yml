@@ -1,0 +1,75 @@
+name: Deploy
+
+# Deploys the worker to Cloudflare on every push to master. Resource ids are
+# injected into the gitignored `wrangler.deploy.jsonc` by
+# `scripts/build-config.mjs` from repository variables, mirroring the
+# Cloudflare Workers Builds setup.
+#
+# Required repository secret:
+#   CLOUDFLARE_API_TOKEN     Token with the "Edit Cloudflare Workers" template
+#                            plus D1:Edit, Workers R2 Storage:Edit and AI:Edit.
+# Optional repository variables (fall back to the defaults below):
+#   CLOUDFLARE_ACCOUNT_ID    Account id, from `wrangler whoami`.
+#   DEPLOY_D1_DATABASE_ID    D1 database id, from `wrangler d1 create`.
+#   DEPLOY_D1_DATABASE_NAME  Defaults to `mail2telegram`.
+#   DEPLOY_R2_BUCKET_NAME    Omit to deploy without attachments.
+#   DEPLOY_KV_NAMESPACE_ID   Omit to deploy without the KV binding.
+
+on:
+    push:
+        branches: [master]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: deploy-production
+    cancel-in-progress: false
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 12
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Generate deploy config
+              run: pnpm run deploy:config
+              env:
+                  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+                  DEPLOY_D1_DATABASE_ID: ${{ vars.DEPLOY_D1_DATABASE_ID }}
+                  DEPLOY_D1_DATABASE_NAME: ${{ vars.DEPLOY_D1_DATABASE_NAME }}
+                  DEPLOY_R2_BUCKET_NAME: ${{ vars.DEPLOY_R2_BUCKET_NAME }}
+                  DEPLOY_KV_NAMESPACE_ID: ${{ vars.DEPLOY_KV_NAMESPACE_ID }}
+
+            - name: Typecheck and build
+              run: pnpm run build
+
+            - name: Apply D1 migrations
+              run: pnpm run db:migrate:remote
+              env:
+                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+                  DEPLOY_D1_DATABASE_ID: ${{ vars.DEPLOY_D1_DATABASE_ID }}
+                  DEPLOY_D1_DATABASE_NAME: ${{ vars.DEPLOY_D1_DATABASE_NAME }}
+                  DEPLOY_R2_BUCKET_NAME: ${{ vars.DEPLOY_R2_BUCKET_NAME }}
+                  DEPLOY_KV_NAMESPACE_ID: ${{ vars.DEPLOY_KV_NAMESPACE_ID }}
+
+            - name: Deploy Worker
+              uses: cloudflare/wrangler-action@v3
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+                  command: deploy --config wrangler.deploy.jsonc

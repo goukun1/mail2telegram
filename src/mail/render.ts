@@ -39,7 +39,6 @@ export async function renderEmailListMode(
     const {
         DEBUG,
         AI,
-        OPENAI_API_KEY,
         DOMAIN,
     } = env;
     const text = `${mail.subject}\n\n-----------\nFrom\t:\t${mail.sender}\nTo\t\t:\t${mail.recipient}`;
@@ -49,7 +48,7 @@ export async function renderEmailListMode(
             callback_data: `p:${mail.id}`,
         },
     ];
-    if (settings.summaryEnabled && ((AI && settings.workersAiModel) || OPENAI_API_KEY)) {
+    if (settings.summaryEnabled && ((AI && settings.workersAiModel) || settings.openaiApiKey)) {
         keyboard.push({
             text: 'Summary',
             callback_data: `s:${mail.id}`,
@@ -109,15 +108,15 @@ export async function renderEmailPreviewMode(mail: EmailRecord, env: Environment
 }
 
 export async function renderEmailSummaryMode(mail: EmailRecord, env: Environment, settings: RuntimeSettings): Promise<EmailDetailParams> {
-    const { AI, OPENAI_API_KEY } = env;
+    const { AI } = env;
     const req = renderEmailDetail('', mail.id);
     const prompt = `Summarize the following text in approximately 50 words with ${settings.summaryTargetLang}\n\n${sendableText(mail)}`;
 
     try {
         if (AI && settings.workersAiModel) {
             req.text = await summarizedByWorkerAI(AI, settings.workersAiModel, prompt);
-        } else if (OPENAI_API_KEY) {
-            req.text = await summarizedByOpenAI(OPENAI_API_KEY, settings.openaiCompletionsApi, settings.openaiChatModel, prompt);
+        } else if (settings.openaiApiKey) {
+            req.text = await summarizedByOpenAI(settings.openaiApiKey, settings.openaiCompletionsApi, settings.openaiChatModel, prompt);
         } else {
             req.text = 'Sorry, no summarization provider is configured.';
         }
