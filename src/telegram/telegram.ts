@@ -171,6 +171,10 @@ async function telegramCallbackHandler(callback: Telegram.CallbackQuery, env: En
 
     logTelegram('callback.received', { data, callbackId, chatId, messageId });
     const settings = await loadSettings(env);
+    // Editing back to the list view re-renders the keyboard, so it needs the
+    // same chat type the initial notification used to keep the Open button out
+    // of group chats.
+    const chatType = callback.message?.chat?.type;
     const renderHandlerBuilder = (render: EmailRender): (arg: string) => Promise<void> => {
         return async (arg: string): Promise<void> => {
             const record = await dao.getEmail(arg);
@@ -178,7 +182,7 @@ async function telegramCallbackHandler(callback: Telegram.CallbackQuery, env: En
                 throw new Error('Error: Email not found or expired.');
             }
             const value = await hydrateEmail(record, BUCKET);
-            const req = await render(value, env, settings);
+            const req = await render(value, env, settings, { chatType });
             const params: Telegram.EditMessageTextParams = {
                 chat_id: chatId,
                 message_id: messageId,

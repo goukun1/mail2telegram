@@ -154,3 +154,7 @@ wrangler.deploy.jsonc
 example
 dist
 build
+/.agents/skills
+/.claude/skills
+/.grok/skills
+skills-lock.json

@@ -33,7 +33,7 @@ Email Routing ──▶ Worker email() ──▶ parse ──▶ D1 (mail + sett
 Telegram Mini App ──▶ Worker fetch() ──▶ /api/* (validated initData) ──▶ D1 / R2
 ```
 
-- **Push notifications** keep the original four buttons per email: `Preview`, `Summary`, `Text`, `HTML`.
+- **Push notifications** carry quick action buttons per email: `Preview`, `Summary` and `Open`.
 - **Mini App inbox** lists history per folder, renders HTML in a sandbox, downloads attachments, replies through Resend, and manages all settings.
 - **Settings in the Mini App** include white/black lists with regex matching, an address tester, block policy, forwarding, AI summary options and mail handling limits.
 
@@ -150,13 +150,12 @@ The push message structure is unchanged:
 From : [sender]
 To   : [recipient]
 
-(Preview)(Summary)(Text)(HTML)
+(Preview)(Summary)(Open)
 ```
 
 1. `Preview` shows the plain text body directly in the chat, limited to 4096 characters.
 2. `Summary` is available when Workers AI or an OpenAI key is configured.
-3. `Text` opens the plain text body in a web page.
-4. `HTML` opens the rich text body in a web page.
+3. `Open` launches the Mini App straight to this message's detail page. Telegram only allows Mini App buttons in private chats, so group notifications omit it.
 
 Reply to any pushed message in Telegram to answer the sender through Resend.
 

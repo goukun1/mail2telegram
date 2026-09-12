@@ -91,10 +91,17 @@ async function persistEmail(
 export async function sendMailToTelegram(mail: EmailRecord, env: Environment): Promise<number[]> {
     const { TELEGRAM_TOKEN, TELEGRAM_ID } = env;
     const settings = await loadSettings(env);
-    const req = await renderEmailListMode(await hydrateEmail(mail, env.BUCKET), env, settings);
+    const hydrated = await hydrateEmail(mail, env.BUCKET);
     const api = createTelegramBotAPI(TELEGRAM_TOKEN);
     const messageIds: number[] = [];
     for (const id of TELEGRAM_ID.split(',').map(item => item.trim()).filter(Boolean)) {
+        // Only numeric positive chat ids are private chats, which are the only
+        // chats that accept a `web_app` button for the Open action. Group,
+        // channel and @username destinations omit it rather than risk a send
+        // failure with an unsupported button.
+        const req = await renderEmailListMode(hydrated, env, settings, {
+            chatType: /^\d+$/.test(id) ? 'private' : 'group',
+        });
         const msg = await api.sendMessageWithReturns({
             chat_id: id,
             ...req,

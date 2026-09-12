@@ -1,8 +1,16 @@
-import { List, ListInput, ListItem, Segmented, SegmentedButton, Toggle } from 'konsta/react';
+import { List, ListInput, ListItem, Toggle } from 'konsta/react';
 import { SettingsSubPage } from './SettingsSubPage';
 import { useSettingsDraft } from './useSettingsDraft';
 
-const SUMMARY_LANGS = ['english', 'chinese', 'japanese', 'korean', 'spanish', 'french', 'german'];
+const SUMMARY_LANGS: { value: string; label: string }[] = [
+    { value: 'english', label: 'English' },
+    { value: 'chinese', label: 'Chinese' },
+    { value: 'japanese', label: 'Japanese' },
+    { value: 'korean', label: 'Korean' },
+    { value: 'spanish', label: 'Spanish' },
+    { value: 'french', label: 'French' },
+    { value: 'german', label: 'German' },
+];
 
 /** AI summary provider, model and language. */
 export function SummariesPage() {
@@ -43,20 +51,21 @@ export function SummariesPage() {
                             />
                         </List>
                     ) : null}
-                    <div className="settings-section-title">Language</div>
-                    <div className="overflow-x-auto px-4 pb-1">
-                        <Segmented strong className="ios-segmented ios-segmented--scroll">
+                    <List strongIos outlineIos className="!mt-0">
+                        <ListInput
+                            label="Summary Language"
+                            type="select"
+                            dropdown
+                            value={draft.summaryTargetLang}
+                            onChange={(e: any) => update('summaryTargetLang', e.target.value)}
+                        >
                             {SUMMARY_LANGS.map(lang => (
-                                <SegmentedButton
-                                    key={lang}
-                                    active={draft.summaryTargetLang === lang}
-                                    onClick={() => update('summaryTargetLang', lang)}
-                                >
-                                    {lang}
-                                </SegmentedButton>
+                                <option key={lang.value} value={lang.value}>
+                                    {lang.label}
+                                </option>
                             ))}
-                        </Segmented>
-                    </div>
+                        </ListInput>
+                    </List>
                     <div className="settings-note">
                         Summaries appear in the Telegram push and in the message reader. Changes save automatically.
                     </div>

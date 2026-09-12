@@ -9,14 +9,33 @@ export interface EmailDetailParams {
     link_preview_options: Telegram.LinkPreviewOptions;
 }
 
-export type EmailRender = (mail: EmailRecord, env: Environment, settings: RuntimeSettings) => Promise<EmailDetailParams>;
+export interface EmailListRenderOptions {
+    /**
+     * Destination chat type. Telegram only allows `web_app` buttons in private
+     * chats, so group and channel notifications omit the Open button instead of
+     * failing to send.
+     */
+    chatType?: string;
+}
+
+export type EmailRender = (
+    mail: EmailRecord,
+    env: Environment,
+    settings: RuntimeSettings,
+    options?: EmailListRenderOptions,
+) => Promise<EmailDetailParams>;
 
 function sendableText(mail: EmailRecord): string {
     const body = mail.body_text || (mail.body_html ? '' : '');
     return body;
 }
 
-export async function renderEmailListMode(mail: EmailRecord, env: Environment, settings: RuntimeSettings): Promise<EmailDetailParams> {
+export async function renderEmailListMode(
+    mail: EmailRecord,
+    env: Environment,
+    settings: RuntimeSettings,
+    options: EmailListRenderOptions = {},
+): Promise<EmailDetailParams> {
     const {
         DEBUG,
         AI,
@@ -36,16 +55,12 @@ export async function renderEmailListMode(mail: EmailRecord, env: Environment, s
             callback_data: `s:${mail.id}`,
         });
     }
-    if (mail.body_text) {
+    if (options.chatType === undefined || options.chatType === 'private') {
         keyboard.push({
-            text: 'Text',
-            url: `https://${DOMAIN}/email/${mail.id}?mode=text`,
-        });
-    }
-    if (mail.body_html) {
-        keyboard.push({
-            text: 'HTML',
-            url: `https://${DOMAIN}/email/${mail.id}?mode=html`,
+            text: 'Open',
+            web_app: {
+                url: `https://${DOMAIN}/#/mail/${mail.id}`,
+            },
         });
     }
     if (DEBUG === 'true') {

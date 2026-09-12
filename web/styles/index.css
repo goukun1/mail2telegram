@@ -674,22 +674,6 @@ body {
     text-overflow: ellipsis;
 }
 
-/* Long option lists scroll horizontally instead of squeezing their labels:
-   each option sizes to its own text. Placed after the base rule so it wins. */
-.ios-segmented--scroll {
-    width: max-content;
-    min-width: 100%;
-}
-
-.ios-segmented--scroll button {
-    /* Konsta sets `w-full` on the buttons; in a scrolling control each option
-       must instead size to its label. */
-    flex: 0 0 auto;
-    width: auto;
-    padding: 0 12px;
-    overflow: visible;
-}
-
 .ios-segmented button.k-segmented-strong-button-active {
     background: #ffffff;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.06);
@@ -703,6 +687,13 @@ body {
 .dark .ios-segmented button.k-segmented-strong-button-active {
     background: #636366;
     box-shadow: none;
+}
+
+/* Native select rows show the current value inline; leave room for Konsta's
+   dropdown chevron, which is positioned at the trailing edge. */
+.k-list-input select {
+    padding-inline-end: 24px;
+    color: inherit;
 }
 
 /* -------------------------------------------------------------- settings */

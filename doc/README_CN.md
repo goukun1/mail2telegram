@@ -30,7 +30,7 @@ Email Routing ──▶ Worker email() ──▶ 解析 ──▶ D1（邮件 + 
 Telegram Mini App ──▶ Worker fetch() ──▶ /api/*（校验 initData）──▶ D1 / R2
 ```
 
-- **推送通知**保留原来的四个按钮：`Preview`、`Summary`、`Text`、`HTML`。
+- **推送通知**为每封邮件提供快捷按钮：`Preview`、`Summary`、`Open`。
 - **Mini App 收件箱**按文件夹浏览历史、沙箱渲染 HTML、下载附件、通过 Resend 回信，并管理全部设置。
 - **Mini App 设置**包含支持正则匹配的白/黑名单、地址测试、阻断策略、转发、AI 摘要选项和邮件处理限制。
 
@@ -147,13 +147,12 @@ Mini App 使用 `TELEGRAM_TOKEN` 校验 Telegram `initData`，并限制为 `TELE
 From : [sender]
 To   : [recipient]
 
-(Preview)(Summary)(Text)(HTML)
+(Preview)(Summary)(Open)
 ```
 
 1. `Preview` 直接在聊天中显示纯文本正文，最多 4096 字符。
 2. 配置 Workers AI 或 OpenAI Key 后可用 `Summary`。
-3. `Text` 在网页中打开纯文本正文。
-4. `HTML` 在网页中打开富文本正文。
+3. `Open` 直接打开 Mini App 中该邮件的详情页。Telegram 只允许在私聊中使用 Mini App 按钮，因此群组推送会省略该按钮。
 
 在 Telegram 中回复任意推送消息即可通过 Resend 给发件人回信。
 

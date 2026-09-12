@@ -11,6 +11,7 @@ import { useDarkMode } from './hooks/useTheme';
 import { Sidebar } from './layout/Sidebar';
 import { MessageTabBar } from './layout/TabBar';
 import { InboxPage } from './pages/InboxPage';
+import { MailPage } from './pages/MailPage';
 import { AddressListPage } from './pages/settings/AddressListPage';
 import { BotPage } from './pages/settings/BotPage';
 import { ForwardingPage } from './pages/settings/ForwardingPage';
@@ -46,6 +47,8 @@ function Layout() {
     const folder = parseFolder(params.get('folder'));
     const selectedId = params.get('id');
     const isSettings = location.pathname.startsWith('/settings');
+    // Deep link opened by the Open button on a Telegram notification.
+    const mailId = location.pathname.startsWith('/mail/') ? location.pathname.slice('/mail/'.length) : null;
 
     const onUnreadChange = useCallback((value: number) => setUnread(value), []);
     const openFolder = useCallback((key: Folder) => navigate(`/inbox?folder=${key}`), [navigate]);
@@ -68,6 +71,18 @@ function Layout() {
                     />
                 </div>
                 <Outlet context={{ onUnreadChange }} />
+            </div>
+        );
+    }
+
+    // On the phone the mail detail route fills the screen like an opened
+    // message, so it gets no tab bar. Its back button returns to the inbox.
+    if (mailId) {
+        return (
+            <div className="app-shell">
+                <div className="app-shell__content">
+                    <Outlet context={{ onUnreadChange }} />
+                </div>
             </div>
         );
     }
@@ -151,6 +166,7 @@ function AppInner() {
                     <Route element={<Layout />}>
                         <Route path="/" element={<Navigate to="/inbox" replace />} />
                         <Route path="/inbox" element={<InboxRoute />} />
+                        <Route path="/mail/:id" element={<MailPage />} />
                         <Route path="/settings" element={<Outlet />}>
                             <Route index element={<SettingsHub />} />
                             <Route path="white" element={<AddressListPage type="white" />} />
