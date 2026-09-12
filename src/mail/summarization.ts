@@ -1,4 +1,5 @@
 import type { Ai } from '@cloudflare/workers-types';
+import type { EmailRecord, Environment, RuntimeSettings } from '../types';
 
 interface WorkersAiResponse {
     response?: string;
@@ -54,4 +55,21 @@ export async function summarizedByOpenAI(key: string, endpoint: string, model: s
     }
     const body = await resp.json() as any;
     return body?.choices?.[0]?.message?.content || '';
+}
+
+export function summaryEnabled(env: Environment, settings: RuntimeSettings): boolean {
+    return settings.summaryEnabled && ((Boolean(env.AI) && Boolean(settings.workersAiModel)) || Boolean(env.OPENAI_API_KEY));
+}
+
+/** Summarize an email body using the configured provider. */
+export async function summarizeEmail(mail: EmailRecord, env: Environment, settings: RuntimeSettings): Promise<string> {
+    const body = (mail.body_text || '').substring(0, 12000);
+    const prompt = `Summarize the following text in approximately 50 words with ${settings.summaryTargetLang}\n\n${body}`;
+    if (env.AI && settings.workersAiModel) {
+        return await summarizedByWorkerAI(env.AI, settings.workersAiModel, prompt);
+    }
+    if (env.OPENAI_API_KEY) {
+        return await summarizedByOpenAI(env.OPENAI_API_KEY, settings.openaiCompletionsApi, settings.openaiChatModel, prompt);
+    }
+    throw new Error('No summarization provider is configured.');
 }

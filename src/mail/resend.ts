@@ -1,11 +1,17 @@
-import type { EmailCache } from '../types';
+import type { EmailRecord } from '../types';
 
-export async function replyToEmail(token: string, email: EmailCache, message: string): Promise<void> {
-    await sendEmail(token, email.to, [email.from], `Re: ${email.subject}`, message);
+export interface ReplyOptions {
+    /** Optional reply subject override. */
+    subject?: string;
+}
+
+export async function replyToEmail(token: string, email: EmailRecord, message: string, options: ReplyOptions = {}): Promise<void> {
+    const subject = options.subject || (email.subject.startsWith('Re: ') ? email.subject : `Re: ${email.subject}`);
+    await sendEmail(token, email.recipient, [email.sender], subject, message);
 }
 
 export async function sendEmail(token: string, from: string, to: string[], subject: string, text: string): Promise<void> {
-    await fetch('https://api.resend.com/emails', {
+    const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -18,4 +24,7 @@ export async function sendEmail(token: string, from: string, to: string[], subje
             text,
         }),
     });
+    if (!response.ok) {
+        throw new Error(`Resend API request failed: ${response.status}`);
+    }
 }

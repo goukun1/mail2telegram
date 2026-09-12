@@ -1,6 +1,6 @@
 import type { ForwardableEmailMessage, ReadableStream, ReadableWritablePair } from '@cloudflare/workers-types';
 import type { RawEmail } from 'postal-mime';
-import type { EmailCache, MaxEmailSizePolicy } from '../types';
+import type { MaxEmailSizePolicy, ParsedAttachment, ParsedEmail, ParsedEmailResult } from '../types';
 import { convert } from 'html-to-text';
 import PostalMime from 'postal-mime';
 
@@ -27,50 +27,85 @@ function truncateStream(stream: ReadableStream<Uint8Array>, maxBytes: number): R
     return stream.pipeThrough(tran);
 }
 
-export async function parseEmail(message: ForwardableEmailMessage, maxSize: number, maxSizePolicy: MaxEmailSizePolicy, useEmlHeaders: boolean = false): Promise<EmailCache> {
+function normalizeAttachmentContent(content: ArrayBuffer | string | undefined): ArrayBuffer {
+    if (content === undefined) {
+        return new ArrayBuffer(0);
+    }
+    if (typeof content === 'string') {
+        return new TextEncoder().encode(content).buffer as ArrayBuffer;
+    }
+    return content;
+}
+
+export async function parseEmail(
+    message: ForwardableEmailMessage,
+    maxSize: number,
+    maxSizePolicy: MaxEmailSizePolicy,
+): Promise<ParsedEmailResult> {
     const id = crypto.randomUUID();
-    const cache: EmailCache = {
-        id,
-        messageId: message.headers.get('Message-ID') || id,
+    const base: ParsedEmail = {
+        messageId: message.headers.get('Message-ID')?.trim() || id,
         from: message.from,
+        fromName: null,
         to: message.to,
+        cc: null,
+        bcc: null,
         subject: message.headers.get('Subject') || '',
+        text: '',
+        html: null,
+        inReplyTo: null,
+        references: [],
+        date: new Date().toISOString(),
+        rawHeaders: null,
+        attachments: [],
     };
     let isTruncate = false;
     let emailRaw = message.raw;
     try {
-        switch (message.rawSize > maxSize ? maxSizePolicy : 'continue') {
-            case 'unhandled':
-                cache.text = `The original size of the email was ${message.rawSize} bytes, which exceeds the maximum size of ${maxSize} bytes.`;
-                cache.html = cache.text;
-                return cache;
-            case 'truncate':
-                isTruncate = true;
-                emailRaw = truncateStream(message.raw, maxSize);
-                break;
-            default:
-                break;
+        const policy = message.rawSize > maxSize ? maxSizePolicy : 'continue';
+        if (policy === 'unhandled') {
+            const notice = `The original size of the email was ${message.rawSize} bytes, which exceeds the maximum size of ${maxSize} bytes.`;
+            base.text = notice;
+            base.html = notice;
+            return { ...base, truncated: false, unhandled: true, rawSize: message.rawSize };
+        }
+        if (policy === 'truncate') {
+            isTruncate = true;
+            emailRaw = truncateStream(message.raw, maxSize);
         }
         const parser = new PostalMime();
         const email = await parser.parse(emailRaw as unknown as RawEmail);
-        cache.subject = email.subject || cache.subject;
-        if (useEmlHeaders) {
-            cache.messageId = email.messageId || cache.messageId;
-            cache.from = email.from?.address || cache.from;
-            cache.to = email.to?.map(addr => addr.address).at(0) || cache.to;
+        base.subject = email.subject || base.subject;
+        base.messageId = email.messageId?.trim() || base.messageId;
+        base.from = email.from?.address || base.from;
+        base.fromName = email.from?.name || null;
+        base.to = email.to?.map(addr => addr.address).filter(Boolean).join(', ') || base.to;
+        base.cc = email.cc?.map(addr => addr.address).filter(Boolean).join(', ') || null;
+        base.bcc = email.bcc?.map(addr => addr.address).filter(Boolean).join(', ') || null;
+        base.date = email.date ? new Date(email.date).toISOString() : base.date;
+        base.inReplyTo = email.inReplyTo?.trim() || null;
+        base.references = (email.references || '').split(/\s+/).map(ref => ref.trim()).filter(Boolean);
+        base.rawHeaders = JSON.stringify(Object.fromEntries((email.headers || []).map(header => [header.key, header.value])));
+        base.html = email.html || null;
+        base.text = email.text || '';
+        if (base.html && !base.text) {
+            base.text = convert(base.html, {});
         }
-        cache.html = email.html;
-        cache.text = email.text;
-        if (cache.html && !cache.text) {
-            cache.text = convert(cache.html, {});
-        }
+        base.attachments = (email.attachments || []).map((att): ParsedAttachment => ({
+            filename: att.filename || 'attachment',
+            mimetype: att.mimeType || 'application/octet-stream',
+            contentId: att.contentId || null,
+            disposition: att.disposition || null,
+            content: normalizeAttachmentContent(att.content as ArrayBuffer | string | undefined),
+        }));
         if (isTruncate) {
-            cache.text += `\n\n[Truncated] The original size of the email was ${message.rawSize} bytes, which exceeds the maximum size of ${maxSize} bytes.`;
+            base.text += `\n\n[Truncated] The original size of the email was ${message.rawSize} bytes, which exceeds the maximum size of ${maxSize} bytes.`;
         }
     } catch (e) {
         const msg = `Error parsing email: ${(e as Error).message}`;
-        cache.text = msg;
-        cache.html = msg;
+        base.text = msg;
+        base.html = msg;
+        base.attachments = [];
     }
-    return cache;
+    return { ...base, truncated: isTruncate, unhandled: false, rawSize: message.rawSize };
 }
