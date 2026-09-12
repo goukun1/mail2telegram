@@ -50,6 +50,8 @@ export class Dao {
         size: number;
         bodyHtmlKey?: string | null;
         bodyTextKey?: string | null;
+        /** Attachments actually stored, which is zero when R2 is not configured. */
+        storedAttachments?: number;
     }): Promise<void> {
         const now = new Date().toISOString();
         const threadId = email.references[0] || email.inReplyTo || options.id;
@@ -78,7 +80,7 @@ export class Dao {
             JSON.stringify(email.references),
             threadId,
             email.rawHeaders,
-            email.attachments.length > 0 ? 1 : 0,
+            (options.storedAttachments ?? email.attachments.length) > 0 ? 1 : 0,
             now,
         ).run();
     }

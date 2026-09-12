@@ -76,6 +76,7 @@ async function persistEmail(
             size: rawSize,
             bodyHtmlKey,
             bodyTextKey,
+            storedAttachments: attachmentRecords.length,
         },
     );
     await dao.insertAttachments(id, attachmentRecords);
