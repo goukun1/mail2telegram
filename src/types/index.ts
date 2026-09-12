@@ -138,6 +138,8 @@ export interface Environment {
     GUARDIAN_MODE?: string;
     RESEND_API_KEY?: string;
     DEBUG?: string;
+    /** Local development only: accept Mini App requests without a valid signature. */
+    DEV_BYPASS_AUTH?: string;
     DB: D1Database;
     BUCKET?: R2Bucket;
     AI?: Ai;

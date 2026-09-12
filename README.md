@@ -176,7 +176,7 @@ Mail older than `MAIL_TTL` is not part of the notification cache, but the D1 his
 
 ```bash
 pnpm install
-pnpm dev            # Vite dev server + wrangler dev
+pnpm dev            # Vite dev server on :5173 + wrangler dev on :8787
 pnpm build          # typecheck and build the Mini App into dist/client
 pnpm test           # parseEmail unit test
 pnpm lint           # eslint --fix
@@ -187,6 +187,8 @@ Local D1 migrations:
 ```bash
 pnpm db:migrate:local
 ```
+
+The Mini App normally requires a valid Telegram `initData` signature. For local development, run `wrangler dev` with a `.dev.vars` file containing `DEV_BYPASS_AUTH=true` and open `http://localhost:5173/?debug`. The `?platform=ios` query parameter previews the phone layout in a desktop browser. Never set `DEV_BYPASS_AUTH` in a deployed worker.
 
 ## License
 

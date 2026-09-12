@@ -26,9 +26,24 @@ interface TMAUser {
 
 function createTmaAuthMiddleware(env: Environment): (req: IRequest) => Promise<void> {
     const { TELEGRAM_TOKEN, TELEGRAM_ID } = env;
+    const allowed = TELEGRAM_ID.split(',').map(item => item.trim()).filter(Boolean);
+    // Local development only: serve the first configured chat id without a
+    // valid signature. Never enable this in a deployed worker.
+    const bypassAuth = env.DEV_BYPASS_AUTH === 'true';
     return async (req: IRequest): Promise<void> => {
         const [authType, authData = ''] = (req.headers.get('Authorization') || '').split(' ');
-        if (authType !== 'tma' || !authData) {
+        if (authType !== 'tma') {
+            throw new HTTPError(401, 'Invalid authorization type');
+        }
+        if (bypassAuth) {
+            const rawUser = authData ? new URLSearchParams(authData).get('user') : null;
+            const user = rawUser
+                ? JSON.parse(rawUser) as TMAUser
+                : { id: Number.parseInt(allowed[0] || '0', 10), first_name: 'Dev' };
+            (req as IRequest & { user?: TMAUser }).user = user;
+            return;
+        }
+        if (!authData) {
             throw new HTTPError(401, 'Invalid authorization type');
         }
         try {
@@ -37,7 +52,6 @@ function createTmaAuthMiddleware(env: Environment): (req: IRequest) => Promise<v
             throw new HTTPError(401, (e as Error).message);
         }
         const user = JSON.parse(new URLSearchParams(authData).get('user') || '{}') as TMAUser;
-        const allowed = TELEGRAM_ID.split(',').map(item => item.trim()).filter(Boolean);
         if (!allowed.includes(`${user.id}`)) {
             throw new HTTPError(403, 'Permission denied');
         }

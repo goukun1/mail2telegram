@@ -173,7 +173,7 @@ To   : [recipient]
 
 ```bash
 pnpm install
-pnpm dev            # Vite 开发服务器 + wrangler dev
+pnpm dev            # Vite 开发服务器 :5173 + wrangler dev :8787
 pnpm build          # 类型检查并构建 Mini App 到 dist/client
 pnpm test           # parseEmail 单元测试
 pnpm lint           # eslint --fix
@@ -184,6 +184,8 @@ pnpm lint           # eslint --fix
 ```bash
 pnpm db:migrate:local
 ```
+
+Mini App 正常需要有效的 Telegram `initData` 签名。本地开发时，在 `.dev.vars` 中加入 `DEV_BYPASS_AUTH=true` 再运行 `wrangler dev`，然后打开 `http://localhost:5173/?debug`。加 `?platform=ios` 可在桌面浏览器中预览手机端布局。切勿在部署的 worker 中设置 `DEV_BYPASS_AUTH`。
 
 ## License
 
