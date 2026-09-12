@@ -579,10 +579,14 @@ body {
 /* iOS style segmented control.
    Konsta implements the active pill as an absolutely positioned span whose
    offset is measured in JavaScript; that is fragile. Draw the pill on the active
-   button itself instead and hide Konsta's highlight layer. */
+   button itself instead and hide Konsta's highlight layer. The control fills its
+   container so all options share the available width equally. */
 .ios-segmented {
+    width: 100%;
     border-radius: 9px;
     background: rgba(120, 120, 128, 0.16);
+    gap: 2px;
+    padding: 2px;
 }
 
 .ios-segmented > span {
@@ -590,11 +594,34 @@ body {
 }
 
 .ios-segmented button {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 32px;
+    padding: 0 6px;
     font-size: 13px;
     font-weight: 500;
     letter-spacing: -0.08px;
     border-radius: 7px;
     color: var(--ios-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Long option lists scroll horizontally instead of squeezing their labels:
+   each option sizes to its own text. Placed after the base rule so it wins. */
+.ios-segmented--scroll {
+    width: max-content;
+    min-width: 100%;
+}
+
+.ios-segmented--scroll button {
+    /* Konsta sets `w-full` on the buttons; in a scrolling control each option
+       must instead size to its label. */
+    flex: 0 0 auto;
+    width: auto;
+    padding: 0 12px;
+    overflow: visible;
 }
 
 .ios-segmented button.k-segmented-strong-button-active {

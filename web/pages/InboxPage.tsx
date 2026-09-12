@@ -117,8 +117,8 @@ export function InboxPage({ folder, onFolderChange, selectedId, onSelect, showSi
                         />
                     </div>
                 ) : null}
-                <div className="overflow-x-auto px-3 pb-2 pt-2">
-                    <Segmented strong className="ios-segmented !w-max">
+                <div className="px-3 pb-2 pt-2">
+                    <Segmented strong className="ios-segmented">
                         <SegmentedButton active={filter === 'all'} onClick={() => setFilter('all')}>All</SegmentedButton>
                         <SegmentedButton active={filter === 'unread'} onClick={() => setFilter('unread')}>Unread</SegmentedButton>
                         <SegmentedButton active={filter === 'starred'} onClick={() => setFilter('starred')}>Starred</SegmentedButton>
