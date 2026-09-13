@@ -63,7 +63,7 @@ export function HandlingPage() {
                     </List>
                     <div className="settings-note">
                         {draft.attachmentSaveEnabled
-                            ? `Single attachments over ${formatBytes(draft.attachmentMaxSize)} are skipped; the rest stay downloadable in the Mini App until cleanup.`
+                            ? `Single attachments over ${formatBytes(draft.attachmentMaxSize)} are skipped (0 stores every attachment); the rest stay downloadable in the Mini App until cleanup.`
                             : 'Attachments are not stored, so the Mini App cannot list or serve them.'}
                     </div>
                     <div className="settings-note">

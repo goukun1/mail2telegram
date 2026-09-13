@@ -23,7 +23,9 @@ async function persistEmail(
         // The puts are independent: run them concurrently and let one failure
         // drop only its own attachment.
         const stored = await Promise.all(parsed.attachments.map(async (attachment): Promise<AttachmentRecord | null> => {
-            if (attachment.content.byteLength > settings.attachmentMaxSize) {
+            // A limit of zero (or less) means "no limit": storing nothing
+            // silently would be a worse default than honouring every attachment.
+            if (settings.attachmentMaxSize > 0 && attachment.content.byteLength > settings.attachmentMaxSize) {
                 console.error('[email] attachment.skip.oversize', attachment.filename, attachment.content.byteLength);
                 return null;
             }
@@ -152,10 +154,13 @@ export async function emailHandler(message: ForwardableEmailMessage, env: Enviro
         return;
     }
 
-    // Delivery journal keyed by Message-ID. Email Routing re-runs the worker
-    // when the handler throws, so the journal is what turns a redelivery into
-    // a no-op instead of a duplicate forward, row or notification.
-    const status = await dao.getMailStatus(id) ?? { message_id: id, telegram: 0, forwards: '[]', updated_at: '' };
+    // Delivery journal keyed by Message-ID plus the raw size. Email Routing
+    // re-runs the worker when the handler throws, so the journal is what turns a
+    // redelivery into a no-op instead of a duplicate forward, row or notification.
+    // The size is mixed in because a sender may reuse one Message-ID for distinct
+    // messages; an identical redelivery still hashes to the same entry.
+    const journalId = `${id}|${message.rawSize}`;
+    const status = await dao.getMailStatus(journalId) ?? { message_id: journalId, telegram: 0, forwards: '[]', updated_at: '' };
     const forwarded = new Set(JSON.parse(status.forwards) as string[]);
 
     // Forward to email; one bad address only skips itself.
@@ -169,7 +174,7 @@ export async function emailHandler(message: ForwardableEmailMessage, env: Enviro
         try {
             await message.forward(address);
             forwarded.add(address);
-            await dao.upsertMailStatus(id, { telegram: Boolean(status.telegram), forwards: [...forwarded] });
+            await dao.upsertMailStatus(journalId, { telegram: Boolean(status.telegram), forwards: [...forwarded] });
         } catch (e) {
             console.error('[email] forward.failed', address, (e as Error).message);
         }
@@ -178,15 +183,24 @@ export async function emailHandler(message: ForwardableEmailMessage, env: Enviro
     // Parse and persist. Persisting is the transaction boundary: a failure
     // here propagates so Email Routing retries delivery, while the journal
     // above and the Message-ID lookup keep that retry from duplicating work.
+    //
+    // Reaching here means the journal has telegram = 0, so no notification has
+    // been recorded: an existing row with the same Message-ID and size is a
+    // redelivery from a crash between persist and journal write, and it must
+    // still be notified. A same Message-ID with a different size is a distinct
+    // message and is stored as a new row. The residual window is the opposite
+    // one: if the journal write succeeds but the background notify fails, the
+    // notification is not retried (at-most-once for the push, at-least-once
+    // for the stored mail).
     const blockTelegram = isBlock && settings.blockPolicy.includes('telegram');
     if (!status.telegram && !blockTelegram) {
         const parsed = await parseEmail(message, settings.maxEmailSize, settings.maxEmailSizePolicy);
         const folder = isBlock ? 'spam' : 'inbox';
-        // Journal and row update are not atomic; a crash between them must
-        // not insert the message twice, hence the lookup before the insert.
-        const stored = await dao.getEmailByMessageId(parsed.messageId)
-            ?? await persistEmail(env, dao, parsed, folder, message.rawSize, settings);
-        await dao.upsertMailStatus(id, { telegram: true, forwards: [...forwarded] });
+        const existing = await dao.getEmailByMessageId(parsed.messageId);
+        const stored = existing && existing.size === message.rawSize
+            ? existing
+            : await persistEmail(env, dao, parsed, folder, message.rawSize, settings);
+        await dao.upsertMailStatus(journalId, { telegram: true, forwards: [...forwarded] });
         ctx.waitUntil(notifyTelegram(stored, env, dao));
     }
 }

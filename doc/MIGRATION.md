@@ -203,7 +203,7 @@ In 2.0 all behavior settings live in the Mini App. The legacy variables below ar
 | `BLOCK_POLICY` | env only | env is the default; editable in the Mini App |
 | `MAIL_TTL` | expiry of the `Text` / `HTML` web links | obsolete — 2.0 keeps mail in D1 until Auto Cleanup (or Clear Mail) removes it; the variable is ignored |
 | `AUTO_CLEANUP_DAYS` | — | optional initial value (days) for the daily mail cleanup cron; defaults to 7, 0 keeps mail forever; editable in the Mini App under Mail Handling |
-| `GUARDIAN_MODE` | KV-based dedup (extra KV writes) | D1-based dedup (no extra cost); default off; editable in the Mini App |
+| `GUARDIAN_MODE` | KV-based dedup (extra KV writes) | obsolete — 2.0 always suppresses a repeated `Message-ID` in D1; the variable is ignored |
 | `MAX_EMAIL_SIZE` / `MAX_EMAIL_SIZE_POLICY` | same | same; size is also stored per mail |
 | `WORKERS_AI_MODEL` / `OPENAI_*` / `SUMMARY_TARGET_LANG` | same | Moved into the Mini App settings, including the API key; importing copies the legacy values |
 | `RESEND_API_KEY` | reply from Telegram | reply from Telegram and the Mini App |

@@ -7,7 +7,6 @@ export const SETTING_KEYS = {
     attachmentMaxSize: 'attachment_max_size',
     blockPolicy: 'block_policy',
     forwardList: 'forward_list',
-    guardianMode: 'guardian_mode',
     maxEmailSize: 'max_email_size',
     maxEmailSizePolicy: 'max_email_size_policy',
     summaryEnabled: 'summary_enabled',
@@ -54,7 +53,6 @@ export function defaultSettings(env: Environment): RuntimeSettings {
         attachmentMaxSize: toInt(env.ATTACHMENT_MAX_SIZE, 25 * 1024 * 1024),
         blockPolicy: toBlockPolicy(env.BLOCK_POLICY),
         forwardList: (env.FORWARD_LIST || '').split(',').map(item => item.trim()).filter(Boolean),
-        guardianMode: toBool(env.GUARDIAN_MODE),
         maxEmailSize: toInt(env.MAX_EMAIL_SIZE, 512 * 1024),
         maxEmailSizePolicy: toMaxSizePolicy(env.MAX_EMAIL_SIZE_POLICY),
         summaryEnabled: Boolean((env.AI && env.WORKERS_AI_MODEL) || env.OPENAI_API_KEY),
@@ -86,9 +84,6 @@ export function mergeSettings(base: RuntimeSettings, stored: Record<string, stri
     }
     if (stored[SETTING_KEYS.forwardList] !== undefined) {
         result.forwardList = loadArrayFromRaw(stored[SETTING_KEYS.forwardList]);
-    }
-    if (stored[SETTING_KEYS.guardianMode] !== undefined) {
-        result.guardianMode = toBool(stored[SETTING_KEYS.guardianMode], result.guardianMode);
     }
     if (stored[SETTING_KEYS.maxEmailSize] !== undefined) {
         result.maxEmailSize = toInt(stored[SETTING_KEYS.maxEmailSize], result.maxEmailSize);
@@ -144,9 +139,6 @@ export async function saveSettings(dao: Dao, patch: Partial<RuntimeSettings>): P
     }
     if (patch.forwardList !== undefined) {
         entries[SETTING_KEYS.forwardList] = JSON.stringify(patch.forwardList);
-    }
-    if (patch.guardianMode !== undefined) {
-        entries[SETTING_KEYS.guardianMode] = `${patch.guardianMode}`;
     }
     if (patch.maxEmailSize !== undefined) {
         entries[SETTING_KEYS.maxEmailSize] = `${patch.maxEmailSize}`;

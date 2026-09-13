@@ -51,7 +51,6 @@ export interface Address {
 export interface RuntimeSettings {
     blockPolicy: BlockPolicy[];
     forwardList: string[];
-    guardianMode: boolean;
     maxEmailSize: number;
     maxEmailSizePolicy: MaxEmailSizePolicy;
     summaryEnabled: boolean;

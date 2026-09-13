@@ -105,7 +105,7 @@ function Layout() {
         return (
             <div className="app-shell">
                 <div className="app-shell__content">
-                    <Outlet context={{ onUnreadChange }} />
+                    <Outlet context={{ onUnreadChange, onMailChanged: bumpRefresh, refreshToken }} />
                 </div>
             </div>
         );
@@ -114,7 +114,7 @@ function Layout() {
     return (
         <div className="app-shell">
             <div className="app-shell__content">
-                <Outlet context={{ onUnreadChange }} />
+                <Outlet context={{ onUnreadChange, onMailChanged: bumpRefresh, refreshToken }} />
             </div>
             <MessageTabBar
                 active={isSettings ? 'settings' : 'inbox'}
@@ -123,7 +123,16 @@ function Layout() {
             />
             {selectedId && !isSettings ? (
                 <div className="fixed inset-0 z-40 flex flex-col bg-[var(--ios-surface)]">
-                    <MessageReader emailId={selectedId} onBack={closeReader} onDeleted={closeReader} />
+                    <MessageReader
+                        key={selectedId}
+                        emailId={selectedId}
+                        onChanged={bumpRefresh}
+                        onBack={closeReader}
+                        onDeleted={() => {
+                            bumpRefresh();
+                            closeReader();
+                        }}
+                    />
                 </div>
             ) : null}
         </div>
@@ -135,7 +144,7 @@ function InboxRoute() {
     const [params] = useSearchParams();
     const navigate = useNavigate();
     const selectedId = params.get('id');
-    const { onUnreadChange } = useOutletContext<{ onUnreadChange: (value: number) => void }>();
+    const { onUnreadChange, refreshToken } = useOutletContext<{ onUnreadChange: (value: number) => void; refreshToken: number }>();
 
     return (
         <InboxPage
@@ -150,6 +159,7 @@ function InboxRoute() {
                 navigate(`/inbox?id=${id}`);
             }}
             hasSidebar={false}
+            refreshToken={refreshToken}
             onUnreadChange={onUnreadChange}
         />
     );

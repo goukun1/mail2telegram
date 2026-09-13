@@ -203,7 +203,7 @@ pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 | `BLOCK_POLICY`            | 仅环境变量                             | 环境变量为默认值，可在 Mini App 中修改            |
 | `MAIL_TTL`                | `Text` / `HTML` 网页链接的过期时间     | 已废弃 —— 2.0 的邮件保存在 D1 中，直到自动清理（或“清除邮件”）删除；该变量会被忽略 |
 | `AUTO_CLEANUP_DAYS`       | —                                      | 可选的每日清理保留天数初始值；默认 7 天，0 表示永久保留；可在 Mini App 的 Mail Handling 中修改 |
-| `GUARDIAN_MODE`           | 基于 KV 去重（消耗 KV 写入）          | 基于 D1 去重（无额外开销）；默认关闭，可在 Mini App 修改 |
+| `GUARDIAN_MODE`           | 基于 KV 去重（消耗 KV 写入）          | 已废弃 —— 2.0 始终基于 D1 抑制重复的 `Message-ID`，该变量会被忽略 |
 | `MAX_EMAIL_SIZE` / `MAX_EMAIL_SIZE_POLICY` | 相同 | 相同；邮件大小同时入库 |
 | `WORKERS_AI_MODEL` / `OPENAI_*` / `SUMMARY_TARGET_LANG` | 相同 | 移入 Mini App 设置（含 API Key）；导入时会复制旧值 |
 | `RESEND_API_KEY`          | 在 Telegram 中回信                     | 在 Telegram 和 Mini App 中回信                    |

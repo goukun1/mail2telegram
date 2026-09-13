@@ -49,7 +49,6 @@ function testCase() {
         attachment_max_size: '4096',
         block_policy: 'forward',
         forward_list: JSON.stringify(['a@example.com', 'b@example.com']),
-        guardian_mode: 'true',
         forward_enabled: 'false',
         openai_chat_model: 'gpt-test',
     });
@@ -62,8 +61,8 @@ function testCase() {
     if (merged.forwardList.length !== 2 || merged.forwardList[0] !== 'a@example.com') {
         throw new Error(`unexpected merged forwardList: ${merged.forwardList}`);
     }
-    if (!merged.guardianMode || merged.forwardEnabled) {
-        throw new Error(`unexpected merged flags: guardian=${merged.guardianMode} forward=${merged.forwardEnabled}`);
+    if (merged.forwardEnabled) {
+        throw new Error(`unexpected merged forwardEnabled: ${merged.forwardEnabled}`);
     }
     if (merged.attachmentSaveEnabled || merged.attachmentMaxSize !== 4096) {
         throw new Error(`unexpected merged attachments: enabled=${merged.attachmentSaveEnabled} size=${merged.attachmentMaxSize}`);
@@ -87,6 +86,13 @@ function testCase() {
     }
     if (cleared.forwardList.length !== 0) {
         throw new Error(`empty forwardList was ignored: ${cleared.forwardList}`);
+    }
+
+    // Zero is stored as-is and read as "no limit" at delivery time, so a
+    // cleared size field must not silently disable attachment storage.
+    const unlimited = mergeSettings(base, { attachment_max_size: '0' });
+    if (unlimited.attachmentMaxSize !== 0) {
+        throw new Error(`attachment_max_size=0 was not preserved: ${unlimited.attachmentMaxSize}`);
     }
 
     // Invalid stored values fall back to the defaults instead of throwing.

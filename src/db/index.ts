@@ -291,13 +291,6 @@ export class Dao {
         }
     }
 
-    async countFolder(folder: Folder | 'all'): Promise<number> {
-        const row = folder === 'all'
-            ? await this.db.prepare('SELECT COUNT(*) AS total FROM emails').first<{ total: number }>()
-            : await this.db.prepare('SELECT COUNT(*) AS total FROM emails WHERE folder = ?').bind(folder).first<{ total: number }>();
-        return row?.total ?? 0;
-    }
-
     async countUnread(folder: Folder | 'all'): Promise<number> {
         const row = folder === 'all'
             ? await this.db.prepare('SELECT COUNT(*) AS total FROM emails WHERE is_read = 0').first<{ total: number }>()
@@ -422,9 +415,11 @@ export class Dao {
     // ----------------------------------------------------- telegram mapping
 
     async saveTelegramMessage(telegramMessageId: number, chatId: number | string, emailId: string): Promise<void> {
+        // Telegram message ids are per-chat, so the conflict target must include
+        // the chat; a global id key would let one chat overwrite another's row.
         await this.db.prepare(
             `INSERT INTO telegram_messages (telegram_message_id, chat_id, email_id, created_at) VALUES (?, ?, ?, ?)
-             ON CONFLICT (telegram_message_id) DO UPDATE SET chat_id = excluded.chat_id, email_id = excluded.email_id`,
+             ON CONFLICT (chat_id, telegram_message_id) DO UPDATE SET email_id = excluded.email_id`,
         ).bind(`${telegramMessageId}`, `${chatId}`, emailId, new Date().toISOString()).run();
     }
 

@@ -60,10 +60,16 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TEXT NOT NULL
 );
 
+-- chat_id binds each notification to the chat that received it, so the
+-- reply-to-email command can only be triggered from that chat. Telegram
+-- message ids are only unique per chat, so the chat is part of the key:
+-- a global id key would let one chat overwrite another's mapping.
 CREATE TABLE IF NOT EXISTS telegram_messages (
-    telegram_message_id TEXT PRIMARY KEY,
+    telegram_message_id TEXT NOT NULL,
+    chat_id TEXT NOT NULL DEFAULT '',
     email_id TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (chat_id, telegram_message_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_telegram_messages_email ON telegram_messages (email_id);

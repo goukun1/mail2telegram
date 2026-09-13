@@ -38,6 +38,8 @@ export interface EmailRecord {
     body_text: string | null;
     raw_key: string | null;
     size: number;
+    /** List-only preview column; absent from detail (`EMAIL_COLUMNS`) rows. */
+    snippet?: string | null;
     in_reply_to: string | null;
     references_json: string | null;
     thread_id: string | null;
@@ -107,7 +109,6 @@ export interface MailStatusRecord {
 export interface RuntimeSettings {
     blockPolicy: BlockPolicy[];
     forwardList: string[];
-    guardianMode: boolean;
     maxEmailSize: number;
     maxEmailSizePolicy: MaxEmailSizePolicy;
     summaryEnabled: boolean;
@@ -141,7 +142,6 @@ export interface Environment {
     OPENAI_CHAT_MODEL?: string;
     WORKERS_AI_MODEL?: string;
     SUMMARY_TARGET_LANG?: string;
-    GUARDIAN_MODE?: string;
     /** Days of mail history kept by the daily cron; 0 disables it. Defaults to 7. */
     AUTO_CLEANUP_DAYS?: string;
     RESEND_API_KEY?: string;
