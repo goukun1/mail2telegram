@@ -20,7 +20,7 @@ This guide covers two scenarios:
 | Runtime settings       | Environment variables only             | Configured in the Mini App (stored in D1); legacy variables can be imported with one click |
 | Push buttons           | `Preview` `Summary` `Text` `HTML`      | `Preview` `Summary` `Open` (deep link into the Mini App) |
 | Optional bindings      | `AI`                                   | `AI`, `BUCKET` (R2)                               |
-| Build                  | esbuild                                | Vite (Mini App built into `dist/client`)          |
+| Build                  | esbuild                                | Vite (Mini App built into `packages/web/dist/client`)          |
 | Deployment             | `wrangler deploy` or copy-paste script | Workers Builds (`pnpm run deploy`) or CLI with D1 migrations |
 
 What stays the same: your bot token, the Email Routing catch-all configuration, the push message layout, replying to a push to answer the sender, and all AI summary options.

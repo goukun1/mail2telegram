@@ -13,7 +13,7 @@
 {
     "$schema": "./node_modules/wrangler/config-schema.json",
     "name": "mail2telegram",
-    "main": "src/index.ts",
+    "main": "packages/server/src/index.ts",
     // From this date Workers enables nodejs_compat and nodejs_compat_v2 by
     // default, so no compatibility_flags are needed — adding them would be
     // redundant and is discouraged by Cloudflare.
@@ -26,10 +26,10 @@
     "triggers": {
         "crons": ["0 3 * * *"]
     },
-    // The frontend SPA built by Vite into ./dist/client.
+    // The frontend SPA built by Vite into packages/web/dist/client.
     // API and webhook routes are handled by the Worker first.
     "assets": {
-        "directory": "./dist/client",
+        "directory": "./packages/web/dist/client",
         "not_found_handling": "single-page-application",
         "run_worker_first": [
             "/api/*",
@@ -41,11 +41,13 @@
     // `local` is a wrangler dev placeholder. scripts/build-config.mjs replaces
     // it with DEPLOY_D1_DATABASE_ID / DEPLOY_R2_BUCKET_NAME at deploy time and
     // omits the R2 binding when no bucket is configured.
+    // Migrations are read from packages/server/migrations.
     "d1_databases": [
         {
             "binding": "DB",
             "database_name": "mail2telegram",
-            "database_id": "local"
+            "database_id": "local",
+            "migrations_dir": "packages/server/migrations"
         }
     ],
     "r2_buckets": [

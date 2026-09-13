@@ -20,7 +20,7 @@
 | 运行参数               | 仅环境变量                             | 在 Mini App 中配置（存于 D1）；旧变量可一键导入   |
 | 推送按钮               | `Preview` `Summary` `Text` `HTML`      | `Preview` `Summary` `Open`（深链到 Mini App 详情页）|
 | 可选绑定               | `AI`                                   | `AI`、`BUCKET`（R2）                              |
-| 构建                   | esbuild                                | Vite（Mini App 构建到 `dist/client`）             |
+| 构建                   | esbuild                                | Vite（Mini App 构建到 `packages/web/dist/client`）             |
 | 部署                   | `wrangler deploy` 或复制粘贴脚本       | Workers Builds（`pnpm run deploy`）或命令行 + D1 迁移 |
 
 保持不变的部分：Bot Token、Email Routing 的 catch-all 配置、推送消息版式、回复推送即可回信，以及全部 AI 摘要选项。

@@ -117,11 +117,16 @@ if (config.vars && Object.hasOwn(config.vars, 'DEV_BYPASS_AUTH')) {
 }
 
 const databaseName = process.env.DEPLOY_D1_DATABASE_NAME || config.d1_databases?.[0]?.database_name || 'mail2telegram';
+// Rebuilt from scratch, so carry migrations_dir across: it now lives in the
+// server package, and dropping it would send `d1 migrations apply` looking in
+// the repo-root `migrations/` directory, which no longer exists.
+const migrationsDir = config.d1_databases?.[0]?.migrations_dir;
 config.d1_databases = [
     {
         binding: 'DB',
         database_name: databaseName,
         database_id: databaseId,
+        ...(migrationsDir ? { migrations_dir: migrationsDir } : {}),
     },
 ];
 

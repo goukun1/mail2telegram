@@ -110,10 +110,19 @@ Mail older than the retention setting is not part of the notification cache, but
 
 ## Development
 
+The repo is a pnpm workspace with three packages and the deployable worker config at the root:
+
+| Path | Package | Contents |
+|:-----|:--------|:---------|
+| `packages/server` | `@mail2telegram/server` | Cloudflare Worker: email handlers, Telegram bot, Mini App API, D1 migrations and the Worker-runtime tests. |
+| `packages/web` | `@mail2telegram/web` | Telegram Mini App (Vite + React), built to `packages/web/dist/client`. |
+| `packages/shared` | `@mail2telegram/shared` | Types-only HTTP contract consumed by both sides; owns every type that crosses the wire. |
+
 ```bash
 pnpm install
 pnpm dev            # Vite dev server on :5173 + wrangler dev on :8787
-pnpm build          # typecheck and build the Mini App into dist/client
+pnpm build          # typecheck every package and build the Mini App into packages/web/dist/client
+pnpm typecheck      # tsc --noEmit for each package
 pnpm test           # pure-logic tests (tsx) + Worker-runtime tests (vitest, Miniflare)
 pnpm test:unit      # mergeSettings / testAddress / parseEmail only
 pnpm test:pool      # D1, inbound-email and cleanup tests in the Workers runtime
@@ -123,6 +132,8 @@ pnpm format         # oxfmt
 pnpm format:check   # oxfmt --check (used by CI)
 pnpm screenshots    # regenerate the README images in doc/ from mock data
 ```
+
+`wrangler dev` serves the built `packages/web/dist/client`, so run `pnpm build` (or keep `pnpm build:web` running) at least once before starting it; `pnpm dev` runs both processes but does not build the assets.
 
 Local D1 migrations:
 

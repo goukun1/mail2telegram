@@ -7,28 +7,88 @@ settings:
 importers:
 
   .:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.5.1
+        version: 26.5.1
+      concurrently:
+        specifier: ^10.0.5
+        version: 10.0.5
+      oxfmt:
+        specifier: ^0.67.0
+        version: 0.67.0
+      oxlint:
+        specifier: ^1.82.0
+        version: 1.82.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      wrangler:
+        specifier: ^4.131.1
+        version: 4.131.1(@cloudflare/workers-types@5.20260911.1)(@types/node@26.5.1)
+
+  packages/server:
     dependencies:
+      '@mail2telegram/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@tma.js/init-data-node':
         specifier: ^2.0.8
         version: 2.0.8(typescript@6.0.3)
-      '@tma.js/sdk-react':
-        specifier: ^3.0.23
-        version: 3.0.23(@types/react@19.3.0)(react@19.3.0)(typescript@6.0.3)
-      dompurify:
-        specifier: ^3.4.15
-        version: 3.4.15
       html-to-text:
         specifier: ^10.0.1
         version: 10.0.1
       itty-router:
         specifier: ^5.0.24
         version: 5.0.24
-      konsta:
-        specifier: ^5.4.0
-        version: 5.4.0
       postal-mime:
         specifier: ^3.0.0
         version: 3.0.0
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.22.0
+        version: 0.22.0(@cloudflare/workers-types@5.20260911.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)))
+      '@cloudflare/workers-types':
+        specifier: ^5.20260911.1
+        version: 5.20260911.1
+      '@types/html-to-text':
+        specifier: ^9.0.4
+        version: 9.0.4
+      '@types/node':
+        specifier: ^26.5.1
+        version: 26.5.1
+      telegram-bot-api-types:
+        specifier: ^10.2.0
+        version: 10.2.0
+      tsx:
+        specifier: ^4.23.13
+        version: 4.23.13
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+      wrangler:
+        specifier: ^4.131.1
+        version: 4.131.1(@cloudflare/workers-types@5.20260911.1)(@types/node@26.5.1)
+
+  packages/shared: {}
+
+  packages/web:
+    dependencies:
+      '@mail2telegram/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@tma.js/sdk-react':
+        specifier: ^3.0.23
+        version: 3.0.23(@types/react@19.3.0)(react@19.3.0)(typescript@6.0.3)
+      dompurify:
+        specifier: ^3.4.15
+        version: 3.4.15
+      konsta:
+        specifier: ^5.4.0
+        version: 5.4.0
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -39,18 +99,9 @@ importers:
         specifier: ^7.18.3
         version: 7.18.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     devDependencies:
-      '@cloudflare/vitest-pool-workers':
-        specifier: ^0.22.0
-        version: 0.22.0(@cloudflare/workers-types@5.20260911.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)))
-      '@cloudflare/workers-types':
-        specifier: ^5.20260911.1
-        version: 5.20260911.1
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
-      '@types/html-to-text':
-        specifier: ^9.0.4
-        version: 9.0.4
       '@types/node':
         specifier: ^26.5.1
         version: 26.5.1
@@ -63,39 +114,18 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.1.1
         version: 6.1.1(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
-      concurrently:
-        specifier: ^10.0.5
-        version: 10.0.5
-      oxfmt:
-        specifier: ^0.67.0
-        version: 0.67.0
-      oxlint:
-        specifier: ^1.82.0
-        version: 1.82.0
       puppeteer:
         specifier: ^25.10.0
         version: 25.10.0
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
-      telegram-bot-api-types:
-        specifier: ^10.2.0
-        version: 10.2.0
-      tsx:
-        specifier: ^4.23.13
-        version: 4.23.13
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
       vite:
         specifier: ^8.3.0
         version: 8.3.0(@types/node@26.5.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
-      vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
-      wrangler:
-        specifier: ^4.131.1
-        version: 4.131.1(@cloudflare/workers-types@5.20260911.1)(@types/node@26.5.1)
 
 packages:
 
@@ -1659,10 +1689,6 @@ packages:
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
-  picomatch@4.0.5:
-    resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
-    engines: {node: '>=12'}
-
   picomatch@4.0.7:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
@@ -2933,9 +2959,9 @@ snapshots:
 
   expect-type@1.4.0: {}
 
-  fdir@6.5.0(picomatch@4.0.5):
+  fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
-      picomatch: 4.0.5
+      picomatch: 4.0.7
 
   fp-ts@2.16.11: {}
 
@@ -3171,8 +3197,6 @@ snapshots:
 
   picocolors@1.1.1: {}
 
-  picomatch@4.0.5: {}
-
   picomatch@4.0.7: {}
 
   postal-mime@3.0.0: {}
@@ -3368,8 +3392,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.5)
-      picomatch: 4.0.5
+      fdir: 6.5.0(picomatch@4.0.7)
+      picomatch: 4.0.7
 
   tinypool@2.1.2: {}
 

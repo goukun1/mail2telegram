@@ -107,17 +107,28 @@ To   : [recipient]
 
 ## 开发
 
+仓库是一个 pnpm workspace，包含三个包，可部署的 worker 配置位于仓库根目录：
+
+| 路径 | 包名 | 内容 |
+|:-----|:-----|:-----|
+| `packages/server` | `@mail2telegram/server` | Cloudflare Worker：邮件处理、Telegram 机器人、Mini App API、D1 迁移与 Worker 运行时测试。 |
+| `packages/web` | `@mail2telegram/web` | Telegram Mini App（Vite + React），构建到 `packages/web/dist/client`。 |
+| `packages/shared` | `@mail2telegram/shared` | 仅类型定义的前后端 HTTP 契约，所有跨端类型都来自这里。 |
+
 ```bash
 pnpm install
 pnpm dev            # Vite 开发服务器 :5173 + wrangler dev :8787
-pnpm build          # 类型检查并构建 Mini App 到 dist/client
-pnpm test           # parseEmail 单元测试
+pnpm build          # 类型检查所有包并构建 Mini App 到 packages/web/dist/client
+pnpm typecheck      # 逐包执行 tsc --noEmit
+pnpm test           # 纯逻辑测试（tsx）+ Worker 运行时测试（vitest / Miniflare）
 pnpm lint           # oxlint
 pnpm lint:fix       # oxlint --fix
 pnpm format         # oxfmt
 pnpm format:check   # oxfmt --check（CI 使用）
 pnpm screenshots    # 用 mock 数据重新生成 doc/ 下的 README 截图
 ```
+
+`wrangler dev` 托管的是构建产物 `packages/web/dist/client`，因此首次启动前需先执行一次 `pnpm build`（或让 `pnpm build:web` 保持运行）；`pnpm dev` 会同时启动两个进程，但不会构建静态资源。
 
 本地 D1 迁移：
 
