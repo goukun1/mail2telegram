@@ -12,6 +12,8 @@ export type {
     AddressTestResponse,
     AddressType,
     Attachment,
+    AuthLoginResponse,
+    AuthResponse,
     BlockPolicy,
     CleanupPreviewResponse,
     CleanupResponse,
@@ -139,8 +141,11 @@ export interface Environment {
     AUTO_CLEANUP_DAYS?: string;
     RESEND_API_KEY?: string;
     DEBUG?: string;
-    /** Local development only: accept Mini App requests without a valid signature. */
-    DEV_BYPASS_AUTH?: string;
+    /**
+     * Optional password for opening the inbox in a plain browser outside
+     * Telegram. Empty or absent restricts access to the Telegram Mini App.
+     */
+    WEB_PASSWORD?: string;
     DB: D1Database;
     BUCKET?: R2Bucket;
     AI?: Ai;

@@ -46,6 +46,7 @@ mail2telegram
 | `TELEGRAM_ID`    | 必填。推送目标 Chat ID，多个用英文逗号分隔。可通过 `@userinfobot` 获取，群组以 `-100` 开头。            |
 | `TELEGRAM_TOKEN` | 必填。Telegram Bot Token，例如 `7123456780:AAjkLAbvSgDdfsDdfsaSK0`。                                   |
 | `DOMAIN`         | 必填。Worker 域名，例如 `project_name.user_name.workers.dev`，用于 Webhook 与 Mini App 链接。          |
+| `WEB_PASSWORD`   | 可选。在 Telegram 之外用普通浏览器打开 Mini App 时所需的密码。留空或不设置则只允许通过 Telegram Mini App 访问。 |
 | `RESEND_API_KEY` | 可选。Resend API Key，https://resend.com/docs/introduction。启用后可在 Telegram 或 Mini App 中回信。   |
 | `DEBUG`          | 可选。为 `true` 时推送会增加 `Debug` 按钮。                                                            |
 
@@ -69,7 +70,7 @@ Bindings：
 - **阅读页** — 沙箱 HTML 视图与纯文本切换、附件、星标/已读/删除、AI 摘要与回复。
 - **设置** — 白名单、黑名单、地址测试、阻断策略、转发、摘要选项以及邮件处理限制。
 
-Mini App 使用 `TELEGRAM_TOKEN` 校验 Telegram `initData`，并限制为 `TELEGRAM_ID` 中的用户，无法作为普通网页打开。
+Mini App 使用 `TELEGRAM_TOKEN` 校验 Telegram `initData`，并限制为 `TELEGRAM_ID` 中的用户。在普通浏览器中打开同一个地址时会要求输入 `WEB_PASSWORD`；未配置密码时，Mini App 是唯一入口，浏览器只会看到项目落地页。
 
 手机端使用原生底部标签栏与导航栈；桌面端（macOS、Telegram Desktop）与宽屏会自动切换为 iPad 风格的侧栏 + 列表 + 阅读窗格三栏布局。
 
@@ -136,7 +137,7 @@ pnpm screenshots    # 用 mock 数据重新生成 doc/ 下的 README 截图
 pnpm db:migrate:local
 ```
 
-Mini App 正常需要有效的 Telegram `initData` 签名。本地开发时，在 `.dev.vars` 中加入 `DEV_BYPASS_AUTH=true` 再运行 `wrangler dev`，然后打开 `http://localhost:5173/?debug`。加 `?platform=ios` 可在桌面浏览器中预览手机端布局。切勿在部署的 worker 中设置 `DEV_BYPASS_AUTH`。
+Mini App 正常需要有效的 Telegram `initData` 签名。本地开发时，在 gitignore 掉的 `.dev.vars` 中加入 `WEB_PASSWORD=dev`（以及你的机器人配置），运行 `wrangler dev` 后打开 `http://localhost:5173`，用该密码登录即可——与生产环境的浏览器访问方式完全一致。`?debug` 参数仍会 mock Telegram 的界面（主题、视口、平台）用于预览，加 `?platform=ios` 可在桌面浏览器中预览手机端布局。切勿在部署的 worker 之外设置真实的 `WEB_PASSWORD`。
 
 ## License
 

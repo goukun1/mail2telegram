@@ -97,6 +97,26 @@ export interface Address {
     created_at: string;
 }
 
+/**
+ * Public auth capabilities of the worker, served without credentials so the
+ * frontend can decide between the password login and the landing page.
+ */
+export interface AuthResponse {
+    /** True when `WEB_PASSWORD` is configured and browser login is possible. */
+    passwordEnabled: boolean;
+}
+
+/**
+ * Browser session issued by `POST /api/auth/login`. The token is a stateless
+ * HMAC over its own expiry, so rotating `WEB_PASSWORD` revokes every session.
+ * The raw password is never persisted by the browser.
+ */
+export interface AuthLoginResponse {
+    token: string;
+    /** ISO timestamp when the token stops validating. */
+    expiresAt: string;
+}
+
 export interface MeResponse {
     user: TelegramUser;
     resendEnabled: boolean;

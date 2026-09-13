@@ -22,6 +22,7 @@ import { isTelegramEnvironment } from './init';
 import { MessageTabBar } from './layout/TabBar';
 import { InboxPage } from './pages/InboxPage';
 import { LandingPage } from './pages/LandingPage';
+import { LoginPage } from './pages/LoginPage';
 import { MailPage } from './pages/MailPage';
 import { AddressListPage } from './pages/settings/AddressListPage';
 import { BotPage } from './pages/settings/BotPage';
@@ -203,10 +204,8 @@ function AppInner() {
         document.documentElement.classList.toggle('dark', dark);
     }, [dark]);
 
-    // `?landing` previews the non-Telegram landing page. Local development
-    // always authenticates through the mock environment, so the error branch
-    // that shows the landing in production is otherwise unreachable. It stays
-    // after the effects so the dark palette still applies to the landing.
+    // `?landing` previews the non-Telegram landing page. It stays after the
+    // effects so the dark palette still applies to the landing.
     if (new URLSearchParams(window.location.search).has('landing')) {
         return <LandingPage />;
     }
@@ -219,10 +218,10 @@ function AppInner() {
         );
     }
     if (error || !data) {
-        // Outside Telegram, initData can never validate, so retrying is
-        // pointless; present the project landing page instead of a dead end.
+        // Outside Telegram there is no initData: offer the web password login,
+        // which falls back to the landing page when no password is configured.
         if (!isTelegramEnvironment()) {
-            return <LandingPage />;
+            return <LoginPage onSuccess={reload} />;
         }
         return (
             <div className="reader-empty" style={{ height: '100vh' }}>

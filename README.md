@@ -49,6 +49,7 @@ Location: Workers & Pages → your_worker → Settings → Variables and Secrets
 | `TELEGRAM_ID`    | Required. Destination chat IDs, comma separated. Get yours from `@userinfobot`. Groups start with `-100`.                                                              |
 | `TELEGRAM_TOKEN` | Required. Telegram Bot Token, e.g. `7123456780:AAjkLAbvSgDdfsDdfsaSK0`.                                                                                                |
 | `DOMAIN`         | Required. Worker domain, e.g. `project_name.user_name.workers.dev`. Used for webhook and Mini App links.                                                               |
+| `WEB_PASSWORD`   | Optional. Password for opening the Mini App in a plain browser outside Telegram. Leave unset or empty to allow only the Telegram Mini App.                              |
 | `RESEND_API_KEY` | Optional. Resend API Key, https://resend.com/docs/introduction. Enables replying to emails from Telegram or the Mini App.                                               |
 | `DEBUG`          | Optional. When `true`, adds a `Debug` button to pushes.                                                                                                                 |
 
@@ -72,7 +73,7 @@ Open the Mini App from the bot with `/start`. The first `/start` from a chat als
 - **Reader** — sandboxed HTML view with a plain text toggle, attachments, star/read/delete, AI summary and reply.
 - **Settings** — white list, block list, address tester, block policy, forwarding, summary options and mail handling limits.
 
-The Mini App is protected by Telegram `initData` validation against `TELEGRAM_TOKEN`, restricted to the IDs in `TELEGRAM_ID`. It cannot be opened as a normal web page.
+The Mini App is protected by Telegram `initData` validation against `TELEGRAM_TOKEN`, restricted to the IDs in `TELEGRAM_ID`. In a plain browser the same URL asks for `WEB_PASSWORD`; when no password is configured, the Mini App is the only way in and the project landing page is shown instead.
 
 On phones the app uses a native tab bar and navigation stack. On desktop clients (macOS, Telegram Desktop) and wide viewports it switches to an iPad-style split view with a sidebar, list and reading pane.
 
@@ -141,7 +142,7 @@ Local D1 migrations:
 pnpm db:migrate:local
 ```
 
-The Mini App normally requires a valid Telegram `initData` signature. For local development, run `wrangler dev` with a `.dev.vars` file containing `DEV_BYPASS_AUTH=true` and open `http://localhost:5173/?debug`. The `?platform=ios` query parameter previews the phone layout in a desktop browser. Never set `DEV_BYPASS_AUTH` in a deployed worker.
+The Mini App normally requires a valid Telegram `initData` signature. For local development, put `WEB_PASSWORD=dev` (plus your bot values) in the gitignored `.dev.vars`, run `wrangler dev` and open `http://localhost:5173`, then sign in with that password — exactly how a browser session works in production. The `?debug` flag still mocks the Telegram UI (theme, viewport, platform) for previewing, and `?platform=ios` previews the phone layout in a desktop browser. Never set a real `WEB_PASSWORD` in anything but the deployed worker's variables.
 
 ## License
 

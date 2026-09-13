@@ -39,6 +39,10 @@ const DARK_THEME_PARAMS = {
  * Installs a mock Telegram environment during local development so the Mini App
  * renders outside Telegram. Returns true when the mock was installed. Should
  * never run in a production build.
+ *
+ * The mock only fakes the UI surface (theme, viewport, safe area, platform) —
+ * it intentionally provides no `tgWebAppData`, so a local run authenticates
+ * through the web password exactly like a plain browser would.
  */
 export async function setupMockEnv(): Promise<boolean> {
     if (await isTMA('complete')) {
@@ -60,15 +64,6 @@ export async function setupMockEnv(): Promise<boolean> {
     mockTelegramEnv({
         launchParams: new URLSearchParams([
             ['tgWebAppThemeParams', JSON.stringify(themeParams)],
-            [
-                'tgWebAppData',
-                new URLSearchParams([
-                    ['auth_date', `${Math.floor(Date.now() / 1000)}`],
-                    ['hash', 'mock-hash'],
-                    ['signature', 'mock-signature'],
-                    ['user', JSON.stringify({ id: 1, first_name: 'Dev', username: 'dev' })],
-                ]).toString(),
-            ],
             ['tgWebAppVersion', '8.4'],
             ['tgWebAppPlatform', platform],
         ]),

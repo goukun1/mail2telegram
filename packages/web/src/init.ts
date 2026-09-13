@@ -4,6 +4,7 @@ import {
     init as initSdk,
     miniApp,
     retrieveLaunchParams,
+    retrieveRawInitData,
     setDebug,
     themeParams,
     viewport,
@@ -75,14 +76,14 @@ export function getPlatform(): string {
 }
 
 /**
- * True when real Telegram launch params are present, i.e. a Telegram client
- * opened the page. Outside Telegram, initData can never validate, so the app
- * shows the landing page instead of an auth error.
+ * True when real Telegram launch data is present, i.e. a Telegram client opened
+ * the page and provided `initData`. Every Telegram client carries it, while the
+ * dev mock and plain browsers do not, so this decides between Telegram error
+ * handling and the browser password login.
  */
 export function isTelegramEnvironment(): boolean {
     try {
-        retrieveLaunchParams();
-        return true;
+        return Boolean(retrieveRawInitData());
     } catch {
         return false;
     }

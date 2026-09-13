@@ -1,6 +1,8 @@
 import type { IRequest, RouterType } from 'itty-router';
 import type {
     AddressType,
+    AuthLoginResponse,
+    AuthResponse,
     EmailDetailResponse,
     EmailListResponse,
     Environment,
@@ -25,41 +27,108 @@ class HTTPError extends Error {
     }
 }
 
-function createTmaAuthMiddleware(env: Environment): (req: IRequest) => Promise<void> {
+/** Lifetime of a browser session issued by `POST /api/auth/login`. */
+const WEB_TOKEN_TTL_MS = 30 * 86400_000;
+
+async function hmacHex(secret: string, message: string): Promise<string> {
+    const key = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(secret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign'],
+    );
+    const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+    return [...new Uint8Array(mac)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Stateless browser session: `<expiry-ms>.<nonce>.<hmac>`. No server-side
+ * storage, and rotating `WEB_PASSWORD` invalidates every issued token.
+ */
+async function issueWebToken(webPassword: string): Promise<AuthLoginResponse> {
+    const expiryMs = Date.now() + WEB_TOKEN_TTL_MS;
+    const nonce = crypto.randomUUID();
+    const mac = await hmacHex(webPassword, `${expiryMs}.${nonce}`);
+    return { token: `${expiryMs}.${nonce}.${mac}`, expiresAt: new Date(expiryMs).toISOString() };
+}
+
+async function verifyWebToken(webPassword: string, token: string): Promise<boolean> {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+        return false;
+    }
+    const [expiry, nonce, mac] = parts;
+    const expiryMs = Number.parseInt(expiry, 10);
+    if (!Number.isFinite(expiryMs) || expiryMs <= Date.now()) {
+        return false;
+    }
+    return timingSafeEqual(mac, await hmacHex(webPassword, `${expiry}.${nonce}`));
+}
+
+function createAuthMiddleware(env: Environment): (req: IRequest) => Promise<void> {
     const { TELEGRAM_TOKEN, TELEGRAM_ID } = env;
-    const allowed = TELEGRAM_ID.split(',')
-        .map(item => item.trim())
-        .filter(Boolean);
-    // Local development only: serve the first configured chat id without a
-    // valid signature. Never enable this in a deployed worker.
-    const bypassAuth = env.DEV_BYPASS_AUTH === 'true';
+    const allowed = new Set(
+        TELEGRAM_ID.split(',')
+            .map(item => item.trim())
+            .filter(Boolean),
+    );
+    // Browser sessions outside Telegram log in with this password once and then
+    // present an issued token; an empty value keeps the Mini App as the only
+    // way in.
+    const webPassword = env.WEB_PASSWORD || '';
     return async (req: IRequest): Promise<void> => {
-        const [authType, authData = ''] = (req.headers.get('Authorization') || '').split(' ');
-        if (authType !== 'tma') {
-            throw new HTTPError(401, 'Invalid authorization type');
-        }
-        if (bypassAuth) {
-            const rawUser = authData ? new URLSearchParams(authData).get('user') : null;
-            const user = rawUser
-                ? (JSON.parse(rawUser) as TelegramUser)
-                : { id: Number.parseInt(allowed[0] || '0', 10), first_name: 'Dev' };
+        // Split on the first space only: initData is URL-encoded, but token
+        // values are opaque strings with their own structure.
+        const header = req.headers.get('Authorization') || '';
+        const splitAt = header.indexOf(' ');
+        const authType = splitAt === -1 ? header : header.slice(0, splitAt);
+        const authData = splitAt === -1 ? '' : header.slice(splitAt + 1);
+        if (authType === 'tma') {
+            if (!authData) {
+                throw new HTTPError(401, 'Invalid authorization type');
+            }
+            try {
+                await validate(authData, TELEGRAM_TOKEN, { expiresIn: 3600 });
+            } catch (e) {
+                throw new HTTPError(401, (e as Error).message);
+            }
+            const user = JSON.parse(new URLSearchParams(authData).get('user') || '{}') as TelegramUser;
+            if (!allowed.has(`${user.id}`)) {
+                throw new HTTPError(403, 'Permission denied');
+            }
             (req as IRequest & { user?: TelegramUser }).user = user;
             return;
         }
-        if (!authData) {
-            throw new HTTPError(401, 'Invalid authorization type');
+        if (authType === 'web') {
+            if (!webPassword) {
+                throw new HTTPError(401, 'Password access is disabled');
+            }
+            if (!authData || !(await verifyWebToken(webPassword, authData))) {
+                throw new HTTPError(401, 'Invalid web token');
+            }
+            (req as IRequest & { user?: TelegramUser }).user = { id: 0, first_name: 'Web' };
+            return;
         }
-        try {
-            await validate(authData, TELEGRAM_TOKEN, { expiresIn: 3600 });
-        } catch (e) {
-            throw new HTTPError(401, (e as Error).message);
-        }
-        const user = JSON.parse(new URLSearchParams(authData).get('user') || '{}') as TelegramUser;
-        if (!allowed.includes(`${user.id}`)) {
-            throw new HTTPError(403, 'Permission denied');
-        }
-        (req as IRequest & { user?: TelegramUser }).user = user;
+        throw new HTTPError(401, 'Invalid authorization type');
     };
+}
+
+/**
+ * Compares two strings without leaking their content through early exits.
+ * Different lengths still return immediately; only the length is exposed.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+    const left = new TextEncoder().encode(a);
+    const right = new TextEncoder().encode(b);
+    if (left.length !== right.length) {
+        return false;
+    }
+    let diff = 0;
+    for (let i = 0; i < left.length; i += 1) {
+        diff |= left[i] ^ right[i];
+    }
+    return diff === 0;
 }
 
 function errorHandler(error: Error): Response {
@@ -116,7 +185,7 @@ function createRouter(env: Environment): RouterType {
 
     const { TELEGRAM_TOKEN, DOMAIN, DB, BUCKET } = env;
     const dao = new Dao(DB);
-    const auth = createTmaAuthMiddleware(env);
+    const auth = createAuthMiddleware(env);
 
     // ------------------------------------------------------------ public
 
@@ -125,6 +194,32 @@ function createRouter(env: Environment): RouterType {
             status: 302,
             headers: { location: 'https://github.com/TBXark/mail2telegram' },
         });
+    });
+
+    // Tells the frontend whether the password login should be offered when the
+    // app is opened outside Telegram. No secrets, just the capability flag.
+    router.get('/api/auth', async (): Promise<AuthResponse> => {
+        return { passwordEnabled: Boolean(env.WEB_PASSWORD) };
+    });
+
+    // Exchanges the web password for a stateless session token. The password
+    // travels in the JSON body (any Unicode works) and is never stored by the
+    // browser — later requests carry the issued token instead.
+    router.post('/api/auth/login', async (req: IRequest): Promise<AuthLoginResponse> => {
+        const webPassword = env.WEB_PASSWORD || '';
+        if (!webPassword) {
+            throw new HTTPError(401, 'Password access is disabled');
+        }
+        let password: unknown;
+        try {
+            ({ password } = (await req.json()) as { password?: unknown });
+        } catch {
+            throw new HTTPError(400, 'Invalid request body');
+        }
+        if (typeof password !== 'string' || !timingSafeEqual(password, webPassword)) {
+            throw new HTTPError(401, 'Invalid password');
+        }
+        return await issueWebToken(webPassword);
     });
 
     router.get('/init', async (): Promise<any> => {

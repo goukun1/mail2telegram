@@ -2,6 +2,8 @@ import type {
     Address,
     AddressTestResponse,
     AddressType,
+    AuthLoginResponse,
+    AuthResponse,
     CleanupPreviewResponse,
     CleanupResponse,
     Email,
@@ -21,17 +23,52 @@ export class ApiError extends Error {
     }
 }
 
+/**
+ * Where the browser session token is kept between visits. Only the token is
+ * stored — never the password itself — and rotating `WEB_PASSWORD` on the
+ * worker invalidates it.
+ */
+const TOKEN_STORAGE_KEY = 'mail2telegram.web-token';
+
+function getStoredToken(): string {
+    return localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+}
+
+function storeToken(token: string): void {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
+
+function rawInitData(): string {
+    try {
+        return retrieveRawInitData() || '';
+    } catch {
+        // Outside Telegram there is no launch data at all.
+        return '';
+    }
+}
+
+/**
+ * `tma <initData>` inside Telegram, `web <token>` for a browser session,
+ * or nothing when the visitor has not signed in yet.
+ */
 function authHeader(): string {
-    const raw = retrieveRawInitData() || '';
-    return `tma ${raw}`;
+    const raw = rawInitData();
+    if (raw) {
+        return `tma ${raw}`;
+    }
+    const token = getStoredToken();
+    return token ? `web ${token}` : '';
 }
 
 async function request<T>(path: string, init: RequestInit = {}, auth = true): Promise<T> {
     const headers = new Headers(init.headers);
     if (auth) {
-        // retrieveRawInitData throws outside Telegram; only public routes may
-        // skip this header.
-        headers.set('Authorization', authHeader());
+        // Only authenticated routes need the header; it is absent until the
+        // visitor is inside Telegram or has signed in with the web password.
+        const header = authHeader();
+        if (header) {
+            headers.set('Authorization', header);
+        }
     }
     if (init.body) {
         headers.set('Content-Type', 'application/json');
@@ -62,6 +99,29 @@ export interface EmailQuery {
 }
 
 export const api = {
+    /** Public: whether the worker accepts the web password login. */
+    authOptions(): Promise<AuthResponse> {
+        return request<AuthResponse>('/api/auth', {}, false);
+    },
+
+    /**
+     * Exchanges the web password for a browser session: the password travels in
+     * the JSON body (no header encoding limits) and only the issued token is
+     * kept in localStorage for the following requests.
+     */
+    async loginWithPassword(password: string): Promise<AuthLoginResponse> {
+        const result = await request<AuthLoginResponse>(
+            '/api/auth/login',
+            {
+                method: 'POST',
+                body: JSON.stringify({ password }),
+            },
+            false,
+        );
+        storeToken(result.token);
+        return result;
+    },
+
     me(): Promise<MeResponse> {
         return request<MeResponse>('/api/me');
     },
@@ -176,9 +236,12 @@ export const api = {
 };
 
 export async function fetchAttachmentBlob(emailId: string, attachmentId: string): Promise<Blob> {
-    const response = await fetch(api.attachmentUrl(emailId, attachmentId), {
-        headers: { Authorization: authHeader() },
-    });
+    const headers = new Headers();
+    const header = authHeader();
+    if (header) {
+        headers.set('Authorization', header);
+    }
+    const response = await fetch(api.attachmentUrl(emailId, attachmentId), { headers });
     if (!response.ok) {
         throw new ApiError(response.status, response.statusText);
     }

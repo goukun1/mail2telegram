@@ -109,13 +109,6 @@ if (isPlaceholder(databaseId)) {
     );
 }
 
-// `DEV_BYPASS_AUTH` disables Mini App signature validation and must never
-// reach a deployed worker, even if it was added to the local config.
-if (config.vars && Object.hasOwn(config.vars, 'DEV_BYPASS_AUTH')) {
-    delete config.vars.DEV_BYPASS_AUTH;
-    console.warn('[build-config] removed DEV_BYPASS_AUTH from deploy vars (local-only setting)');
-}
-
 const databaseName = process.env.DEPLOY_D1_DATABASE_NAME || config.d1_databases?.[0]?.database_name || 'mail2telegram';
 // Rebuilt from scratch, so carry migrations_dir across: it now lives in the
 // server package, and dropping it would send `d1 migrations apply` looking in
