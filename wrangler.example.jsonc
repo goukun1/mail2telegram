@@ -2,10 +2,7 @@
     "$schema": "./node_modules/wrangler/config-schema.json",
     "name": "mail2telegram",
     "main": "src/index.ts",
-    "compatibility_date": "2025-09-15",
-    "compatibility_flags": [
-        "nodejs_compat_v2"
-    ],
+    "compatibility_date": "2026-09-11",
     // Daily cron that deletes mail older than the auto cleanup retention
     // (Settings → Mail Handling → Auto Cleanup, 0 disables it).
     "triggers": {
@@ -35,13 +32,6 @@
         {
             "binding": "BUCKET",
             "bucket_name": ""
-        }
-    ],
-    // Optional. Required only for the first-time /start setup prompt.
-    "kv_namespaces": [
-        {
-            "binding": "KV",
-            "id": ""
         }
     ],
     "ai": {

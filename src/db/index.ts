@@ -44,6 +44,8 @@ const ID_CHUNK_SIZE = 80;
 /** Emails selected for removal, keeping the pointers needed to free R2 objects. */
 export interface EmailCleanupTarget {
     id: string;
+    message_id: string | null;
+    size: number;
     raw_key: string | null;
     body_html: string | null;
     body_text: string | null;
@@ -230,7 +232,7 @@ export class Dao {
 
     /** Non-starred emails received before the cutoff (ISO time), or all of them when null. */
     async findCleanupTargets(before: string | null, limit: number): Promise<EmailCleanupTarget[]> {
-        const sql = `SELECT id, raw_key, body_html, body_text FROM emails ${before ? 'WHERE created_at < ? AND is_starred = 0' : 'WHERE is_starred = 0'} ORDER BY created_at LIMIT ?`;
+        const sql = `SELECT id, message_id, size, raw_key, body_html, body_text FROM emails ${before ? 'WHERE created_at < ? AND is_starred = 0' : 'WHERE is_starred = 0'} ORDER BY created_at LIMIT ?`;
         const rows = before
             ? await this.db.prepare(sql).bind(before, limit).all<EmailCleanupTarget>()
             : await this.db.prepare(sql).bind(limit).all<EmailCleanupTarget>();
@@ -432,12 +434,52 @@ export class Dao {
         return row?.email_id ?? null;
     }
 
+    /** Drop the chat mappings of emails that are being removed. */
+    async deleteTelegramMessagesByEmailIds(emailIds: string[]): Promise<void> {
+        for (const part of chunkIds(emailIds)) {
+            await this.db.prepare(
+                `DELETE FROM telegram_messages WHERE email_id IN (${placeholders(part.length)})`,
+            ).bind(...part).run();
+        }
+    }
+
+    // -------------------------------------------------------- /start marker
+
+    /**
+     * Claim the one-time /start setup prompt for a chat. The insert-only
+     * conflict clause makes this atomic: the first caller writes the row and
+     * gets `true`, later callers match the primary key, change nothing and get
+     * `false`, so concurrent /start updates cannot both report "first".
+     */
+    async claimFirstStart(chatId: number | string): Promise<boolean> {
+        const result = await this.db.prepare(
+            `INSERT INTO telegram_starts (chat_id, created_at) VALUES (?, ?)
+             ON CONFLICT (chat_id) DO NOTHING`,
+        ).bind(`${chatId}`, new Date().toISOString()).run();
+        return (result.meta.changes ?? 0) > 0;
+    }
+
     // ----------------------------------------------------------- mail status
 
     async getMailStatus(messageId: string): Promise<MailStatusRecord | null> {
         return await this.db.prepare(
             'SELECT * FROM mail_status WHERE message_id = ?',
         ).bind(messageId).first<MailStatusRecord>() ?? null;
+    }
+
+    /**
+     * Drop delivery-journal rows for purged mail, keyed as `${message_id}|${size}`
+     * (see `emailHandler`), so the journal does not outlive the mail it tracks.
+     */
+    async deleteMailStatusByJournalKeys(keys: string[]): Promise<void> {
+        if (keys.length === 0) {
+            return;
+        }
+        for (const part of chunkIds(keys)) {
+            await this.db.prepare(
+                `DELETE FROM mail_status WHERE message_id IN (${placeholders(part.length)})`,
+            ).bind(...part).run();
+        }
     }
 
     async upsertMailStatus(messageId: string, status: { telegram: boolean; forwards: string[] }): Promise<void> {

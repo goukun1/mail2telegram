@@ -38,24 +38,12 @@ async function logTelegramResponse(method: string, response: Response): Promise<
     logTelegram('api.response', data);
 }
 
-/** KV key prefix marking that a chat already opened the Mini App once. */
-const START_KEY_PREFIX = 'start:';
-
 /**
- * True the first time a chat runs /start, then remembered in KV so the setup
- * prompt is only shown once. Without a KV binding every /start opens the app
- * directly.
+ * True the first time a chat runs /start, then remembered in D1 so the setup
+ * prompt is only shown once.
  */
 async function consumeFirstStart(env: Environment, chatId: number): Promise<boolean> {
-    if (!env.KV) {
-        return false;
-    }
-    const key = `${START_KEY_PREFIX}${chatId}`;
-    if (await env.KV.get(key)) {
-        return false;
-    }
-    await env.KV.put(key, new Date().toISOString());
-    return true;
+    return await new Dao(env.DB).claimFirstStart(chatId);
 }
 
 function handleStartCommand(env: Environment): TelegramMessageHandler {
@@ -69,7 +57,7 @@ function handleStartCommand(env: Environment): TelegramMessageHandler {
             try {
                 first = await consumeFirstStart(env, msg.chat.id);
             } catch (e) {
-                logTelegramError('start.kv_error', e, { chatId: msg.chat.id });
+                logTelegramError('start.claim_error', e, { chatId: msg.chat.id });
             }
         }
         const params: Telegram.SendMessageParams = {

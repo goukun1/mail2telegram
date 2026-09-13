@@ -47,7 +47,9 @@ function collectStoredKeys(targets: { raw_key: string | null; body_html: string 
 
 /**
  * Remove specific emails together with their attachments and stored bodies.
- * Starred mail is never a cleanup target.
+ * Starred mail is never a cleanup target. The delivery journal and Telegram
+ * chat mappings are removed too, otherwise they would grow without bound as
+ * mail is cleaned up.
  */
 export async function purgeEmailsByIds(dao: Dao, bucket: R2Bucket | undefined, targets: EmailCleanupTarget[]): Promise<CleanupResult> {
     if (targets.length === 0) {
@@ -60,6 +62,12 @@ export async function purgeEmailsByIds(dao: Dao, bucket: R2Bucket | undefined, t
         await dao.deleteAttachmentsByIds(attachments.map(att => att.id));
     }
     await dao.deleteEmailsByIds(ids);
+    await dao.deleteTelegramMessagesByEmailIds(ids);
+    await dao.deleteMailStatusByJournalKeys(
+        targets
+            .filter(target => target.message_id)
+            .map(target => `${target.message_id}|${target.size}`),
+    );
     return { emails: targets.length, attachments: attachments.length, remaining: 0 };
 }
 

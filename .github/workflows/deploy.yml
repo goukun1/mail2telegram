@@ -13,7 +13,6 @@ name: Deploy
 #   DEPLOY_D1_DATABASE_ID    D1 database id, from `wrangler d1 create`.
 #   DEPLOY_D1_DATABASE_NAME  Defaults to `mail2telegram`.
 #   DEPLOY_R2_BUCKET_NAME    Omit to deploy without attachments.
-#   DEPLOY_KV_NAMESPACE_ID   Omit to deploy without the KV binding.
 
 on:
     push:
@@ -46,7 +45,7 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             - name: Lint
-              run: pnpm exec eslint src web scripts
+              run: pnpm exec eslint src web scripts test vitest.config.mts
 
             - name: Test
               run: pnpm test
@@ -58,7 +57,6 @@ jobs:
                   DEPLOY_D1_DATABASE_ID: ${{ vars.DEPLOY_D1_DATABASE_ID }}
                   DEPLOY_D1_DATABASE_NAME: ${{ vars.DEPLOY_D1_DATABASE_NAME }}
                   DEPLOY_R2_BUCKET_NAME: ${{ vars.DEPLOY_R2_BUCKET_NAME }}
-                  DEPLOY_KV_NAMESPACE_ID: ${{ vars.DEPLOY_KV_NAMESPACE_ID }}
 
             - name: Typecheck and build
               run: pnpm run build
@@ -71,7 +69,6 @@ jobs:
                   DEPLOY_D1_DATABASE_ID: ${{ vars.DEPLOY_D1_DATABASE_ID }}
                   DEPLOY_D1_DATABASE_NAME: ${{ vars.DEPLOY_D1_DATABASE_NAME }}
                   DEPLOY_R2_BUCKET_NAME: ${{ vars.DEPLOY_R2_BUCKET_NAME }}
-                  DEPLOY_KV_NAMESPACE_ID: ${{ vars.DEPLOY_KV_NAMESPACE_ID }}
 
             - name: Deploy Worker
               uses: cloudflare/wrangler-action@v3

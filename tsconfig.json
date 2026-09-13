@@ -28,7 +28,9 @@
     "include": [
         "src",
         "web",
-        "scripts"
+        "scripts",
+        "test",
+        "vitest.config.mts"
     ],
     "exclude": [
         "node_modules",

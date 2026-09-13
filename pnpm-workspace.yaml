@@ -5,3 +5,8 @@ allowBuilds:
   esbuild: true
   puppeteer: true
   workerd: true
+# @cloudflare/vitest-pool-workers pins an older miniflare (workerd that only
+# supports compat dates up to 2026-08-22); align it with wrangler's so the
+# tests run against the same latest workerd as the deploy.
+overrides:
+  miniflare: 5.20260911.0-alpha

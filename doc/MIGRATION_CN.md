@@ -19,7 +19,7 @@
 | 白名单 / 黑名单        | KV，在旧 Mini App 中管理               | D1，在新 Mini App 中管理                          |
 | 运行参数               | 仅环境变量                             | 在 Mini App 中配置（存于 D1）；旧变量可一键导入   |
 | 推送按钮               | `Preview` `Summary` `Text` `HTML`      | `Preview` `Summary` `Open`（深链到 Mini App 详情页）|
-| 可选绑定               | `AI`                                   | `AI`、`BUCKET`（R2）、`KV`                        |
+| 可选绑定               | `AI`                                   | `AI`、`BUCKET`（R2）                              |
 | 构建                   | esbuild                                | Vite（Mini App 构建到 `dist/client`）             |
 | 部署                   | `wrangler deploy` 或复制粘贴脚本       | Workers Builds（`pnpm run deploy`）或命令行 + D1 迁移 |
 
@@ -53,7 +53,6 @@
 ```bash
 npx wrangler d1 create mail2telegram                 # 必需
 npx wrangler r2 bucket create mail2telegram          # 可选：附件
-npx wrangler kv namespace create mail2telegram       # 可选：记录首次 /start
 ```
 
 记下输出中的 D1 **database id**。
@@ -110,7 +109,6 @@ https://你的-worker-域名/init
 ```bash
 npx wrangler d1 create mail2telegram
 npx wrangler r2 bucket create mail2telegram          # 可选
-npx wrangler kv namespace create mail2telegram       # 可选
 ```
 
 记下 D1 database id。
@@ -132,7 +130,6 @@ npx wrangler kv namespace create mail2telegram       # 可选
    | `DEPLOY_D1_DATABASE_NAME`       | 否   | D1 数据库名，默认 `mail2telegram`。        |
    | `DEPLOY_R2_BUCKET_NAME`         | 否   | 存放附件的 R2 存储桶，省略则不启用附件。   |
    | `DEPLOY_R2_PREVIEW_BUCKET_NAME` | 否   | 预览部署使用的 R2 存储桶。                 |
-   | `DEPLOY_KV_NAMESPACE_ID`        | 否   | 记录首次 `/start` 的 KV 命名空间 id。      |
 
    `pnpm run deploy` 会把这些变量注入生成的（已 gitignore 的）`wrangler.deploy.jsonc`，应用 D1 迁移，构建 Mini App 并部署。（不带 `run` 的 `pnpm deploy` 会和 pnpm 内置的 workspace 命令冲突。）
 5. 在 **Settings → Variables and Secrets** 中，按 README 的[配置](../README_CN.md#配置)一表添加运行参数。`TELEGRAM_TOKEN`、`RESEND_API_KEY` 请放入加密的 **Secrets** 区域。
@@ -148,7 +145,6 @@ npx wrangler kv namespace create mail2telegram       # 可选
    | `CLOUDFLARE_ACCOUNT_ID`  | 是   | 通过 `wrangler whoami` 或控制台获取。      |
    | `DEPLOY_D1_DATABASE_ID`  | 是   | `wrangler d1 create` 得到的 D1 数据库 id。 |
    | `DEPLOY_R2_BUCKET_NAME`  | 否   | 存放附件的 R2 存储桶，省略则不启用附件。   |
-   | `DEPLOY_KV_NAMESPACE_ID` | 否   | 记录首次 `/start` 的 KV 命名空间 id。      |
 
 2. 在 Cloudflare **My Profile → API Tokens** 创建 API Token：以 **Edit Cloudflare Workers** 模板为基础，追加 `D1 Edit`、`Workers R2 Storage Edit`、`Workers AI Edit` 权限。然后把它作为仓库 **Secret** `CLOUDFLARE_API_TOKEN` 添加（Secrets 页）。
 
@@ -169,7 +165,6 @@ cp wrangler.example.jsonc wrangler.jsonc
 
 - `d1_databases[0].database_id` —— 你的 D1 数据库 id（必填）。
 - `r2_buckets[0].bucket_name` —— 存储桶名；**不需要附件就整段删除 `r2_buckets`**。
-- `kv_namespaces[0].id` —— KV 命名空间 id；**不需要就整段删除 `kv_namespaces`**。
 - `vars` —— 填写 `DOMAIN`、`TELEGRAM_ID`、`TELEGRAM_TOKEN` 即可；其余配置部署后在 Mini App 中完成。
 
 然后执行：
@@ -218,7 +213,6 @@ pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 | `DB`    | KV Namespace       | **D1 Database**（记得执行迁移！）          |
 | `BUCKET`| —                  | R2 Bucket，可选：附件与超大正文            |
 | `AI`    | Workers AI，可选   | 相同                                       |
-| `KV`    | —                  | KV Namespace，可选：记录首次 `/start`      |
 
 ## 5. 常见问题
 
@@ -228,14 +222,11 @@ pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 **必须创建 R2 存储桶吗？**
 不必，可选。不配置 `BUCKET` 时邮件仍存入 D1，只是不包含附件内容（超大正文按大小策略设置截断）。
 
-**必须创建 KV 命名空间吗？**
-不必。它只用于记住哪些会话完成过首次 `/start` 引导。没有它，引导提示下次会重新出现而已。
-
 **能继续用原来的机器人和 Email Routing 配置吗？**
 可以。保持 `TELEGRAM_TOKEN`、`TELEGRAM_ID` 和 `DOMAIN` 不变，重新部署后访问一次 `/init` 即可。
 
 **部署时报绑定相关错误？**
-手动部署时，`wrangler.jsonc` 中空的 `database_id` / `bucket_name` / KV `id` 是非法值 —— 要么填真实 id，要么整段删除对应的可选绑定。Workers Builds 方式会自动省略未配置的绑定，不会遇到这个问题。
+手动部署时，`wrangler.jsonc` 中空的 `database_id` / `bucket_name` 是非法值 —— 要么填真实 id，要么整段删除对应的可选绑定。Workers Builds 方式会自动省略未配置的绑定，不会遇到这个问题。
 
 **`Text` / `HTML` 按钮去哪了？**
 2.0 用 Mini App 取代了临时网页。`Open` 按钮直接深链到该邮件的详情页，那里有沙箱 HTML 视图、纯文本切换和附件下载。

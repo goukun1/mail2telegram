@@ -19,7 +19,7 @@ This guide covers two scenarios:
 | White / black lists    | KV, managed in the old Mini App        | D1, managed in the new Mini App                   |
 | Runtime settings       | Environment variables only             | Configured in the Mini App (stored in D1); legacy variables can be imported with one click |
 | Push buttons           | `Preview` `Summary` `Text` `HTML`      | `Preview` `Summary` `Open` (deep link into the Mini App) |
-| Optional bindings      | `AI`                                   | `AI`, `BUCKET` (R2), `KV`                         |
+| Optional bindings      | `AI`                                   | `AI`, `BUCKET` (R2)                               |
 | Build                  | esbuild                                | Vite (Mini App built into `dist/client`)          |
 | Deployment             | `wrangler deploy` or copy-paste script | Workers Builds (`pnpm run deploy`) or CLI with D1 migrations |
 
@@ -53,7 +53,6 @@ Using Wrangler (or the Cloudflare dashboard):
 ```bash
 npx wrangler d1 create mail2telegram                 # required
 npx wrangler r2 bucket create mail2telegram          # optional: attachments
-npx wrangler kv namespace create mail2telegram       # optional: first-time /start memory
 ```
 
 Note the D1 **database id** from the output.
@@ -110,7 +109,6 @@ If you need to go back to 1.0: redeploy the `master` branch with your old config
 ```bash
 npx wrangler d1 create mail2telegram
 npx wrangler r2 bucket create mail2telegram          # optional
-npx wrangler kv namespace create mail2telegram       # optional
 ```
 
 Note the D1 database id.
@@ -132,7 +130,6 @@ Note the D1 database id.
    | `DEPLOY_D1_DATABASE_NAME`       | No       | D1 database name, default `mail2telegram`.              |
    | `DEPLOY_R2_BUCKET_NAME`         | No       | R2 bucket for attachments. Omit to disable attachments. |
    | `DEPLOY_R2_PREVIEW_BUCKET_NAME` | No       | R2 bucket used for preview deployments.                 |
-   | `DEPLOY_KV_NAMESPACE_ID`        | No       | KV namespace id for first-time `/start` memory.         |
 
    `pnpm run deploy` injects these into a generated, gitignored `wrangler.deploy.jsonc`, applies D1 migrations, builds the Mini App and deploys. (`pnpm deploy` without `run` collides with pnpm's built-in workspace command.)
 5. Under **Settings → Variables and Secrets**, add the runtime variables from the README's [Configuration](../README.md#configuration) table. Put `TELEGRAM_TOKEN` and `RESEND_API_KEY` in the encrypted **Secrets** section.
@@ -148,7 +145,6 @@ The repository ships [`.github/workflows/deploy.yml`](../.github/workflows/deplo
    | `CLOUDFLARE_ACCOUNT_ID`  | Yes      | Account id, from `wrangler whoami` or the dashboard.    |
    | `DEPLOY_D1_DATABASE_ID`  | Yes      | D1 database id from `wrangler d1 create`.               |
    | `DEPLOY_R2_BUCKET_NAME`  | No       | R2 bucket for attachments. Omit to disable attachments. |
-   | `DEPLOY_KV_NAMESPACE_ID` | No       | KV namespace id for first-time `/start` memory.         |
 
 2. Create a Cloudflare API token under **My Profile → API Tokens**: start from the **Edit Cloudflare Workers** template and add the `D1 Edit`, `Workers R2 Storage Edit` and `Workers AI Edit` permissions. Add it as the repository **secret** `CLOUDFLARE_API_TOKEN` (Secrets tab).
 
@@ -169,7 +165,6 @@ Edit `wrangler.jsonc`:
 
 - `d1_databases[0].database_id` — your D1 database id (required).
 - `r2_buckets[0].bucket_name` — your bucket name; **delete the whole `r2_buckets` block if you don't want attachments**.
-- `kv_namespaces[0].id` — your KV namespace id; **delete the whole `kv_namespaces` block if you don't need it**.
 - `vars` — fill in `DOMAIN`, `TELEGRAM_ID` and `TELEGRAM_TOKEN`; everything else is configured in the Mini App after deployment.
 
 Then:
@@ -218,7 +213,6 @@ Bindings:
 | `DB`    | KV Namespace       | **D1 Database** (run the migrations!)      |
 | `BUCKET`| —                  | R2 Bucket, optional: attachments & large bodies |
 | `AI`    | Workers AI, optional | same                                     |
-| `KV`    | —                  | KV Namespace, optional: first-time `/start` memory |
 
 ## 5. FAQ
 
@@ -228,14 +222,11 @@ No. 1.0 did not store mail, so the inbox starts empty and fills up from the mome
 **Do I have to create an R2 bucket?**
 No, it's optional. Without `BUCKET`, mail is stored in D1 without attachment contents (large bodies are truncated by the size policy setting).
 
-**Do I have to create the KV namespace?**
-No. It only remembers which chats already completed the first-time `/start` setup prompt. Without it, that prompt simply appears again next time.
-
 **Can I keep the same bot and Email Routing setup?**
 Yes. Keep `TELEGRAM_TOKEN`, `TELEGRAM_ID` and `DOMAIN` unchanged, redeploy, then call `/init` once.
 
 **Deployment fails with a bindings error?**
-If you deploy manually, an empty `database_id` / `bucket_name` / KV `id` in `wrangler.jsonc` is invalid — fill in real ids or delete the optional binding block entirely. The Workers Builds path avoids this by omitting unconfigured bindings automatically.
+If you deploy manually, an empty `database_id` / `bucket_name` in `wrangler.jsonc` is invalid — fill in real ids or delete the optional binding block entirely. The Workers Builds path avoids this by omitting unconfigured bindings automatically.
 
 **Where did the `Text` / `HTML` buttons go?**
 2.0 replaces the temporary web pages with the Mini App. The `Open` button deep-links into the message's detail page, which has a sandboxed HTML view, a plain text toggle and attachments.

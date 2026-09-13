@@ -31,7 +31,7 @@ mail2telegram
 
 部署流程见[迁移部署指南](./MIGRATION_CN.md)（[English](./MIGRATION.md)），包含 2.0 的全新安装以及从 1.0 升级的完整步骤。
 
-简版流程：创建 D1 数据库（可选 R2 存储桶和 KV 命名空间），将仓库接入 Cloudflare Workers Builds 并配置 `pnpm build` / `pnpm deploy` 与 `DEPLOY_*` 构建变量，然后把 Email Routing 的 catch-all 指向该 Worker，最后访问一次 `/init`。
+简版流程：创建 D1 数据库（可选 R2 存储桶），将仓库接入 Cloudflare Workers Builds 并配置 `pnpm build` / `pnpm deploy` 与 `DEPLOY_*` 构建变量，然后把 Email Routing 的 catch-all 指向该 Worker，最后访问一次 `/init`。
 
 ## 配置
 
@@ -56,7 +56,6 @@ Bindings：
 | `DB`     | D1 Database  | 必需。邮件历史、地址名单、设置。        |
 | `BUCKET` | R2 Bucket    | 附件与超大正文，可选。                  |
 | `AI`     | Workers AI   | 可选，用于摘要。                        |
-| `KV`     | KV Namespace | 可选，记录哪些会话执行过 `/start`。     |
 
 ## Telegram Mini App
 

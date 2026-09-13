@@ -62,12 +62,14 @@ export function HandlingPage() {
                         ) : null}
                     </List>
                     <div className="settings-note">
-                        {draft.attachmentSaveEnabled
-                            ? `Single attachments over ${formatBytes(draft.attachmentMaxSize)} are skipped (0 stores every attachment); the rest stay downloadable in the Mini App until cleanup.`
-                            : 'Attachments are not stored, so the Mini App cannot list or serve them.'}
+                        {!draft.attachmentSaveEnabled
+                            ? 'Attachments are not stored, so the Mini App cannot list or serve them.'
+                            : draft.attachmentMaxSize > 0
+                                ? `Single attachments over ${formatBytes(draft.attachmentMaxSize)} are skipped; the rest stay downloadable in the Mini App until cleanup.`
+                                : 'No size limit: every attachment is stored and downloadable in the Mini App until cleanup.'}
                     </div>
                     <div className="settings-note">
-                        Duplicate notifications for the same Message-ID are always suppressed.
+                        A repeated Message-ID is always suppressed (mail without a Message-ID falls back to a content hash), so redeliveries do not notify twice.
                     </div>
                 </>
             ) : null}

@@ -22,8 +22,10 @@
         "db:migrate:remote": "node scripts/build-config.mjs && wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc",
         "deploy": "node scripts/build-config.mjs && wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc && vite build && wrangler deploy --config wrangler.deploy.jsonc",
         "screenshots": "node scripts/screenshots/generate-screenshots.mjs",
-        "lint": "eslint --fix src web scripts",
-        "test": "tsx src/test.ts",
+        "lint": "eslint --fix src web scripts test vitest.config.mts",
+        "test": "pnpm test:unit && pnpm test:pool",
+        "test:unit": "tsx src/test.ts",
+        "test:pool": "vitest run",
         "wrangler": "wrangler"
     },
     "dependencies": {
@@ -40,6 +42,7 @@
     },
     "devDependencies": {
         "@antfu/eslint-config": "^9.5.1",
+        "@cloudflare/vitest-pool-workers": "^0.22.0",
         "@cloudflare/workers-types": "^5.20260911.1",
         "@tailwindcss/vite": "^4.3.3",
         "@types/html-to-text": "^9.0.4",
@@ -56,6 +59,7 @@
         "tsx": "^4.23.13",
         "typescript": "^6.0.3",
         "vite": "^8.3.0",
+        "vitest": "^4.1.11",
         "wrangler": "^4.131.1"
     }
 }

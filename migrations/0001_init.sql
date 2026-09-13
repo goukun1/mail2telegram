@@ -74,6 +74,14 @@ CREATE TABLE IF NOT EXISTS telegram_messages (
 
 CREATE INDEX IF NOT EXISTS idx_telegram_messages_email ON telegram_messages (email_id);
 
+-- Presence of a row marks that the chat has already seen the one-time /start
+-- setup prompt; the insert-only conflict clause in claimFirstStart makes the
+-- check atomic.
+CREATE TABLE IF NOT EXISTS telegram_starts (
+    chat_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS mail_status (
     message_id TEXT PRIMARY KEY,
     telegram INTEGER NOT NULL DEFAULT 0,

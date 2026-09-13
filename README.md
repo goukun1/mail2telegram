@@ -34,7 +34,7 @@ Email ──▶ Telegram push with quick action buttons
 
 Deployment is documented in the [Migration & Deployment Guide](doc/MIGRATION.md) ([中文](doc/MIGRATION_CN.md)), which covers fresh installs of 2.0 and the upgrade path from 1.0.
 
-The short version: create a D1 database (plus an optional R2 bucket and KV namespace), connect the repository to Cloudflare Workers Builds with `pnpm build` / `pnpm run deploy` and the `DEPLOY_*` build variables (or keep the real ids in your gitignored `wrangler.jsonc` and run `pnpm run deploy` locally), then point the Email Routing catch-all at the worker and call `/init` once.
+The short version: create a D1 database (plus an optional R2 bucket), connect the repository to Cloudflare Workers Builds with `pnpm build` / `pnpm run deploy` and the `DEPLOY_*` build variables (or keep the real ids in your gitignored `wrangler.jsonc` and run `pnpm run deploy` locally), then point the Email Routing catch-all at the worker and call `/init` once.
 
 ## Configuration
 
@@ -59,7 +59,6 @@ Bindings:
 | `DB`     | D1 Database       | Required. Mail history, address lists and settings.  |
 | `BUCKET` | R2 Bucket         | Attachments and large email bodies. Optional.        |
 | `AI`     | Workers AI        | Optional, for summaries.                             |
-| `KV`     | KV Namespace      | Optional, remembers which chats ran `/start`.        |
 
 ## Telegram Mini App
 
@@ -111,7 +110,9 @@ Mail older than the retention setting is not part of the notification cache, but
 pnpm install
 pnpm dev            # Vite dev server on :5173 + wrangler dev on :8787
 pnpm build          # typecheck and build the Mini App into dist/client
-pnpm test           # parseEmail unit test
+pnpm test           # pure-logic tests (tsx) + Worker-runtime tests (vitest, Miniflare)
+pnpm test:unit      # mergeSettings / testAddress / parseEmail only
+pnpm test:pool      # D1, inbound-email and cleanup tests in the Workers runtime
 pnpm lint           # eslint --fix
 pnpm screenshots    # regenerate the README images in doc/ from mock data
 ```

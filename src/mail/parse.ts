@@ -37,14 +37,29 @@ function normalizeAttachmentContent(content: ArrayBuffer | string | undefined): 
     return content;
 }
 
+export interface ParseEmailOptions {
+    /**
+     * Identity for this delivery. The caller resolves it once (header, or a
+     * content hash when the header is absent) and passes it in so the journal
+     * key and the stored `message_id` cannot drift apart.
+     */
+    messageId?: string;
+    /**
+     * Raw bytes to parse when the caller has already read the original stream
+     * (to hash it). Falls back to `message.raw`.
+     */
+    rawBytes?: Uint8Array;
+}
+
 export async function parseEmail(
     message: ForwardableEmailMessage,
     maxSize: number,
     maxSizePolicy: MaxEmailSizePolicy,
+    options: ParseEmailOptions = {},
 ): Promise<ParsedEmailResult> {
     const id = crypto.randomUUID();
     const base: ParsedEmail = {
-        messageId: message.headers.get('Message-ID')?.trim() || id,
+        messageId: options.messageId || message.headers.get('Message-ID')?.trim() || id,
         from: message.from,
         fromName: null,
         to: message.to,
@@ -60,7 +75,11 @@ export async function parseEmail(
         attachments: [],
     };
     let isTruncate = false;
-    let emailRaw = message.raw;
+    // The caller may hand back the bytes it already read for hashing; the global
+    // `Response` type is DOM-shaped here, so cast to the Workers stream type.
+    let emailRaw: ReadableStream<Uint8Array> = options.rawBytes
+        ? new Response(options.rawBytes.slice().buffer as ArrayBuffer).body as unknown as ReadableStream<Uint8Array>
+        : message.raw;
     try {
         const policy = message.rawSize > maxSize ? maxSizePolicy : 'continue';
         if (policy === 'unhandled') {
@@ -71,12 +90,16 @@ export async function parseEmail(
         }
         if (policy === 'truncate') {
             isTruncate = true;
-            emailRaw = truncateStream(message.raw, maxSize);
+            emailRaw = truncateStream(emailRaw, maxSize);
         }
         const parser = new PostalMime();
         const email = await parser.parse(emailRaw as unknown as RawEmail);
         base.subject = email.subject || base.subject;
-        base.messageId = email.messageId?.trim() || base.messageId;
+        // A caller-supplied identity wins: postal-mime normalises the header
+        // differently, and the journal key must match the stored value exactly.
+        if (!options.messageId) {
+            base.messageId = email.messageId?.trim() || base.messageId;
+        }
         base.from = email.from?.address || base.from;
         base.fromName = email.from?.name || null;
         base.to = email.to?.map(addr => addr.address).filter(Boolean).join(', ') || base.to;

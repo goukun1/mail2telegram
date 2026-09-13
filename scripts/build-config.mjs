@@ -6,7 +6,7 @@
  *   2. the binding already present in the source config (handy for manual
  *      deploys: keep the real ids in your gitignored `wrangler.jsonc`).
  * The `local` placeholder used for `wrangler dev` state means "not configured":
- * a missing D1 id fails the build, missing R2/KV bindings are omitted.
+ * a missing D1 id fails the build, missing R2 bindings are omitted.
  *
  * Required for CI:
  *   DEPLOY_D1_DATABASE_ID
@@ -14,7 +14,6 @@
  *   DEPLOY_D1_DATABASE_NAME   (default: mail2telegram)
  *   DEPLOY_R2_BUCKET_NAME     (omit to remove the R2 binding)
  *   DEPLOY_R2_PREVIEW_BUCKET_NAME
- *   DEPLOY_KV_NAMESPACE_ID    (omit to remove the KV binding)
  *
  * Usage: node scripts/build-config.mjs
  */
@@ -131,19 +130,5 @@ if (!isPlaceholder(bucketName)) {
     delete config.r2_buckets;
 }
 
-// KV remembers which chats already finished the first-time setup prompt.
-const kvNamespaceId = process.env.DEPLOY_KV_NAMESPACE_ID
-    || config.kv_namespaces?.find(item => item.binding === 'KV')?.id;
-if (!isPlaceholder(kvNamespaceId)) {
-    config.kv_namespaces = [
-        {
-            binding: 'KV',
-            id: kvNamespaceId,
-        },
-    ];
-} else {
-    delete config.kv_namespaces;
-}
-
 writeFileSync(targetPath, `${JSON.stringify(config, null, 4)}\n`);
-console.log(`[build-config] wrote ${targetPath} from ${sourcePath} (d1=${databaseName}, r2=${!isPlaceholder(bucketName) ? bucketName : 'disabled'}, kv=${!isPlaceholder(kvNamespaceId) ? kvNamespaceId : 'disabled'})`);
+console.log(`[build-config] wrote ${targetPath} from ${sourcePath} (d1=${databaseName}, r2=${!isPlaceholder(bucketName) ? bucketName : 'disabled'})`);

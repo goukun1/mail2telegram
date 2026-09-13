@@ -1,4 +1,4 @@
-import type { Ai, D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
+import type { Ai, D1Database, R2Bucket } from '@cloudflare/workers-types';
 
 export type Folder = 'inbox' | 'spam' | 'trash' | 'sent';
 
@@ -151,6 +151,4 @@ export interface Environment {
     DB: D1Database;
     BUCKET?: R2Bucket;
     AI?: Ai;
-    /** Optional KV store used to remember which chats already opened the Mini App. */
-    KV?: KVNamespace;
 }
