@@ -18,7 +18,7 @@ import { validate } from '@tma.js/init-data-node/web';
 import { json, Router } from 'itty-router';
 import { Dao } from '../../db';
 import { purgeAttachments, purgeEmails, purgeEmailsByIds } from '../../db/cleanup';
-import { importSettingsFromEnv, loadSettings, saveSettings } from '../../db/settings';
+import { importSettingsFromEnv, loadSettings, saveDiscoveredDomain, saveSettings } from '../../db/settings';
 import { hydrateEmail, replyToEmail, summarizeEmail, testAddressAgainstLists } from '../../mail';
 import { listOpenAiCompatibleModels, listWorkersAiTextModels } from '../../mail/summarization';
 import { createTelegramBotAPI, telegramCommands, telegramWebhookHandler } from '../../telegram';
@@ -226,9 +226,18 @@ function createRouter(env: Environment): RouterType {
         return await issueWebToken(webPassword);
     });
 
-    router.get('/init', async (): Promise<any> => {
+    router.get('/init', async (req: IRequest): Promise<any> => {
         requireEmail(env);
         const api = createTelegramBotAPI(TELEGRAM_TOKEN);
+        // With no DOMAIN variable the host comes from this request (filled in
+        // by the fetch entrypoint). Remember it so email notifications can
+        // link back even though the email handler never sees a request. When
+        // DOMAIN is set to a different host the variable wins and nothing is
+        // stored.
+        const host = new URL(req.url).host;
+        if (DOMAIN === host) {
+            await saveDiscoveredDomain(env, host);
+        }
         const miniAppUrl = `https://${DOMAIN}/#/inbox`;
         const webhook = await api.setWebhook({
             url: `https://${DOMAIN}/telegram/${TELEGRAM_TOKEN}/webhook`,
@@ -518,6 +527,13 @@ function createRouter(env: Environment): RouterType {
 }
 
 export async function fetchHandler(request: Request, env: Environment): Promise<Response> {
+    // Every fetch-context consumer builds webhook / Mini App links from
+    // `DOMAIN`. When the variable is not configured, the host of the incoming
+    // request is the worker's own address, so use it for this request; `/init`
+    // additionally remembers it in D1 for the request-less email handler.
+    if (!env.DOMAIN) {
+        env.DOMAIN = new URL(request.url).host;
+    }
     const router = createRouter(env);
     return router.fetch(request).catch(e => {
         return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500 });

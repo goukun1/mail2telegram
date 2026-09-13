@@ -5,7 +5,7 @@ import type {
 } from '@cloudflare/workers-types';
 import type { AttachmentRecord, EmailRecord, Environment, ParsedEmailResult, RuntimeSettings } from '../types';
 import { Dao } from '../db';
-import { loadSettings } from '../db/settings';
+import { loadDiscoveredDomain, loadSettings } from '../db/settings';
 import { hydrateEmail, isMessageBlock, parseEmail, renderEmailListMode } from '../mail';
 import { createTelegramBotAPI } from '../telegram';
 
@@ -157,6 +157,12 @@ export interface TelegramNotification {
 
 export async function sendMailToTelegram(mail: EmailRecord, env: Environment): Promise<TelegramNotification[]> {
     const { TELEGRAM_TOKEN, TELEGRAM_ID } = env;
+    // The email context has no request, so without a DOMAIN variable the host
+    // falls back to the one remembered by `/init`. Empty means it was never
+    // discovered and renderEmailListMode omits the Mini App button.
+    if (!env.DOMAIN) {
+        env.DOMAIN = (await loadDiscoveredDomain(env)) ?? '';
+    }
     const settings = await loadSettings(env);
     const hydrated = await hydrateEmail(mail, env.BUCKET);
     const api = createTelegramBotAPI(TELEGRAM_TOKEN);

@@ -89,7 +89,7 @@ pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 
 `DEPLOY_R2_BUCKET_NAME` 可选 —— 省略则不启用附件。`DEPLOY_D1_DATABASE_NAME` 默认 `mail2telegram`。
 
-部署完成后，在控制台的 **Settings → Variables and Secrets** 中设置运行参数（`DOMAIN`、`TELEGRAM_ID`、`TELEGRAM_TOKEN`，以及可选的 `RESEND_API_KEY`），与方式 A 相同。`wrangler.jsonc` 中的 `keep_vars: true` 保证后续部署不会删除它们。
+部署完成后，在控制台的 **Settings → Variables and Secrets** 中设置运行参数（`TELEGRAM_ID`、`TELEGRAM_TOKEN`，以及可选的 `RESEND_API_KEY`），与方式 A 相同。`wrangler.jsonc` 中的 `keep_vars: true` 保证后续部署不会删除它们。
 
 `scripts/build-config.mjs` 会把这些 id 解析进生成的（已 gitignore 的）`wrangler.deploy.jsonc`；`local` 占位绑定会被跳过，不会部署。
 
@@ -103,7 +103,7 @@ pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 |:-----------------|:------------------------------------------------------------------------------------------------------|
 | `TELEGRAM_ID`    | 必填。推送目标 Chat ID，多个用英文逗号分隔。可通过 `@userinfobot` 获取，群组以 `-100` 开头。            |
 | `TELEGRAM_TOKEN` | 必填。Telegram Bot Token，例如 `7123456780:AAjkLAbvSgDdfsDdfsaSK0`。                                   |
-| `DOMAIN`         | 必填。Worker 域名，例如 `project_name.user_name.workers.dev`，用于 Webhook 与 Mini App 链接。          |
+| `DOMAIN`         | 可选。Worker 域名，例如 `project_name.user_name.workers.dev`，用于 Webhook 与 Mini App 链接。不设置时，Worker 会在运行安装步骤（`/init`）时自动发现并记住自己的域名（存入数据库）。仅当需要让 Mini App 运行在与安装时不同的域名上时才需要设置。 |
 | `WEB_PASSWORD`   | 可选。在 Telegram 之外用普通浏览器打开 Mini App 时所需的密码。留空或不设置则只允许通过 Telegram Mini App 访问。 |
 | `RESEND_API_KEY` | 可选。Resend API Key，https://resend.com/docs/introduction。启用后可在 Telegram 或 Mini App 中回信。   |
 | `DEBUG`          | 可选。为 `true` 时推送会增加 `Debug` 按钮。                                                            |

@@ -95,16 +95,21 @@ export async function resetStorage(): Promise<void> {
 }
 
 /** Intercepts outbound Telegram calls and records how many were sent. */
-export function mockTelegramFetch(): { readonly calls: number; restore: () => void } {
+export function mockTelegramFetch(): { readonly calls: number; readonly bodies: string[]; restore: () => void } {
     let calls = 0;
+    const bodies: string[] = [];
     const original = globalThis.fetch;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         calls += 1;
+        bodies.push(String(init?.body ?? ''));
         return Response.json({ ok: true, result: { message_id: 1000 + calls } });
     }) as typeof fetch;
     return {
         get calls() {
             return calls;
+        },
+        get bodies() {
+            return bodies;
         },
         restore: () => {
             globalThis.fetch = original;

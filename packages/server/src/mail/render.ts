@@ -49,7 +49,10 @@ export async function renderEmailListMode(
             callback_data: `s:${mail.id}`,
         });
     }
-    if (options.chatType === undefined || options.chatType === 'private') {
+    // Telegram only allows `web_app` buttons in private chats. Without a
+    // discovered domain (DOMAIN unset and /init not run yet) the Mini App URL
+    // cannot be built, so the Open button is omitted rather than broken.
+    if (DOMAIN && (options.chatType === undefined || options.chatType === 'private')) {
         keyboard.push({
             text: 'Open',
             web_app: {

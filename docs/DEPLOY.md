@@ -89,7 +89,7 @@ pnpm run deploy   # applies D1 migrations, builds the Mini App, deploys the work
 
 `DEPLOY_R2_BUCKET_NAME` is optional — omit it to deploy without attachments. `DEPLOY_D1_DATABASE_NAME` defaults to `mail2telegram`.
 
-Set the runtime variables (`DOMAIN`, `TELEGRAM_ID`, `TELEGRAM_TOKEN`, and optionally `RESEND_API_KEY`) afterwards under **Settings → Variables and Secrets** in the dashboard, as in Option A. `keep_vars: true` in `wrangler.jsonc` means later deploys will not delete them.
+Set the runtime variables (`TELEGRAM_ID`, `TELEGRAM_TOKEN`, and optionally `RESEND_API_KEY`) afterwards under **Settings → Variables and Secrets** in the dashboard, as in Option A. `keep_vars: true` in `wrangler.jsonc` means later deploys will not delete them.
 
 `scripts/build-config.mjs` resolves the ids into a generated, gitignored `wrangler.deploy.jsonc`; a `local` placeholder binding is skipped instead of deployed.
 
@@ -103,7 +103,7 @@ Location: Workers & Pages → your_worker → Settings → Variables and Secrets
 |:-----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `TELEGRAM_ID`    | Required. Destination chat IDs, comma separated. Get yours from `@userinfobot`. Groups start with `-100`.                                                              |
 | `TELEGRAM_TOKEN` | Required. Telegram Bot Token, e.g. `7123456780:AAjkLAbvSgDdfsDdfsaSK0`.                                                                                                |
-| `DOMAIN`         | Required. Worker domain, e.g. `project_name.user_name.workers.dev`. Used for webhook and Mini App links.                                                               |
+| `DOMAIN`         | Optional. Worker domain, e.g. `project_name.user_name.workers.dev`. Used for webhook and Mini App links. When unset, the worker discovers its own host when you run setup (`/init`) and stores it in the database. Set it only to keep serving the Mini App from a different domain than the one setup was run from. |
 | `WEB_PASSWORD`   | Optional. Password for opening the Mini App in a plain browser outside Telegram. Leave unset or empty to allow only the Telegram Mini App.                              |
 | `RESEND_API_KEY` | Optional. Resend API Key, https://resend.com/docs/introduction. Enables replying to emails from Telegram or the Mini App.                                               |
 | `DEBUG`          | Optional. When `true`, adds a `Debug` button to pushes.                                                                                                                 |

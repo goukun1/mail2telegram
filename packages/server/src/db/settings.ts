@@ -21,6 +21,12 @@ export const SETTING_KEYS = {
     openaiCompletionsApi: 'openai_completions_api',
     summaryTargetLang: 'summary_target_lang',
     forwardEnabled: 'forward_enabled',
+    /**
+     * Machine-managed: the host remembered by `/init` when the `DOMAIN`
+     * variable is not configured. Never part of `RuntimeSettings`, so it is
+     * not exposed through the settings API and cannot be edited from the UI.
+     */
+    workerDomain: 'worker_domain',
 } as const;
 
 function toBool(value: string | undefined, fallback = false): boolean {
@@ -146,6 +152,26 @@ export async function loadSettings(env: Environment): Promise<RuntimeSettings> {
     const dao = new Dao(env.DB);
     const stored = await dao.getSettings();
     return mergeSettings(defaultSettings(env), stored);
+}
+
+/**
+ * Remember the host a setup request came in on. The email handler has no
+ * request to derive the worker host from, so without a `DOMAIN` variable this
+ * is the only way it can build Mini App links. The read before the write keeps
+ * repeated `/init` calls and redeploy cold starts from touching D1 when the
+ * host did not change.
+ */
+export async function saveDiscoveredDomain(env: Environment, host: string): Promise<void> {
+    const dao = new Dao(env.DB);
+    const stored = await dao.getSetting(SETTING_KEYS.workerDomain);
+    if (stored !== host) {
+        await dao.setSetting(SETTING_KEYS.workerDomain, host);
+    }
+}
+
+/** Host remembered by `saveDiscoveredDomain`, or null when never discovered. */
+export async function loadDiscoveredDomain(env: Environment): Promise<string | null> {
+    return await new Dao(env.DB).getSetting(SETTING_KEYS.workerDomain);
 }
 
 /** Persist a partial update made from the Mini App. */

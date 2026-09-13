@@ -2,9 +2,11 @@
 //
 // This file is tracked in git and intentionally contains no secrets and no real
 // resource ids, so every deployment can use the same copy:
-//   - Runtime variables (DOMAIN, TELEGRAM_ID, TELEGRAM_TOKEN) are configured
+//   - Runtime variables (TELEGRAM_ID, TELEGRAM_TOKEN) are configured
 //     under Workers & Pages → your worker → Settings → Variables and Secrets.
-//     `keep_vars` below stops a deploy from deleting them.
+//     `keep_vars` below stops a deploy from deleting them. DOMAIN is
+//     optional: when unset, /init discovers the worker host and stores it
+//     in D1.
 //   - D1 / R2 ids are injected from the DEPLOY_* build variables by
 //     scripts/build-config.mjs; the `local` placeholders are only used by
 //     `wrangler dev`.

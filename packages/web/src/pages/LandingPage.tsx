@@ -89,9 +89,8 @@ const STEPS: Step[] = [
         children: (
             <>
                 Create a <code>D1</code> database and an <code>R2</code> bucket, then connect this repository in the
-                Cloudflare dashboard or run <code>pnpm run deploy</code>. Set
-                <code>TELEGRAM_TOKEN</code>,<code>TELEGRAM_ID</code> and
-                <code>DOMAIN</code> on the worker.
+                Cloudflare dashboard or run <code>pnpm run deploy</code>. Set <code>TELEGRAM_TOKEN</code> and{' '}
+                <code>TELEGRAM_ID</code> on the worker; the worker address is discovered automatically during setup.
             </>
         ),
     },
