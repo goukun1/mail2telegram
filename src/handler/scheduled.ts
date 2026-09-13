@@ -5,9 +5,9 @@ import { purgeEmails } from '../db/cleanup';
 import { loadSettings } from '../db/settings';
 
 /**
- * Daily cron: permanently remove mail older than the auto cleanup retention,
- * together with its attachments and stored bodies. A retention of zero or less
- * keeps mail forever.
+ * Daily cron: permanently remove non-starred mail older than the auto cleanup
+ * retention, together with its attachments and stored bodies. A retention of
+ * zero or less keeps mail forever.
  */
 export async function scheduledHandler(_event: ScheduledController, env: Environment): Promise<void> {
     const settings = await loadSettings(env);

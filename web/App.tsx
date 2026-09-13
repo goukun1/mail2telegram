@@ -1,4 +1,4 @@
-import type { Folder, MeResponse } from './types';
+import type { MeResponse } from './types';
 import { App as KonstaApp, Preloader } from 'konsta/react';
 import { useCallback, useEffect, useState } from 'react';
 import { HashRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
@@ -9,7 +9,6 @@ import { useAsync } from './hooks/useAsync';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useDarkMode } from './hooks/useTheme';
 import { isTelegramEnvironment } from './init';
-import { Sidebar } from './layout/Sidebar';
 import { MessageTabBar } from './layout/TabBar';
 import { InboxPage } from './pages/InboxPage';
 import { LandingPage } from './pages/LandingPage';
@@ -22,39 +21,33 @@ import { HandlingPage } from './pages/settings/HandlingPage';
 import { SettingsHub } from './pages/settings/SettingsHub';
 import { SummariesPage } from './pages/settings/SummariesPage';
 
-const FOLDERS: Folder[] = ['inbox', 'spam', 'trash', 'sent'];
-
 /** Below this width the app uses the single column phone layout. */
 export const SPLIT_MIN_WIDTH = 720;
-/** At or above this width the reader gets its own column. */
-export const READER_COLUMN_MIN_WIDTH = 1040;
-
-function parseFolder(value: string | null): Folder {
-    return FOLDERS.includes(value as Folder) ? (value as Folder) : 'inbox';
-}
 
 /**
  * Layout chrome around the routed pages.
  *
  * Width decides between the phone layout (single column plus tab bar) and the
- * split layout (mailboxes sidebar plus content, never a tab bar). Settings is a
- * normal route inside this layout, so neither layout needs a nested router.
+ * split layout (mail list on the left with a Settings button, detail on the
+ * right, never a tab bar). Settings is a normal route shown in the detail
+ * column, so neither layout needs a nested router.
  */
 function Layout() {
     const location = useLocation();
     const [params] = useSearchParams();
     const navigate = useNavigate();
     const [unread, setUnread] = useState(0);
+    // Bumped when the detail column edits or removes mail so the list reloads.
+    const [refreshToken, setRefreshToken] = useState(0);
+    const bumpRefresh = useCallback(() => setRefreshToken(token => token + 1), []);
 
     const split = useMediaQuery(`(min-width: ${SPLIT_MIN_WIDTH}px)`);
-    const folder = parseFolder(params.get('folder'));
     const selectedId = params.get('id');
     const isSettings = location.pathname.startsWith('/settings');
     // Deep link opened by the Open button on a Telegram notification.
     const mailId = location.pathname.startsWith('/mail/') ? location.pathname.slice('/mail/'.length) : null;
 
     const onUnreadChange = useCallback((value: number) => setUnread(value), []);
-    const openFolder = useCallback((key: Folder) => navigate(`/inbox?folder=${key}`), [navigate]);
     const closeReader = useCallback(() => {
         const next = new URLSearchParams(params);
         next.delete('id');
@@ -62,18 +55,46 @@ function Layout() {
     }, [navigate, params]);
 
     if (split) {
+        const detail = isSettings ? (
+            <Outlet context={{ onUnreadChange }} />
+        ) : mailId ? (
+            <MessageReader
+                key={mailId}
+                emailId={mailId}
+                onChanged={bumpRefresh}
+                onBack={() => navigate('/inbox')}
+                onDeleted={() => {
+                    bumpRefresh();
+                    navigate('/inbox');
+                }}
+            />
+        ) : selectedId ? (
+            <MessageReader
+                key={selectedId}
+                emailId={selectedId}
+                onChanged={bumpRefresh}
+                onDeleted={() => {
+                    bumpRefresh();
+                    closeReader();
+                }}
+            />
+        ) : (
+            <div className="reader-empty">No Message Selected</div>
+        );
         return (
-            <div className="split-view split-view--sidebar">
-                <div className="split-column split-column--sidebar">
-                    <Sidebar
-                        folder={folder}
-                        unread={unread}
+            <div className="split-view split-view--two">
+                <div className="split-column">
+                    <InboxPage
+                        selectedId={selectedId}
+                        onSelect={id => (id ? navigate(`/inbox?id=${id}`) : closeReader())}
+                        hasSidebar
                         isSettings={isSettings}
-                        onOpenSettings={() => navigate('/settings')}
-                        onSelectFolder={openFolder}
+                        refreshToken={refreshToken}
+                        onOpenSettings={() => navigate(isSettings ? '/inbox' : '/settings')}
+                        onUnreadChange={onUnreadChange}
                     />
                 </div>
-                <Outlet context={{ onUnreadChange }} />
+                <div className="split-column">{detail}</div>
             </div>
         );
     }
@@ -109,18 +130,15 @@ function Layout() {
     );
 }
 
+/** Phone-only inbox list; the split layout renders InboxPage directly. */
 function InboxRoute() {
     const [params] = useSearchParams();
     const navigate = useNavigate();
-    const readerColumn = useMediaQuery(`(min-width: ${READER_COLUMN_MIN_WIDTH}px)`);
-    const split = useMediaQuery(`(min-width: ${SPLIT_MIN_WIDTH}px)`);
-    const folder = parseFolder(params.get('folder'));
     const selectedId = params.get('id');
     const { onUnreadChange } = useOutletContext<{ onUnreadChange: (value: number) => void }>();
 
     return (
         <InboxPage
-            folder={folder}
             selectedId={selectedId}
             onSelect={(id) => {
                 if (!id) {
@@ -129,10 +147,9 @@ function InboxRoute() {
                     navigate({ pathname: '/inbox', search: next.toString() });
                     return;
                 }
-                navigate(`/inbox?folder=${folder}&id=${id}`);
+                navigate(`/inbox?id=${id}`);
             }}
-            readerColumn={readerColumn}
-            hasSidebar={split}
+            hasSidebar={false}
             onUnreadChange={onUnreadChange}
         />
     );

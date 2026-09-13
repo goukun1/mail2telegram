@@ -146,7 +146,7 @@ export function CleanupPage() {
                 />
             </List>
             <div className="settings-note">
-                Cleanup permanently erases mail from the worker database and deletes stored attachments, so removed mail cannot be recovered.
+                Cleanup permanently erases mail from the worker database and deletes stored attachments, so removed mail cannot be recovered. Starred mail is never removed.
             </div>
             {result.message ? (
                 <div className="settings-note" style={{ color: result.status === 'error' ? '#ff3b30' : 'var(--ios-gray)' }}>

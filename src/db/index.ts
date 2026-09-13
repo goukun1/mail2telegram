@@ -228,9 +228,9 @@ export class Dao {
 
     // -------------------------------------------------------- cleanup scans
 
-    /** Emails received before the cutoff (ISO time), or every email when null. */
+    /** Non-starred emails received before the cutoff (ISO time), or all of them when null. */
     async findCleanupTargets(before: string | null, limit: number): Promise<EmailCleanupTarget[]> {
-        const sql = `SELECT id, raw_key, body_html, body_text FROM emails ${before ? 'WHERE created_at < ?' : ''} ORDER BY created_at LIMIT ?`;
+        const sql = `SELECT id, raw_key, body_html, body_text FROM emails ${before ? 'WHERE created_at < ? AND is_starred = 0' : 'WHERE is_starred = 0'} ORDER BY created_at LIMIT ?`;
         const rows = before
             ? await this.db.prepare(sql).bind(before, limit).all<EmailCleanupTarget>()
             : await this.db.prepare(sql).bind(limit).all<EmailCleanupTarget>();
@@ -239,14 +239,14 @@ export class Dao {
 
     async countCleanupTargets(before: string | null): Promise<number> {
         const row = before
-            ? await this.db.prepare('SELECT COUNT(*) AS total FROM emails WHERE created_at < ?').bind(before).first<{ total: number }>()
-            : await this.db.prepare('SELECT COUNT(*) AS total FROM emails').first<{ total: number }>();
+            ? await this.db.prepare('SELECT COUNT(*) AS total FROM emails WHERE created_at < ? AND is_starred = 0').bind(before).first<{ total: number }>()
+            : await this.db.prepare('SELECT COUNT(*) AS total FROM emails WHERE is_starred = 0').first<{ total: number }>();
         return row?.total ?? 0;
     }
 
-    /** Attachment rows belonging to emails inside the cleanup range. */
+    /** Attachment rows belonging to non-starred emails inside the cleanup range. */
     async findAttachmentsBefore(before: string | null, limit: number): Promise<AttachmentKeyRow[]> {
-        const sql = `SELECT a.id, a.email_id, a.r2_key FROM attachments a JOIN emails e ON e.id = a.email_id ${before ? 'WHERE e.created_at < ?' : ''} LIMIT ?`;
+        const sql = `SELECT a.id, a.email_id, a.r2_key FROM attachments a JOIN emails e ON e.id = a.email_id ${before ? 'WHERE e.created_at < ? AND e.is_starred = 0' : 'WHERE e.is_starred = 0'} LIMIT ?`;
         const rows = before
             ? await this.db.prepare(sql).bind(before, limit).all<AttachmentKeyRow>()
             : await this.db.prepare(sql).bind(limit).all<AttachmentKeyRow>();
@@ -254,7 +254,7 @@ export class Dao {
     }
 
     async countAttachmentsBefore(before: string | null): Promise<number> {
-        const sql = `SELECT COUNT(*) AS total FROM attachments a JOIN emails e ON e.id = a.email_id ${before ? 'WHERE e.created_at < ?' : ''}`;
+        const sql = `SELECT COUNT(*) AS total FROM attachments a JOIN emails e ON e.id = a.email_id ${before ? 'WHERE e.created_at < ? AND e.is_starred = 0' : 'WHERE e.is_starred = 0'}`;
         const row = before
             ? await this.db.prepare(sql).bind(before).first<{ total: number }>()
             : await this.db.prepare(sql).first<{ total: number }>();

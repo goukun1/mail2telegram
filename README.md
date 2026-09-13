@@ -15,12 +15,7 @@ mail2telegram
 
 **mail2telegram** is a Telegram bot for receiving email. It combines instant push notifications with a Telegram Mini App: every incoming email is pushed to your chat with quick action buttons, while the full history, attachments and every setting live in the Mini App.
 
-<img width="100%" alt="Telegram Mini App: inbox, message reader, settings and white list" src="doc/miniapp_screens.png">
-
-<details>
-<summary>Click to view the push notification demo.</summary>
-<img style="max-width: 600px;" alt="image" src="doc/example.png">
-</details>
+<img width="100%" alt="Telegram Mini App: push notification, inbox, message reader and iPad split view" src="doc/miniapp_screens.png">
 
 
 
@@ -118,6 +113,7 @@ pnpm dev            # Vite dev server on :5173 + wrangler dev on :8787
 pnpm build          # typecheck and build the Mini App into dist/client
 pnpm test           # parseEmail unit test
 pnpm lint           # eslint --fix
+pnpm screenshots    # regenerate the README images in doc/ from mock data
 ```
 
 Local D1 migrations:

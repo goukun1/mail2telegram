@@ -46,10 +46,16 @@ export async function setupMockEnv(): Promise<boolean> {
     }
 
     // `?platform=ios` makes it easy to preview the phone layout in a browser and
-    // `?theme=dark` previews the dark palette.
+    // `?theme=dark` previews the dark palette. `?safeTop` / `?safeBottom` fake
+    // the safe-area insets reported to the app (px), e.g. to preview how the
+    // layout sits under an iPhone notch.
     const query = new URLSearchParams(window.location.search);
     const platform = query.get('platform') || 'tdesktop';
     const themeParams = query.get('theme') === 'dark' ? DARK_THEME_PARAMS : THEME_PARAMS;
+    const safeArea = {
+        top: Number(query.get('safeTop')) || 0,
+        bottom: Number(query.get('safeBottom')) || 0,
+    };
 
     mockTelegramEnv({
         launchParams: new URLSearchParams([
@@ -80,8 +86,8 @@ export async function setupMockEnv(): Promise<boolean> {
                 case 'web_app_request_content_safe_area':
                     emitEvent(event.name === 'web_app_request_safe_area' ? 'safe_area_changed' : 'content_safe_area_changed', {
                         left: 0,
-                        top: 0,
-                        bottom: 0,
+                        top: safeArea.top,
+                        bottom: safeArea.bottom,
                         right: 0,
                     });
                     break;

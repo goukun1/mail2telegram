@@ -14,12 +14,7 @@ mail2telegram
 
 **mail2telegram** 是一个在 Telegram 中收邮件的机器人，结合了即时推送通知与 Telegram Mini App：每封新邮件都会带着快捷操作按钮推送到你的聊天，完整历史、附件和全部设置都在 Mini App 中管理。
 
-<img width="100%" alt="Telegram Mini App：收件箱、阅读器、设置与白名单" src="miniapp_screens.png">
-
-<details>
-<summary>点击查看推送通知 Demo</summary>
-<img style="max-width: 600px;" alt="image" src="example.png">
-</details>
+<img width="100%" alt="Telegram Mini App：推送通知、收件箱、阅读器与 iPad 分栏视图" src="miniapp_screens.png">
 
 ## 工作原理
 
@@ -115,6 +110,7 @@ pnpm dev            # Vite 开发服务器 :5173 + wrangler dev :8787
 pnpm build          # 类型检查并构建 Mini App 到 dist/client
 pnpm test           # parseEmail 单元测试
 pnpm lint           # eslint --fix
+pnpm screenshots    # 用 mock 数据重新生成 doc/ 下的 README 截图
 ```
 
 本地 D1 迁移：

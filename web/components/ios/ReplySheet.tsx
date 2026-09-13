@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import { Sheet } from 'konsta/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import { haptic } from '../../lib/haptics';
 
@@ -15,6 +15,16 @@ export function ReplySheet({ opened, emailId, onClose }: ReplySheetProps) {
     const [text, setText] = useState('');
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Konsta keeps the sheet's contents mounted while closed, so `autoFocus`
+    // would leave this hidden textarea holding page focus on load (and drawing
+    // the global focus ring). Focus it only while the sheet is open.
+    useEffect(() => {
+        if (opened) {
+            textareaRef.current?.focus();
+        }
+    }, [opened]);
 
     const close = () => {
         if (sending) {
@@ -78,12 +88,12 @@ export function ReplySheet({ opened, emailId, onClose }: ReplySheetProps) {
                     </button>
                 </div>
                 <textarea
+                    ref={textareaRef}
                     value={text}
                     onChange={event => setText(event.target.value)}
                     onKeyDown={onKeyDown}
                     placeholder="Write your reply…"
                     rows={7}
-                    autoFocus
                     className="w-full resize-none rounded-xl bg-black/5 p-3 text-[16px] leading-relaxed outline-none dark:bg-white/10"
                 />
                 {error ? <div className="mt-2 text-[13px] text-[#ff3b30]">{error}</div> : null}

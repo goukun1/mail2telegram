@@ -205,7 +205,7 @@ body {
     background: var(--ios-grouped-bg);
 }
 
-/* iPadOS split view: sidebar, list, reader. */
+/* iPadOS two-column split view: mail list on the left, detail on the right. */
 .split-view {
     display: grid;
     width: 100%;
@@ -213,23 +213,9 @@ body {
     min-height: 0;
 }
 
-.split-view--three {
-    /* The reader may shrink so a small desktop window never overflows; below the
-       breakpoint the reader opens over the list instead (see --narrow). */
-    grid-template-columns: 260px 340px minmax(0, 1fr);
-    overflow: hidden;
-}
-
 .split-view--two {
-    grid-template-columns: 340px minmax(360px, 1fr);
-}
-
-.split-view--list {
-    grid-template-columns: minmax(320px, 1fr);
-}
-
-.split-view--sidebar {
-    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-columns: 340px minmax(0, 1fr);
+    overflow: hidden;
 }
 
 .split-column {
@@ -246,66 +232,37 @@ body {
     border-right: none;
 }
 
-.split-column--sidebar {
-    background: var(--ios-grouped-bg);
-    overflow: hidden;
-}
-
-/* iPadOS Mailboxes sidebar with Settings pinned to the bottom left. */
-.ipad-sidebar {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-}
-
-.ipad-sidebar__scroll {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-}
-
-.ipad-sidebar__title {
-    padding: 14px 16px 6px;
-    font-size: 13px;
-    color: var(--ios-gray);
-    text-transform: uppercase;
-}
-
-.ipad-sidebar__footer {
+/* Big Settings button pinned to the bottom of the list column. */
+.master-pane__footer {
     flex: 0 0 auto;
     border-top: 0.5px solid var(--ios-separator);
-    padding: 6px 8px calc(6px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    padding: 10px 10px calc(10px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
-.ipad-sidebar__settings {
+.master-pane__settings {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    gap: 8px;
     width: 100%;
-    padding: 9px 10px;
+    padding: 13px 10px;
     border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--ios-text);
-    font-size: 15px;
+    border-radius: 12px;
+    background: var(--ios-blue);
+    color: #fff;
+    font-size: 17px;
+    font-weight: 600;
     font-family: inherit;
-    text-align: left;
+    text-align: center;
     cursor: pointer;
 }
 
-.ipad-sidebar__settings:active {
-    background: rgba(120, 120, 128, 0.18);
+.master-pane__settings:active {
+    opacity: 0.7;
 }
 
-.ipad-sidebar__settings.is-active {
-    background: rgba(120, 120, 128, 0.14);
-    font-weight: 600;
-}
-
-/* Narrow desktop windows: mailboxes + list only, the reader opens over them. */
-.split-view--narrow {
-    grid-template-columns: 220px minmax(0, 1fr) !important;
+.master-pane__settings.is-active {
+    filter: brightness(0.85);
 }
 
 .reader-empty {
@@ -653,6 +610,7 @@ body {
 /* -------------------------------------------------------------- reader */
 
 .reader {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -660,10 +618,12 @@ body {
     background: var(--ios-surface);
 }
 
+/* Keep the end of the message clear of the floating action bar. */
 .reader__scroll {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    padding-bottom: calc(96px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 .reader__head {
@@ -757,47 +717,149 @@ body {
     text-transform: uppercase;
 }
 
-/* Bottom action toolbar in the message view. */
+/* Floating action bar in the message view, styled after iOS Mail: a pill with
+   the primary actions and a circular ellipsis button hover over the content on
+   a frosted fill — there is no toolbar strip behind them. The container lets
+   taps fall through so content stays scrollable/tappable in the gaps. */
 .ios-toolbar {
-    flex: 0 0 auto;
-    background: var(--ios-bar);
-    border-top: 0.5px solid var(--ios-separator);
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    pointer-events: none;
 }
 
 .ios-toolbar__inner {
     display: flex;
-    align-items: stretch;
-    justify-content: space-around;
-    padding: 6px 0 calc(6px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px calc(12px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
-.ios-toolbar__button {
-    flex: 1 1 0;
+.ios-toolbar__pill,
+.ios-toolbar__more {
+    background: rgba(118, 118, 128, 0.14);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    pointer-events: auto;
+}
+
+.dark .ios-toolbar__pill,
+.dark .ios-toolbar__more {
+    background: rgba(118, 118, 128, 0.22);
+    border-color: rgba(255, 255, 255, 0.09);
+}
+
+.ios-toolbar__pill {
+    flex: 0 0 auto;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 4px 2px;
-    min-height: 44px;
-    background: none;
+    gap: 4px;
+    padding: 0 8px;
+    height: 50px;
+    border-radius: 999px;
+}
+
+.ios-toolbar__more {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
     border: 0;
+    border-radius: 999px;
     color: var(--ios-blue);
-    font-size: 10px;
     cursor: pointer;
 }
 
-.ios-toolbar__button:disabled {
+.ios-toolbar__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--ios-blue);
+    cursor: pointer;
+}
+
+.ios-toolbar__button:disabled,
+.ios-toolbar__more:disabled {
     color: var(--ios-gray-2);
     cursor: default;
 }
 
-.ios-toolbar__button svg {
+.ios-toolbar__button svg,
+.ios-toolbar__more svg {
     width: 24px;
     height: 24px;
 }
 
 .ios-toolbar__button--danger {
     color: #ff3b30;
+}
+
+/* Transparent full-screen layer that catches taps outside the menu. */
+.ios-toolbar__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    pointer-events: auto;
+}
+
+/* The popover menu anchored above the ellipsis button. */
+.ios-menu {
+    position: absolute;
+    right: 16px;
+    bottom: calc(100% + 8px);
+    z-index: 31;
+    min-width: 220px;
+    border-radius: 13px;
+    background: var(--ios-surface);
+    border: 0.5px solid var(--ios-separator);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+    transform-origin: 100% 100%;
+    animation: ios-menu-in 0.16s ease;
+    pointer-events: auto;
+}
+
+@keyframes ios-menu-in {
+    from {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.ios-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 16px;
+    background: none;
+    border: 0;
+    color: var(--ios-text);
+    font-size: 17px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.ios-menu__item + .ios-menu__item {
+    border-top: 0.5px solid var(--ios-separator);
+}
+
+.ios-menu__item:disabled {
+    color: var(--ios-gray-2);
+    cursor: default;
 }
 
 /* --------------------------------------------------------------- tab bar */
@@ -814,10 +876,8 @@ body {
 .ios-tabbar__item {
     flex: 1 1 0;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 4px 0 2px;
+    justify-content: center;
     min-height: 44px;
     background: none;
     border: 0;
@@ -828,11 +888,6 @@ body {
 /* iOS tab items dim while pressed instead of moving or recoloring. */
 .ios-tabbar__item:active {
     opacity: 0.45;
-}
-
-.ios-tabbar__label {
-    font-size: 10px;
-    font-weight: 500;
 }
 
 .ios-tabbar__badge {
@@ -1293,8 +1348,13 @@ body {
     .ptr-spinner--settle,
     .ptr-spinner__icon,
     .ios-tabbar__item,
+    .ios-menu,
     .bar-button,
     .k-list-item .settings-remove {
         transition: none;
+    }
+
+    .ios-menu {
+        animation: none;
     }
 }

@@ -45,7 +45,10 @@ function collectStoredKeys(targets: { raw_key: string | null; body_html: string 
     return keys;
 }
 
-/** Remove specific emails together with their attachments and stored bodies. */
+/**
+ * Remove specific emails together with their attachments and stored bodies.
+ * Starred mail is never a cleanup target.
+ */
 export async function purgeEmailsByIds(dao: Dao, bucket: R2Bucket | undefined, targets: EmailCleanupTarget[]): Promise<CleanupResult> {
     if (targets.length === 0) {
         return { emails: 0, attachments: 0, remaining: 0 };
@@ -60,7 +63,7 @@ export async function purgeEmailsByIds(dao: Dao, bucket: R2Bucket | undefined, t
     return { emails: targets.length, attachments: attachments.length, remaining: 0 };
 }
 
-/** Permanently remove every email received before the cutoff (null removes all). */
+/** Permanently remove every non-starred email received before the cutoff (null removes all). */
 export async function purgeEmails(dao: Dao, bucket: R2Bucket | undefined, before: string | null): Promise<CleanupResult> {
     let emails = 0;
     let attachments = 0;
@@ -79,7 +82,7 @@ export async function purgeEmails(dao: Dao, bucket: R2Bucket | undefined, before
     return { emails, attachments, remaining: await dao.countCleanupTargets(before) };
 }
 
-/** Remove stored attachments of emails in the range, keeping the messages. */
+/** Remove stored attachments of non-starred emails in the range, keeping the messages. */
 export async function purgeAttachments(dao: Dao, bucket: R2Bucket | undefined, before: string | null): Promise<CleanupResult> {
     let attachments = 0;
     for (let pass = 0; pass < MAX_SCANS; pass++) {

@@ -21,6 +21,7 @@
         "db:migrate:local": "wrangler d1 migrations apply DB --local",
         "db:migrate:remote": "node scripts/build-config.mjs && wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc",
         "deploy": "node scripts/build-config.mjs && wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc && vite build && wrangler deploy --config wrangler.deploy.jsonc",
+        "screenshots": "node scripts/screenshots/generate-screenshots.mjs",
         "lint": "eslint --fix src web scripts",
         "test": "tsx src/test.ts",
         "wrangler": "wrangler"
@@ -49,6 +50,7 @@
         "concurrently": "^10.0.5",
         "eslint": "^10.10.0",
         "eslint-plugin-format": "^2.0.1",
+        "puppeteer": "^25.10.0",
         "tailwindcss": "^4.3.3",
         "telegram-bot-api-types": "^10.2.0",
         "tsx": "^4.23.13",

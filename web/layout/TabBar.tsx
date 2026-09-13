@@ -10,6 +10,7 @@ export interface MessageTabBarProps {
 
 interface Tab {
     key: 'inbox' | 'settings';
+    /** Kept as the accessible name now that the bar is icon only. */
     label: string;
     Icon: ComponentType<{ size?: number }>;
 }
@@ -29,6 +30,7 @@ export function MessageTabBar({ active, unread, onChange }: MessageTabBarProps) 
                     <button
                         key={key}
                         type="button"
+                        aria-label={label}
                         aria-current={selected || undefined}
                         className="ios-tabbar__item"
                         style={{ color: selected ? 'var(--ios-blue)' : 'var(--ios-gray)' }}
@@ -43,7 +45,6 @@ export function MessageTabBar({ active, unread, onChange }: MessageTabBarProps) 
                             <Icon size={26} />
                             {key === 'inbox' && unread > 0 ? <span className="ios-tabbar__badge">{unread > 99 ? '99+' : unread}</span> : null}
                         </span>
-                        <span className="ios-tabbar__label">{label}</span>
                     </button>
                 );
             })}

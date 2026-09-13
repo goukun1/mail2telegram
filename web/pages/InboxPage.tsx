@@ -1,43 +1,39 @@
-import type { Email, EmailListResponse, Folder } from '../types';
+import type { Email, EmailListResponse } from '../types';
 import { Preloader, Searchbar, Segmented, SegmentedButton } from 'konsta/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client';
-import { CloseIcon, SearchIcon } from '../components/ios/Icons';
+import { CloseIcon, GearIcon, SearchIcon } from '../components/ios/Icons';
 import { MessageList } from '../components/ios/MessageList';
-import { MessageReader } from '../components/ios/MessageReader';
 import { NavBar } from '../components/ios/NavBar';
 import { PullToRefresh } from '../components/ios/PullToRefresh';
 import { useAsync } from '../hooks/useAsync';
 
 const PAGE_SIZE = 30;
 
-const FOLDER_TITLES: Record<Folder, string> = {
-    inbox: 'Inbox',
-    spam: 'Spam',
-    trash: 'Trash',
-    sent: 'Sent',
-};
-
-const FOLDER_HINTS: Record<Folder, string> = {
-    inbox: 'Messages you receive will appear here.',
-    spam: 'Junk mail will appear here.',
-    trash: 'Messages you delete will appear here.',
-    sent: 'Replies you send will appear here.',
-};
-
 export interface InboxPageProps {
-    folder: Folder;
     selectedId: string | null;
     onSelect: (id: string | null) => void;
-    /** The window is wide enough for the reader to be its own column. */
-    readerColumn: boolean;
-    /** The layout provides a mailboxes sidebar, so the list needs no Close. */
+    /** Split layout: the list is the master column and gets a Settings footer. */
     hasSidebar: boolean;
+    /** Split only: the settings pages currently occupy the detail column. */
+    isSettings?: boolean;
+    /** Split only: bumped when the detail column edits mail, forcing a reload. */
+    refreshToken?: number;
+    /** Split only: toggles between the inbox and the settings hub. */
+    onOpenSettings?: () => void;
     onUnreadChange: (unread: number) => void;
 }
 
-/** iOS Mail message list with search and folder filters. */
-export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSidebar, onUnreadChange }: InboxPageProps) {
+/** iOS Mail message list with search and filters. */
+export function InboxPage({
+    selectedId,
+    onSelect,
+    hasSidebar,
+    isSettings = false,
+    refreshToken = 0,
+    onOpenSettings,
+    onUnreadChange,
+}: InboxPageProps) {
     const [query, setQuery] = useState('');
     const [appliedQuery, setAppliedQuery] = useState('');
     const [limit, setLimit] = useState(PAGE_SIZE);
@@ -48,13 +44,12 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
 
     const { data, loading, error, reload } = useAsync<EmailListResponse>(
         () => api.listEmails({
-            folder,
             q: appliedQuery || undefined,
             limit,
             unread: filter === 'unread' ? true : undefined,
             starred: filter === 'starred' ? true : undefined,
         }),
-        [folder, appliedQuery, limit, filter],
+        [appliedQuery, limit, filter, refreshToken],
     );
 
     const emails = data?.emails ?? [];
@@ -78,8 +73,8 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
         return () => document.removeEventListener('visibilitychange', onVisible);
     }, [reload]);
 
-    // Swipe-to-delete: move the message to trash (or erase it when already
-    // there) and drop the selection if the open message was the one removed.
+    // Swipe-to-delete permanently erases the message together with its stored
+    // bodies and attachments, and drops the selection if it was the open one.
     const removeEmail = async (email: Email) => {
         try {
             await api.deleteEmail(email.id);
@@ -115,10 +110,10 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
         setAppliedQuery('');
     };
 
-    // Reset the scroll position when the folder, query or filter changes.
+    // Reset the scroll position when the query or filter changes.
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: 0 });
-    }, [folder, appliedQuery, filter]);
+    }, [appliedQuery, filter]);
 
     const empty = useMemo(() => {
         if (appliedQuery) {
@@ -130,101 +125,110 @@ export function InboxPage({ folder, selectedId, onSelect, readerColumn, hasSideb
         if (filter === 'starred') {
             return { title: 'No Starred Mail', subtitle: '' };
         }
-        return { title: 'No Mail', subtitle: FOLDER_HINTS[folder] };
-    }, [appliedQuery, filter, folder]);
+        return { title: 'No Mail', subtitle: 'Messages you receive will appear here.' };
+    }, [appliedQuery, filter]);
 
-    const listColumn = (
-        <div className="split-column">
-            <NavBar
-                title={FOLDER_TITLES[folder]}
-                // On the phone the root list offers Close; while a message is
-                // open the reader owns the native button instead, so the two
-                // never subscribe at the same time.
-                close={!hasSidebar && !selectedId}
-                right={(
-                    <button
-                        type="button"
-                        aria-label={searching ? 'Close search' : 'Search'}
-                        className="bar-button icon-hit p-1 text-[var(--ios-blue)]"
-                        onClick={() => (searching ? closeSearch() : setSearching(true))}
-                    >
-                        {searching ? <CloseIcon size={20} /> : <SearchIcon size={22} />}
-                    </button>
-                )}
-            />
-            <div className="list-header">
-                {searching ? (
-                    <div className="px-2 py-1" ref={searchRef}>
-                        <Searchbar
-                            placeholder="Search"
-                            value={query}
-                            onChange={(e: any) => setQuery(e.target.value)}
-                            onClear={() => {
-                                setQuery('');
-                                setAppliedQuery('');
-                            }}
-                            disableButton
-                        />
-                    </div>
-                ) : null}
-                <div className="px-3 pb-2 pt-2">
-                    <Segmented strong className="ios-segmented">
-                        <SegmentedButton active={filter === 'all'} onClick={() => setFilter('all')}>All</SegmentedButton>
-                        <SegmentedButton active={filter === 'unread'} onClick={() => setFilter('unread')}>Unread</SegmentedButton>
-                        <SegmentedButton active={filter === 'starred'} onClick={() => setFilter('starred')}>Starred</SegmentedButton>
-                    </Segmented>
-                </div>
-            </div>
-            <PullToRefresh className="page-scroll" scrollRef={scrollRef} onRefresh={reload}>
-                {loading && emails.length === 0 ? (
-                    <div className="spin-center"><Preloader /></div>
-                ) : error ? (
-                    <div className="reader-empty">
-                        <div>
-                            <p className="mb-3">{error.message}</p>
-                            <button type="button" className="text-button" onClick={reload}>Try Again</button>
-                        </div>
-                    </div>
-                ) : emails.length === 0 ? (
-                    <div className="empty-state">
-                        <div className="empty-state__title">{empty.title}</div>
-                        {empty.subtitle ? <div className="empty-state__subtitle">{empty.subtitle}</div> : null}
-                    </div>
-                ) : (
-                    <MessageList
-                        emails={emails}
-                        selectedId={selectedId}
-                        onSelect={(email: Email) => onSelect(email.id)}
-                        onDelete={removeEmail}
-                        onEndReached={hasMore ? () => setLimit(value => value + PAGE_SIZE) : undefined}
+    const nav = (
+        <NavBar
+            title="Inbox"
+            // On the phone the root list offers Close; while a message is
+            // open the reader owns the native button instead, so the two
+            // never subscribe at the same time.
+            close={!hasSidebar && !selectedId}
+            right={(
+                <button
+                    type="button"
+                    aria-label={searching ? 'Close search' : 'Search'}
+                    className="bar-button icon-hit p-1 text-[var(--ios-blue)]"
+                    onClick={() => (searching ? closeSearch() : setSearching(true))}
+                >
+                    {searching ? <CloseIcon size={20} /> : <SearchIcon size={22} />}
+                </button>
+            )}
+        />
+    );
+
+    const header = (
+        <div className="list-header">
+            {searching ? (
+                <div className="px-2 py-1" ref={searchRef}>
+                    <Searchbar
+                        placeholder="Search"
+                        value={query}
+                        onChange={(e: any) => setQuery(e.target.value)}
+                        onClear={() => {
+                            setQuery('');
+                            setAppliedQuery('');
+                        }}
+                        disableButton
                     />
-                )}
-            </PullToRefresh>
+                </div>
+            ) : null}
+            <div className="px-3 pb-2 pt-2">
+                <Segmented strong className="ios-segmented">
+                    <SegmentedButton active={filter === 'all'} onClick={() => setFilter('all')}>All</SegmentedButton>
+                    <SegmentedButton active={filter === 'unread'} onClick={() => setFilter('unread')}>Unread</SegmentedButton>
+                    <SegmentedButton active={filter === 'starred'} onClick={() => setFilter('starred')}>Starred</SegmentedButton>
+                </Segmented>
+            </div>
         </div>
     );
 
-    // When the window is wide enough the reader becomes its own column beside
-    // the list; otherwise the list fills the content area and the compact
-    // layout shows the reader as an overlay.
-    if (!readerColumn) {
-        return listColumn;
+    const list = (
+        <PullToRefresh className="page-scroll" scrollRef={scrollRef} onRefresh={reload}>
+            {loading && emails.length === 0 ? (
+                <div className="spin-center"><Preloader /></div>
+            ) : error ? (
+                <div className="reader-empty">
+                    <div>
+                        <p className="mb-3">{error.message}</p>
+                        <button type="button" className="text-button" onClick={reload}>Try Again</button>
+                    </div>
+                </div>
+            ) : emails.length === 0 ? (
+                <div className="empty-state">
+                    <div className="empty-state__title">{empty.title}</div>
+                    {empty.subtitle ? <div className="empty-state__subtitle">{empty.subtitle}</div> : null}
+                </div>
+            ) : (
+                <MessageList
+                    emails={emails}
+                    selectedId={selectedId}
+                    onSelect={(email: Email) => onSelect(email.id)}
+                    onDelete={removeEmail}
+                    onEndReached={hasMore ? () => setLimit(value => value + PAGE_SIZE) : undefined}
+                />
+            )}
+        </PullToRefresh>
+    );
+
+    // Split layout: the list is the master column and carries the big Settings
+    // button at the bottom; the detail column lives outside this component.
+    if (hasSidebar) {
+        return (
+            <>
+                {nav}
+                {header}
+                {list}
+                <div className="master-pane__footer">
+                    <button
+                        type="button"
+                        className={`master-pane__settings ${isSettings ? 'is-active' : ''}`}
+                        onClick={onOpenSettings}
+                    >
+                        <GearIcon size={20} />
+                        <span>{isSettings ? 'Done' : 'Settings'}</span>
+                    </button>
+                </div>
+            </>
+        );
     }
 
     return (
-        <div className="split-view split-view--two">
-            {listColumn}
-            <div className="split-column">
-                {selectedId ? (
-                    <MessageReader
-                        key={selectedId}
-                        emailId={selectedId}
-                        onChanged={reload}
-                        onDeleted={() => onSelect(null)}
-                    />
-                ) : (
-                    <div className="reader-empty">No Message Selected</div>
-                )}
-            </div>
+        <div className="split-column">
+            {nav}
+            {header}
+            {list}
         </div>
     );
 }

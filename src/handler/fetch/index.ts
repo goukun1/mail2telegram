@@ -195,7 +195,9 @@ function createRouter(env: Environment): RouterType {
         return {
             emails: result.emails,
             total: result.total,
-            unread: await dao.countUnread('all'),
+            // The UI only shows the inbox, so the badge ignores mail parked in
+            // internal folders (blocked senders, sent replies).
+            unread: await dao.countUnread('inbox'),
         };
     });
 
@@ -236,12 +238,9 @@ function createRouter(env: Environment): RouterType {
         if (!record) {
             throw new HTTPError(404, 'Email not found');
         }
-        if (record.folder === 'trash') {
-            // Erasing from trash also frees the stored attachments and bodies.
-            await purgeEmailsByIds(dao, BUCKET, [record]);
-        } else {
-            await dao.updateEmailFlags(record.id, { folder: 'trash' });
-        }
+        // Deletion is permanent: the row, its attachments and stored bodies
+        // (including their R2 objects) are all freed at once.
+        await purgeEmailsByIds(dao, BUCKET, [record]);
         return { success: true };
     });
 

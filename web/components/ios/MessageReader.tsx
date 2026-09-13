@@ -7,7 +7,7 @@ import { useDarkMode } from '../../hooks/useTheme';
 import { formatBytes, formatFullDate, initialOf, senderLabel } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
 import { buildEmailDocument } from '../../lib/sanitize';
-import { AttachmentIcon, FlagIcon, ReplyIcon, SparkleIcon, StarIcon, TrashIcon } from './Icons';
+import { AttachmentIcon, EllipsisIcon, MailIcon, ReplyIcon, SparkleIcon, StarIcon, TrashIcon } from './Icons';
 import { NavBar } from './NavBar';
 import { ReplySheet } from './ReplySheet';
 
@@ -35,6 +35,7 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
     const [busy, setBusy] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
     const [replyOpen, setReplyOpen] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const email = data?.email;
 
@@ -43,7 +44,22 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
         setSummary(null);
         setActionError(null);
         setBusy(null);
+        setMenuOpen(false);
     }, [emailId]);
+
+    // Escape dismisses the secondary action menu.
+    useEffect(() => {
+        if (!menuOpen) {
+            return;
+        }
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setMenuOpen(false);
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [menuOpen]);
 
     useEffect(() => {
         if (email && email.is_read === 0) {
@@ -207,51 +223,83 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
                 ) : null}
 
                 {actionError ? <div className="settings-note" style={{ color: '#ff3b30' }}>{actionError}</div> : null}
-                <div style={{ height: 12 }} />
             </div>
 
+            {/* iOS Mail style action bar: the primary actions sit in a pill,
+                the rest is folded into the ellipsis menu. */}
             <div className="ios-toolbar">
+                {menuOpen ? <div className="ios-toolbar__scrim" onClick={() => setMenuOpen(false)} /> : null}
+                {menuOpen ? (
+                    <div className="ios-menu" role="menu" aria-label="More actions">
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="ios-menu__item bar-button"
+                            disabled={busy === 'read'}
+                            onClick={() => {
+                                setMenuOpen(false);
+                                toggleRead();
+                            }}
+                        >
+                            <MailIcon size={20} />
+                            <span>{busy === 'read' ? 'Working…' : email.is_read === 0 ? 'Mark as Read' : 'Mark as Unread'}</span>
+                        </button>
+                        {data.summaryEnabled ? (
+                            <button
+                                type="button"
+                                role="menuitem"
+                                className="ios-menu__item bar-button"
+                                disabled={busy === 'summary'}
+                                onClick={() => {
+                                    setMenuOpen(false);
+                                    summarize();
+                                }}
+                            >
+                                <SparkleIcon size={20} />
+                                <span>{busy === 'summary' ? 'Working…' : 'Summarize'}</span>
+                            </button>
+                        ) : null}
+                    </div>
+                ) : null}
                 <div className="ios-toolbar__inner">
-                    {data.resendEnabled ? (
-                        <button type="button" className="ios-toolbar__button bar-button" onClick={() => setReplyOpen(true)}>
-                            <ReplyIcon size={24} />
-                            <span>Reply</span>
+                    <div className="ios-toolbar__pill">
+                        {data.resendEnabled ? (
+                            <button type="button" className="ios-toolbar__button bar-button" aria-label="Reply" onClick={() => setReplyOpen(true)}>
+                                <ReplyIcon size={24} />
+                            </button>
+                        ) : null}
+                        <button
+                            type="button"
+                            className="ios-toolbar__button bar-button"
+                            aria-label={email.is_starred ? 'Unstar' : 'Star'}
+                            aria-pressed={email.is_starred === 1}
+                            disabled={busy === 'star'}
+                            onClick={toggleStar}
+                        >
+                            <StarIcon size={24} filled={email.is_starred === 1} />
                         </button>
-                    ) : null}
-                    {data.summaryEnabled ? (
-                        <button type="button" className="ios-toolbar__button bar-button" disabled={busy === 'summary'} onClick={summarize}>
-                            <SparkleIcon size={24} />
-                            <span>{busy === 'summary' ? 'Working' : 'Summarize'}</span>
+                        <button
+                            type="button"
+                            className="ios-toolbar__button ios-toolbar__button--danger bar-button"
+                            aria-label="Delete"
+                            disabled={busy === 'delete'}
+                            onClick={remove}
+                        >
+                            <TrashIcon size={24} />
                         </button>
-                    ) : null}
+                    </div>
                     <button
                         type="button"
-                        className="ios-toolbar__button bar-button"
-                        disabled={busy === 'read'}
-                        aria-pressed={email.is_read === 0}
-                        onClick={toggleRead}
+                        className="ios-toolbar__more bar-button"
+                        aria-label="More actions"
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        onClick={() => {
+                            haptic.selection();
+                            setMenuOpen(open => !open);
+                        }}
                     >
-                        <FlagIcon size={24} />
-                        <span>{email.is_read === 0 ? 'Read' : 'Unread'}</span>
-                    </button>
-                    <button
-                        type="button"
-                        className="ios-toolbar__button bar-button"
-                        disabled={busy === 'star'}
-                        aria-pressed={email.is_starred === 1}
-                        onClick={toggleStar}
-                    >
-                        <StarIcon size={24} filled={email.is_starred === 1} />
-                        <span>{email.is_starred ? 'Unstar' : 'Star'}</span>
-                    </button>
-                    <button
-                        type="button"
-                        className="ios-toolbar__button ios-toolbar__button--danger bar-button"
-                        disabled={busy === 'delete'}
-                        onClick={remove}
-                    >
-                        <TrashIcon size={24} />
-                        <span>Delete</span>
+                        <EllipsisIcon size={24} />
                     </button>
                 </div>
             </div>

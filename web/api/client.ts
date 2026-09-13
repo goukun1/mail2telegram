@@ -7,7 +7,6 @@ import type {
     Email,
     EmailDetailResponse,
     EmailListResponse,
-    Folder,
     ImportEnvResponse,
     MeResponse,
     RuntimeSettings,
@@ -55,7 +54,6 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
 }
 
 export interface EmailQuery {
-    folder?: Folder | 'all';
     q?: string;
     starred?: boolean;
     unread?: boolean;
@@ -70,8 +68,6 @@ export const api = {
 
     listEmails(query: EmailQuery = {}): Promise<EmailListResponse> {
         const params = new URLSearchParams();
-        if (query.folder)
-            params.set('folder', query.folder);
         if (query.q)
             params.set('q', query.q);
         if (query.starred !== undefined)
@@ -90,7 +86,7 @@ export const api = {
         return request<EmailDetailResponse>(`/api/emails/${id}`);
     },
 
-    updateEmail(id: string, patch: { isRead?: boolean; isStarred?: boolean; folder?: Folder }): Promise<{ email: Email }> {
+    updateEmail(id: string, patch: { isRead?: boolean; isStarred?: boolean }): Promise<{ email: Email }> {
         return request<{ email: Email }>(`/api/emails/${id}`, {
             method: 'PATCH',
             body: JSON.stringify(patch),
