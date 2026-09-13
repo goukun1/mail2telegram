@@ -1,3 +1,10 @@
+# Cloudflare Workers Builds runs pnpm 10.11.1, which reads this file as a
+# workspace manifest and fails with "packages field missing or empty" when it
+# holds settings only. This is a single-package repo, so the root is the sole
+# member; the entry does not change the dependency graph or the lockfile.
+packages:
+  - "."
+
 minimumReleaseAgeExclude:
   - miniflare@5.20260911.0-alpha
   - wrangler@4.131.1
