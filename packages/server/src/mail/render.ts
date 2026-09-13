@@ -1,7 +1,7 @@
 import type * as Telegram from 'telegram-bot-api-types';
 import type { EmailRecord, Environment, RuntimeSettings } from '../types';
 import { checkAddressStatus } from './check';
-import { summarizeEmail } from './summarization';
+import { summarizeEmail, summaryEnabled } from './summarization';
 
 export interface EmailDetailParams {
     text: string;
@@ -35,7 +35,7 @@ export async function renderEmailListMode(
     settings: RuntimeSettings,
     options: EmailListRenderOptions = {},
 ): Promise<EmailDetailParams> {
-    const { DEBUG, AI, DOMAIN } = env;
+    const { DEBUG, DOMAIN } = env;
     const text = `${mail.subject}\n\n-----------\nFrom\t:\t${mail.sender}\nTo\t\t:\t${mail.recipient}`;
     const keyboard: Telegram.InlineKeyboardButton[] = [
         {
@@ -43,7 +43,7 @@ export async function renderEmailListMode(
             callback_data: `p:${mail.id}`,
         },
     ];
-    if (settings.summaryEnabled && ((AI && settings.workersAiModel) || settings.openaiApiKey)) {
+    if (summaryEnabled(env, settings)) {
         keyboard.push({
             text: 'Summary',
             callback_data: `s:${mail.id}`,

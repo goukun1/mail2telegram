@@ -10,9 +10,6 @@ mail2telegram
     <em>Receive email in Telegram: instant push notifications plus a Mini App inbox.</em>
 </p>
 
-
-![](./doc/social_preview.png)
-
 **mail2telegram** is a Telegram bot for receiving email. It combines instant push notifications with a Telegram Mini App: every incoming email is pushed to your chat with quick action buttons, while the full history, attachments and every setting live in the Mini App.
 
 <img width="100%" alt="Telegram Mini App: push notification, inbox, message reader and iPad split view" src="doc/miniapp_screens.png">
@@ -53,7 +50,7 @@ Location: Workers & Pages → your_worker → Settings → Variables and Secrets
 | `RESEND_API_KEY` | Optional. Resend API Key, https://resend.com/docs/introduction. Enables replying to emails from Telegram or the Mini App.                                               |
 | `DEBUG`          | Optional. When `true`, adds a `Debug` button to pushes.                                                                                                                 |
 
-Everything else lives in **Settings** inside the Mini App: allow/block lists with regex matching, block policy, forwarding, summary options (Workers AI model, or an OpenAI-compatible API key, endpoint and model), the duplicate-notification guard, and mail handling limits (retention and size policy).
+Everything else lives in **Settings** inside the Mini App: allow/block lists with regex matching, block policy, forwarding, summary options (Workers AI, or an OpenAI-compatible base URL + token, with the model picked from the provider's list or typed manually), the duplicate-notification guard, and mail handling limits (retention and size policy).
 
 Bindings:
 
@@ -92,7 +89,7 @@ To   : [recipient]
 ```
 
 1. `Preview` shows the plain text body directly in the chat, limited to 4096 characters.
-2. `Summary` appears when a summary backend is enabled in Settings (Workers AI, or an OpenAI compatible key).
+2. `Summary` appears when a summary backend is enabled in Settings (Workers AI, or an OpenAI-compatible provider).
 3. `Open` launches the Mini App straight to this message's detail page. Telegram only allows Mini App buttons in private chats, so group notifications omit it.
 
 Reply to any pushed message in Telegram to answer the sender through Resend.

@@ -2,6 +2,8 @@ import type {
     Address,
     AddressTestResponse,
     AddressType,
+    AiModelsRequest,
+    AiModelsResponse,
     AuthLoginResponse,
     AuthResponse,
     CleanupPreviewResponse,
@@ -12,6 +14,7 @@ import type {
     ImportEnvResponse,
     MeResponse,
     RuntimeSettings,
+    SettingsResponse,
 } from '@mail2telegram/shared';
 import { retrieveRawInitData } from '@tma.js/sdk-react';
 
@@ -214,14 +217,22 @@ export const api = {
         return request('/init', {}, false);
     },
 
-    getSettings(): Promise<{ settings: RuntimeSettings }> {
-        return request<{ settings: RuntimeSettings }>('/api/settings');
+    getSettings(): Promise<SettingsResponse> {
+        return request<SettingsResponse>('/api/settings');
     },
 
-    updateSettings(patch: Partial<RuntimeSettings>): Promise<{ settings: RuntimeSettings }> {
-        return request<{ settings: RuntimeSettings }>('/api/settings', {
+    updateSettings(patch: Partial<RuntimeSettings>): Promise<SettingsResponse> {
+        return request<SettingsResponse>('/api/settings', {
             method: 'PUT',
             body: JSON.stringify(patch),
+        });
+    },
+
+    /** Model ids offered by the provider, fetched through the worker. */
+    listAiModels(body: AiModelsRequest): Promise<AiModelsResponse> {
+        return request<AiModelsResponse>('/api/settings/ai/models', {
+            method: 'POST',
+            body: JSON.stringify(body),
         });
     },
 

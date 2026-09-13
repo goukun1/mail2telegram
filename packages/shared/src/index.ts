@@ -16,6 +16,9 @@ export type BlockPolicy = 'reject' | 'forward' | 'telegram';
 
 export type AddressType = 'block' | 'white';
 
+/** Backend that generates email summaries. */
+export type SummaryProvider = 'workers-ai' | 'openai';
+
 /** Telegram user as embedded in Mini App `initData`. */
 export interface TelegramUser {
     id: number;
@@ -33,10 +36,14 @@ export interface RuntimeSettings {
     maxEmailSize: number;
     maxEmailSizePolicy: MaxEmailSizePolicy;
     summaryEnabled: boolean;
-    openaiApiKey: string;
+    /** Which backend the summary request goes to. */
+    summaryProvider: SummaryProvider;
+    /** Chat model of the selected provider (`@cf/...` or OpenAI-compatible id). */
     workersAiModel: string;
+    openaiApiKey: string;
     openaiChatModel: string;
-    openaiCompletionsApi: string;
+    /** Origin + path of the OpenAI-compatible API, e.g. `https://api.openai.com/v1`. */
+    openaiBaseUrl: string;
     summaryTargetLang: string;
     forwardEnabled: boolean;
     /** Days of mail history kept by the daily cron; 0 disables auto cleanup. */
@@ -157,4 +164,25 @@ export interface CleanupResponse {
     attachments: number;
     /** Rows still inside the range; very large backlogs need another pass. */
     remaining: number;
+}
+
+/** Response of the settings endpoints; also reports provider capabilities. */
+export interface SettingsResponse {
+    settings: RuntimeSettings;
+    /** True when the worker has the Workers AI binding, so the provider is usable. */
+    workersAiAvailable: boolean;
+}
+
+/** Body of `POST /api/settings/ai/models`. */
+export interface AiModelsRequest {
+    provider: SummaryProvider;
+    /** OpenAI-compatible base URL; falls back to the stored setting when omitted. */
+    baseUrl?: string;
+    /** API token; falls back to the stored setting when omitted. */
+    apiKey?: string;
+}
+
+/** Model ids offered by the requested provider, sorted. */
+export interface AiModelsResponse {
+    models: string[];
 }

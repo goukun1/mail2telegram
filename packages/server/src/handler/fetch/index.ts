@@ -1,6 +1,8 @@
 import type { IRequest, RouterType } from 'itty-router';
 import type {
     AddressType,
+    AiModelsRequest,
+    AiModelsResponse,
     AuthLoginResponse,
     AuthResponse,
     EmailDetailResponse,
@@ -9,6 +11,7 @@ import type {
     Folder,
     MeResponse,
     RuntimeSettings,
+    SettingsResponse,
     TelegramUser,
 } from '../../types';
 import { validate } from '@tma.js/init-data-node/web';
@@ -17,6 +20,7 @@ import { Dao } from '../../db';
 import { purgeAttachments, purgeEmails, purgeEmailsByIds } from '../../db/cleanup';
 import { importSettingsFromEnv, loadSettings, saveSettings } from '../../db/settings';
 import { hydrateEmail, replyToEmail, summarizeEmail, testAddressAgainstLists } from '../../mail';
+import { listOpenAiCompatibleModels, listWorkersAiTextModels } from '../../mail/summarization';
 import { createTelegramBotAPI, telegramCommands, telegramWebhookHandler } from '../../telegram';
 
 class HTTPError extends Error {
@@ -447,14 +451,43 @@ function createRouter(env: Environment): RouterType {
 
     // ----------------------------------------------------------- settings
 
-    router.get('/api/settings', auth, async (): Promise<any> => {
-        return { settings: await loadSettings(env) };
+    router.get('/api/settings', auth, async (): Promise<SettingsResponse> => {
+        return { settings: await loadSettings(env), workersAiAvailable: Boolean(env.AI) };
     });
 
-    router.put('/api/settings', auth, async (req: IRequest): Promise<any> => {
+    router.put('/api/settings', auth, async (req: IRequest): Promise<SettingsResponse> => {
         const patch = (await req.json()) as Partial<RuntimeSettings>;
         await saveSettings(dao, patch);
-        return { settings: await loadSettings(env) };
+        return { settings: await loadSettings(env), workersAiAvailable: Boolean(env.AI) };
+    });
+
+    // Model ids for the settings model picker. The worker proxies the
+    // OpenAI-compatible call so the browser never talks to the provider
+    // directly (CORS) and the stored token can be reused when the field is
+    // left empty.
+    router.post('/api/settings/ai/models', auth, async (req: IRequest): Promise<AiModelsResponse> => {
+        let body: AiModelsRequest;
+        try {
+            body = (await req.json()) as AiModelsRequest;
+        } catch {
+            throw new HTTPError(400, 'Invalid request body');
+        }
+        if (body.provider === 'workers-ai') {
+            if (!env.AI) {
+                throw new HTTPError(400, 'Workers AI binding is not configured');
+            }
+            return { models: await listWorkersAiTextModels(env.AI) };
+        }
+        if (body.provider === 'openai') {
+            const settings = await loadSettings(env);
+            const baseUrl = body.baseUrl?.trim() || settings.openaiBaseUrl;
+            const apiKey = body.apiKey?.trim() || settings.openaiApiKey;
+            if (!baseUrl || !apiKey) {
+                throw new HTTPError(400, 'Base URL and API token are required');
+            }
+            return { models: await listOpenAiCompatibleModels(baseUrl, apiKey) };
+        }
+        throw new HTTPError(400, 'Invalid provider');
     });
 
     // Copies the env-derived defaults and address lists into D1 so settings can

@@ -1,4 +1,4 @@
-import type { RuntimeSettings } from '@mail2telegram/shared';
+import type { RuntimeSettings, SettingsResponse } from '@mail2telegram/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import { useAsync } from '../../hooks/useAsync';
@@ -6,6 +6,8 @@ import { haptic } from '../../lib/haptics';
 
 export interface SettingsDraft {
     draft: RuntimeSettings | undefined;
+    /** True when the worker has the Workers AI binding, so the provider is usable. */
+    workersAiAvailable: boolean;
     loading: boolean;
     error: Error | undefined;
     reload: () => void;
@@ -22,10 +24,7 @@ export interface SettingsDraft {
  * losing an edit when navigating away and keeps every page self-contained.
  */
 export function useSettingsDraft(): SettingsDraft {
-    const { data, loading, error, reload, setData } = useAsync<{ settings: RuntimeSettings }>(
-        () => api.getSettings(),
-        [],
-    );
+    const { data, loading, error, reload, setData } = useAsync<SettingsResponse>(() => api.getSettings(), []);
     const [draft, setDraft] = useState<RuntimeSettings | undefined>(undefined);
     const [saving, setSaving] = useState(false);
     const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -98,6 +97,7 @@ export function useSettingsDraft(): SettingsDraft {
 
     return {
         draft,
+        workersAiAvailable: data?.workersAiAvailable ?? false,
         loading,
         error,
         reload,

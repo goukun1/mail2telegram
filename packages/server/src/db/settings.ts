@@ -1,6 +1,7 @@
-import type { BlockPolicy, Environment, MaxEmailSizePolicy, RuntimeSettings } from '../types';
+import type { BlockPolicy, Environment, MaxEmailSizePolicy, RuntimeSettings, SummaryProvider } from '../types';
 import type { ImportEnvResponse } from '@mail2telegram/shared';
 import { Dao, loadArrayFromRaw } from './index';
+import { openaiBaseUrl } from '../mail/summarization';
 
 export const SETTING_KEYS = {
     autoCleanupDays: 'auto_cleanup_days',
@@ -11,9 +12,12 @@ export const SETTING_KEYS = {
     maxEmailSize: 'max_email_size',
     maxEmailSizePolicy: 'max_email_size_policy',
     summaryEnabled: 'summary_enabled',
+    summaryProvider: 'summary_provider',
     openaiApiKey: 'openai_api_key',
     workersAiModel: 'workers_ai_model',
     openaiChatModel: 'openai_chat_model',
+    openaiBaseUrl: 'openai_base_url',
+    /** Pre-base-URL key holding the full completions endpoint; read for migration. */
     openaiCompletionsApi: 'openai_completions_api',
     summaryTargetLang: 'summary_target_lang',
     forwardEnabled: 'forward_enabled',
@@ -32,6 +36,10 @@ function toInt(value: string | undefined, fallback: number): number {
     }
     const parsed = Number.parseInt(value, 10);
     return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+function toSummaryProvider(value: string | undefined): SummaryProvider | null {
+    return value === 'workers-ai' || value === 'openai' ? value : null;
 }
 
 function toBlockPolicy(value: string | undefined): BlockPolicy[] {
@@ -60,10 +68,16 @@ export function defaultSettings(env: Environment): RuntimeSettings {
         maxEmailSize: toInt(env.MAX_EMAIL_SIZE, 512 * 1024),
         maxEmailSizePolicy: toMaxSizePolicy(env.MAX_EMAIL_SIZE_POLICY),
         summaryEnabled: Boolean((env.AI && env.WORKERS_AI_MODEL) || env.OPENAI_API_KEY),
+        // Old behaviour sent summaries to Workers AI whenever both were set,
+        // so the derived default keeps that precedence.
+        summaryProvider:
+            toSummaryProvider(env.SUMMARY_PROVIDER) ??
+            (env.OPENAI_API_KEY && !(env.AI && env.WORKERS_AI_MODEL) ? 'openai' : 'workers-ai'),
         openaiApiKey: env.OPENAI_API_KEY || '',
         workersAiModel: env.WORKERS_AI_MODEL || '',
         openaiChatModel: env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',
-        openaiCompletionsApi: env.OPENAI_COMPLETIONS_API || 'https://api.openai.com/v1/chat/completions',
+        openaiBaseUrl:
+            openaiBaseUrl(env.OPENAI_BASE_URL || env.OPENAI_COMPLETIONS_API || '') || 'https://api.openai.com/v1',
         summaryTargetLang: env.SUMMARY_TARGET_LANG || 'english',
         forwardEnabled: (env.FORWARD_LIST || '').trim().length > 0,
     };
@@ -98,6 +112,10 @@ export function mergeSettings(base: RuntimeSettings, stored: Record<string, stri
     if (stored[SETTING_KEYS.summaryEnabled] !== undefined) {
         result.summaryEnabled = toBool(stored[SETTING_KEYS.summaryEnabled], result.summaryEnabled);
     }
+    const storedProvider = toSummaryProvider(stored[SETTING_KEYS.summaryProvider]);
+    if (storedProvider) {
+        result.summaryProvider = storedProvider;
+    }
     if (stored[SETTING_KEYS.openaiApiKey] !== undefined) {
         result.openaiApiKey = stored[SETTING_KEYS.openaiApiKey];
     }
@@ -107,8 +125,12 @@ export function mergeSettings(base: RuntimeSettings, stored: Record<string, stri
     if (stored[SETTING_KEYS.openaiChatModel] !== undefined) {
         result.openaiChatModel = stored[SETTING_KEYS.openaiChatModel];
     }
-    if (stored[SETTING_KEYS.openaiCompletionsApi] !== undefined) {
-        result.openaiCompletionsApi = stored[SETTING_KEYS.openaiCompletionsApi];
+    if (stored[SETTING_KEYS.openaiBaseUrl] !== undefined) {
+        result.openaiBaseUrl = stored[SETTING_KEYS.openaiBaseUrl];
+    } else if (stored[SETTING_KEYS.openaiCompletionsApi] !== undefined) {
+        // Rows written before the base-URL rename hold the full completions
+        // endpoint; an explicitly cleared value stays empty.
+        result.openaiBaseUrl = openaiBaseUrl(stored[SETTING_KEYS.openaiCompletionsApi]);
     }
     if (stored[SETTING_KEYS.summaryTargetLang] !== undefined) {
         result.summaryTargetLang = stored[SETTING_KEYS.summaryTargetLang];
@@ -153,6 +175,9 @@ export async function saveSettings(dao: Dao, patch: Partial<RuntimeSettings>): P
     if (patch.summaryEnabled !== undefined) {
         entries[SETTING_KEYS.summaryEnabled] = `${patch.summaryEnabled}`;
     }
+    if (patch.summaryProvider !== undefined) {
+        entries[SETTING_KEYS.summaryProvider] = patch.summaryProvider;
+    }
     if (patch.openaiApiKey !== undefined) {
         entries[SETTING_KEYS.openaiApiKey] = patch.openaiApiKey.trim();
     }
@@ -162,8 +187,9 @@ export async function saveSettings(dao: Dao, patch: Partial<RuntimeSettings>): P
     if (patch.openaiChatModel !== undefined) {
         entries[SETTING_KEYS.openaiChatModel] = patch.openaiChatModel;
     }
-    if (patch.openaiCompletionsApi !== undefined) {
-        entries[SETTING_KEYS.openaiCompletionsApi] = patch.openaiCompletionsApi;
+    if (patch.openaiBaseUrl !== undefined) {
+        // Accept pasted completions URLs and store the base they belong to.
+        entries[SETTING_KEYS.openaiBaseUrl] = openaiBaseUrl(patch.openaiBaseUrl);
     }
     if (patch.summaryTargetLang !== undefined) {
         entries[SETTING_KEYS.summaryTargetLang] = patch.summaryTargetLang;

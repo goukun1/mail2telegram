@@ -73,21 +73,46 @@ function testCase() {
         throw new Error(`unexpected merged openaiChatModel: ${merged.openaiChatModel}`);
     }
 
+    // The summary provider must survive a round trip and reject junk values.
+    const provider = mergeSettings(base, { summary_provider: 'openai' });
+    if (provider.summaryProvider !== 'openai') {
+        throw new Error(`stored summaryProvider ignored: ${provider.summaryProvider}`);
+    }
+    const invalidProvider = mergeSettings(base, { summary_provider: 'nonsense' });
+    if (invalidProvider.summaryProvider !== base.summaryProvider) {
+        throw new Error(`invalid summaryProvider not falling back: ${invalidProvider.summaryProvider}`);
+    }
+
     // An explicitly saved empty string clears the value (regression guard:
     // truthiness guards used to ignore it and keep the previous value).
     const cleared = mergeSettings(base, {
         openai_chat_model: '',
-        openai_completions_api: '',
+        openai_base_url: '',
         forward_list: '',
     });
     if (cleared.openaiChatModel !== '') {
         throw new Error(`empty openaiChatModel was ignored: "${cleared.openaiChatModel}"`);
     }
-    if (cleared.openaiCompletionsApi !== '') {
-        throw new Error(`empty openaiCompletionsApi was ignored: "${cleared.openaiCompletionsApi}"`);
+    if (cleared.openaiBaseUrl !== '') {
+        throw new Error(`empty openaiBaseUrl was ignored: "${cleared.openaiBaseUrl}"`);
     }
     if (cleared.forwardList.length !== 0) {
         throw new Error(`empty forwardList was ignored: ${cleared.forwardList}`);
+    }
+
+    // Rows written before the base-URL rename hold the full completions
+    // endpoint and must be converted on read.
+    const legacy = mergeSettings(base, { openai_completions_api: 'https://proxy.example.com/v1/chat/completions' });
+    if (legacy.openaiBaseUrl !== 'https://proxy.example.com/v1') {
+        throw new Error(`legacy completions URL not converted: "${legacy.openaiBaseUrl}"`);
+    }
+    // An explicit base URL wins over the legacy key.
+    const bothUrls = mergeSettings(base, {
+        openai_base_url: 'https://new.example.com/v1',
+        openai_completions_api: 'https://old.example.com/v1/chat/completions',
+    });
+    if (bothUrls.openaiBaseUrl !== 'https://new.example.com/v1') {
+        throw new Error(`stored openaiBaseUrl ignored: "${bothUrls.openaiBaseUrl}"`);
     }
 
     // Zero is stored as-is and read as "no limit" at delivery time, so a

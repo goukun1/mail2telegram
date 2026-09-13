@@ -1,4 +1,4 @@
-import type { RuntimeSettings } from '@mail2telegram/shared';
+import type { SettingsResponse } from '@mail2telegram/shared';
 import { List, ListItem, Preloader } from 'konsta/react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
@@ -15,7 +15,7 @@ interface Section {
 export function SettingsHub() {
     const navigate = useNavigate();
     const onExit = () => navigate('/inbox');
-    const { data, loading, error, reload } = useAsync<{ settings: RuntimeSettings }>(() => api.getSettings(), []);
+    const { data, loading, error, reload } = useAsync<SettingsResponse>(() => api.getSettings(), []);
     const { data: addresses } = useAsync(() => api.listAddresses(), []);
 
     if (loading && !data) {

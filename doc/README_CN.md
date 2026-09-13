@@ -10,8 +10,6 @@ mail2telegram
     <em>在 Telegram 中收邮件：即时推送通知 + Mini App 收件箱。</em>
 </p>
 
-![](./social_preview.png)
-
 **mail2telegram** 是一个在 Telegram 中收邮件的机器人，结合了即时推送通知与 Telegram Mini App：每封新邮件都会带着快捷操作按钮推送到你的聊天，完整历史、附件和全部设置都在 Mini App 中管理。
 
 <img width="100%" alt="Telegram Mini App：推送通知、收件箱、阅读器与 iPad 分栏视图" src="miniapp_screens.png">
@@ -50,7 +48,7 @@ mail2telegram
 | `RESEND_API_KEY` | 可选。Resend API Key，https://resend.com/docs/introduction。启用后可在 Telegram 或 Mini App 中回信。   |
 | `DEBUG`          | 可选。为 `true` 时推送会增加 `Debug` 按钮。                                                            |
 
-其余全部在 Mini App 的 **Settings** 中管理：支持正则的白名单/黑名单、阻断策略、转发、摘要选项（Workers AI 模型，或 OpenAI 兼容的 API Key、接口地址、模型）、摘要语言、重复通知拦截，以及邮件处理限制（保留时间与大小策略）。
+其余全部在 Mini App 的 **Settings** 中管理：支持正则的白名单/黑名单、阻断策略、转发、摘要选项（Workers AI，或 OpenAI 兼容的 Base URL + Token，模型可从列表选择或手动填写）、摘要语言、重复通知拦截，以及邮件处理限制（保留时间与大小策略）。
 
 Bindings：
 
@@ -89,7 +87,7 @@ To   : [recipient]
 ```
 
 1. `Preview` 直接在聊天中显示纯文本正文，最多 4096 字符。
-2. 在 Settings 中启用了摘要后端（Workers AI 或 OpenAI 兼容 Key）后可用 `Summary`。
+2. 在 Settings 中启用了摘要后端（Workers AI 或 OpenAI 兼容接口）后可用 `Summary`。
 3. `Open` 直接打开 Mini App 中该邮件的详情页。Telegram 只允许在私聊中使用 Mini App 按钮，因此群组推送会省略该按钮。
 
 在 Telegram 中回复任意推送消息即可通过 Resend 给发件人回信。

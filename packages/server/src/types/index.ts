@@ -11,6 +11,8 @@ export type {
     Address,
     AddressTestResponse,
     AddressType,
+    AiModelsRequest,
+    AiModelsResponse,
     Attachment,
     AuthLoginResponse,
     AuthResponse,
@@ -25,6 +27,8 @@ export type {
     MaxEmailSizePolicy,
     MeResponse,
     RuntimeSettings,
+    SettingsResponse,
+    SummaryProvider,
     TelegramUser,
 } from '@mail2telegram/shared';
 
@@ -133,10 +137,14 @@ export interface Environment {
     ATTACHMENT_SAVE_ENABLED?: string;
     ATTACHMENT_MAX_SIZE?: string;
     OPENAI_API_KEY?: string;
+    /** OpenAI-compatible base URL; `OPENAI_COMPLETIONS_API` is still accepted. */
+    OPENAI_BASE_URL?: string;
     OPENAI_COMPLETIONS_API?: string;
     OPENAI_CHAT_MODEL?: string;
     WORKERS_AI_MODEL?: string;
     SUMMARY_TARGET_LANG?: string;
+    /** Default summary provider when the user has not picked one in settings. */
+    SUMMARY_PROVIDER?: string;
     /** Days of mail history kept by the daily cron; 0 disables it. Defaults to 7. */
     AUTO_CLEANUP_DAYS?: string;
     RESEND_API_KEY?: string;
