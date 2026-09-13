@@ -24,7 +24,9 @@ export function SettingsHub() {
         return (
             <div className="split-column">
                 <NavBar title="Settings" onBack={onExit} />
-                <div className="spin-center"><Preloader /></div>
+                <div className="spin-center">
+                    <Preloader />
+                </div>
             </div>
         );
     }
@@ -35,7 +37,9 @@ export function SettingsHub() {
                 <div className="reader-empty">
                     <div>
                         <p className="mb-3">{error?.message || 'Settings could not be loaded.'}</p>
-                        <button type="button" className="text-button" onClick={reload}>Try Again</button>
+                        <button type="button" className="text-button" onClick={reload}>
+                            Try Again
+                        </button>
                     </div>
                 </div>
             </div>
@@ -50,7 +54,11 @@ export function SettingsHub() {
         { path: 'white', title: 'Always Deliver', value: `${counts('white')}` },
         { path: 'forwarding', title: 'Forwarding', value: settings.forwardEnabled ? 'On' : 'Off' },
         { path: 'summaries', title: 'Summaries', value: settings.summaryEnabled ? settings.summaryTargetLang : 'Off' },
-        { path: 'handling', title: 'Mail Handling', value: settings.autoCleanupDays > 0 ? `${settings.autoCleanupDays}d cleanup` : 'no auto cleanup' },
+        {
+            path: 'handling',
+            title: 'Mail Handling',
+            value: settings.autoCleanupDays > 0 ? `${settings.autoCleanupDays}d cleanup` : 'no auto cleanup',
+        },
         { path: 'cleanup', title: 'Clear Mail', value: '' },
         { path: 'bot', title: 'Bot & Webhook', value: '' },
     ];
@@ -73,7 +81,8 @@ export function SettingsHub() {
                     ))}
                 </List>
                 <div className="settings-note">
-                    Blocked mail policy, address lists, forwarding, summaries and mail limits are each on their own page.
+                    Blocked mail policy, address lists, forwarding, summaries and mail limits are each on their own
+                    page.
                 </div>
                 <div style={{ height: 24 }} />
             </div>

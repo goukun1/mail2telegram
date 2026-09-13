@@ -44,7 +44,10 @@ export async function loadAddressLists(env: Environment): Promise<AddressLists> 
     };
 }
 
-export async function checkAddressStatus(addresses: string[], env: Environment): Promise<{ [key: string]: AddressCheckStatus }> {
+export async function checkAddressStatus(
+    addresses: string[],
+    env: Environment,
+): Promise<{ [key: string]: AddressCheckStatus }> {
     const { white, block } = await loadAddressLists(env);
     const result: { [key: string]: AddressCheckStatus } = {};
     for (const addr of addresses) {
@@ -81,7 +84,10 @@ export async function isMessageBlock(message: EmailMessage, env: Environment): P
 }
 
 /** Test a single address, returning every matching pattern per list. */
-export async function testAddressAgainstLists(address: string, env: Environment): Promise<{
+export async function testAddressAgainstLists(
+    address: string,
+    env: Environment,
+): Promise<{
     status: AddressCheckStatus;
     matchedWhite: string[];
     matchedBlock: string[];

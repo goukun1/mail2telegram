@@ -32,7 +32,7 @@ function buildMessage(raw: string): ForwardableEmailMessage {
         rawSize: bytes.byteLength,
         headers: new Headers({
             'Message-ID': '<test-message-id@example.com>',
-            'Subject': 'Hello from the test suite',
+            Subject: 'Hello from the test suite',
         }),
         from: 'alice@example.com',
         to: 'inbox@example.com',
@@ -66,7 +66,9 @@ async function testCase() {
     console.log(`parseEmail ok: subject="${email.subject}" attachments=${email.attachments.length}`);
 }
 
-testCase().then(() => console.log('done')).catch((e) => {
-    console.error(e);
-    process.exit(1);
-});
+testCase()
+    .then(() => console.log('done'))
+    .catch(e => {
+        console.error(e);
+        process.exit(1);
+    });

@@ -27,22 +27,35 @@ export function HandlingPage() {
                         />
                     </List>
                     <div className="settings-note">
-                        Messages over
-                        {' '}
-                        {formatBytes(draft.maxEmailSize)}
-                        {' '}
-                        count as oversized.
+                        Messages over {formatBytes(draft.maxEmailSize)} count as oversized.
                     </div>
                     <div className="settings-section-title">Oversized Mail</div>
                     <div className="px-4">
                         <Segmented strong className="ios-segmented">
-                            <SegmentedButton active={draft.maxEmailSizePolicy === 'truncate'} onClick={() => update('maxEmailSizePolicy', 'truncate')}>Truncate</SegmentedButton>
-                            <SegmentedButton active={draft.maxEmailSizePolicy === 'continue'} onClick={() => update('maxEmailSizePolicy', 'continue')}>Continue</SegmentedButton>
-                            <SegmentedButton active={draft.maxEmailSizePolicy === 'unhandled'} onClick={() => update('maxEmailSizePolicy', 'unhandled')}>Headers</SegmentedButton>
+                            <SegmentedButton
+                                active={draft.maxEmailSizePolicy === 'truncate'}
+                                onClick={() => update('maxEmailSizePolicy', 'truncate')}
+                            >
+                                Truncate
+                            </SegmentedButton>
+                            <SegmentedButton
+                                active={draft.maxEmailSizePolicy === 'continue'}
+                                onClick={() => update('maxEmailSizePolicy', 'continue')}
+                            >
+                                Continue
+                            </SegmentedButton>
+                            <SegmentedButton
+                                active={draft.maxEmailSizePolicy === 'unhandled'}
+                                onClick={() => update('maxEmailSizePolicy', 'unhandled')}
+                            >
+                                Headers
+                            </SegmentedButton>
                         </Segmented>
                     </div>
                     <div className="settings-note">
-                        Oversized policy decides whether the body is truncated, parsed fully, or only the headers are kept. A daily cron deletes mail older than Auto Cleanup days, together with its attachments (0 keeps everything); use Clear Mail for one-off cleanups.
+                        Oversized policy decides whether the body is truncated, parsed fully, or only the headers are
+                        kept. A daily cron deletes mail older than Auto Cleanup days, together with its attachments (0
+                        keeps everything); use Clear Mail for one-off cleanups.
                     </div>
                     <div className="settings-section-title">Attachments</div>
                     <List strongIos outlineIos className="!mt-0">
@@ -57,7 +70,9 @@ export function HandlingPage() {
                                 type="number"
                                 label="Max Attachment Size (bytes)"
                                 value={`${draft.attachmentMaxSize}`}
-                                onChange={(e: any) => update('attachmentMaxSize', Number.parseInt(e.target.value, 10) || 0)}
+                                onChange={(e: any) =>
+                                    update('attachmentMaxSize', Number.parseInt(e.target.value, 10) || 0)
+                                }
                             />
                         ) : null}
                     </List>
@@ -65,11 +80,12 @@ export function HandlingPage() {
                         {!draft.attachmentSaveEnabled
                             ? 'Attachments are not stored, so the Mini App cannot list or serve them.'
                             : draft.attachmentMaxSize > 0
-                                ? `Single attachments over ${formatBytes(draft.attachmentMaxSize)} are skipped; the rest stay downloadable in the Mini App until cleanup.`
-                                : 'No size limit: every attachment is stored and downloadable in the Mini App until cleanup.'}
+                              ? `Single attachments over ${formatBytes(draft.attachmentMaxSize)} are skipped; the rest stay downloadable in the Mini App until cleanup.`
+                              : 'No size limit: every attachment is stored and downloadable in the Mini App until cleanup.'}
                     </div>
                     <div className="settings-note">
-                        A repeated Message-ID is always suppressed (mail without a Message-ID falls back to a content hash), so redeliveries do not notify twice.
+                        A repeated Message-ID is always suppressed (mail without a Message-ID falls back to a content
+                        hash), so redeliveries do not notify twice.
                     </div>
                 </>
             ) : null}

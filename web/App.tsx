@@ -1,7 +1,17 @@
 import type { MeResponse } from './types';
 import { App as KonstaApp, Preloader } from 'konsta/react';
 import { useCallback, useEffect, useState } from 'react';
-import { HashRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
+import {
+    HashRouter,
+    Navigate,
+    Outlet,
+    Route,
+    Routes,
+    useLocation,
+    useNavigate,
+    useOutletContext,
+    useSearchParams,
+} from 'react-router-dom';
 import { api } from './api/client';
 import { AppProvider } from './AppContext';
 import { MessageReader } from './components/ios/MessageReader';
@@ -144,12 +154,15 @@ function InboxRoute() {
     const [params] = useSearchParams();
     const navigate = useNavigate();
     const selectedId = params.get('id');
-    const { onUnreadChange, refreshToken } = useOutletContext<{ onUnreadChange: (value: number) => void; refreshToken: number }>();
+    const { onUnreadChange, refreshToken } = useOutletContext<{
+        onUnreadChange: (value: number) => void;
+        refreshToken: number;
+    }>();
 
     return (
         <InboxPage
             selectedId={selectedId}
-            onSelect={(id) => {
+            onSelect={id => {
                 if (!id) {
                     const next = new URLSearchParams(params);
                     next.delete('id');
@@ -179,7 +192,7 @@ function AppInner() {
         const next = new URLSearchParams(params);
         next.delete('setup');
         setParams(next, { replace: true });
-        api.rebindWebhook().catch((e) => {
+        api.rebindWebhook().catch(e => {
             console.error('[app] auto webhook setup failed', e);
         });
     }, [params, setParams]);
@@ -199,7 +212,11 @@ function AppInner() {
     }
 
     if (loading && !data) {
-        return <div className="spin-center" style={{ height: '100vh' }}><Preloader /></div>;
+        return (
+            <div className="spin-center" style={{ height: '100vh' }}>
+                <Preloader />
+            </div>
+        );
     }
     if (error || !data) {
         // Outside Telegram, initData can never validate, so retrying is
@@ -210,8 +227,12 @@ function AppInner() {
         return (
             <div className="reader-empty" style={{ height: '100vh' }}>
                 <div>
-                    <p className="mb-3">{error?.message || 'Unable to authenticate with Telegram. Reopen the Mini App from the bot.'}</p>
-                    <button type="button" className="text-button" onClick={reload}>Try Again</button>
+                    <p className="mb-3">
+                        {error?.message || 'Unable to authenticate with Telegram. Reopen the Mini App from the bot.'}
+                    </p>
+                    <button type="button" className="text-button" onClick={reload}>
+                        Try Again
+                    </button>
                 </div>
             </div>
         );

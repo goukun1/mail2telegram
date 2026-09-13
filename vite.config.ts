@@ -18,19 +18,21 @@ function bypassSourceFiles(req: { url?: string }): string | undefined {
 }
 
 const proxyTargets = ['/api', '/init', '/email', '/telegram'];
-const proxy = Object.fromEntries(proxyTargets.map(path => [path, {
-    target: WORKER_ORIGIN,
-    changeOrigin: true,
-    bypass: bypassSourceFiles,
-}]));
+const proxy = Object.fromEntries(
+    proxyTargets.map(path => [
+        path,
+        {
+            target: WORKER_ORIGIN,
+            changeOrigin: true,
+            bypass: bypassSourceFiles,
+        },
+    ]),
+);
 
 export default defineConfig({
     root: fileURLToPath(new URL('./web', import.meta.url)),
     base: '/',
-    plugins: [
-        react(),
-        tailwindcss(),
-    ],
+    plugins: [react(), tailwindcss()],
     resolve: {
         alias: {
             '@': fileURLToPath(new URL('./web', import.meta.url)),

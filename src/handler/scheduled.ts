@@ -17,7 +17,9 @@ export async function scheduledHandler(_event: ScheduledController, env: Environ
     const cutoff = new Date(Date.now() - settings.autoCleanupDays * 86400_000).toISOString();
     const result = await purgeEmails(new Dao(env.DB), env.BUCKET, cutoff);
     if (result.emails > 0 || result.attachments > 0) {
-        console.log(`[cron] cleanup removed ${result.emails} emails and ${result.attachments} attachments (older than ${cutoff})`);
+        console.log(
+            `[cron] cleanup removed ${result.emails} emails and ${result.attachments} attachments (older than ${cutoff})`,
+        );
     }
     // The pass is capped, so a large backlog needs several daily runs.
     if (result.remaining > 0) {

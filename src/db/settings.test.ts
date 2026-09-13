@@ -65,7 +65,9 @@ function testCase() {
         throw new Error(`unexpected merged forwardEnabled: ${merged.forwardEnabled}`);
     }
     if (merged.attachmentSaveEnabled || merged.attachmentMaxSize !== 4096) {
-        throw new Error(`unexpected merged attachments: enabled=${merged.attachmentSaveEnabled} size=${merged.attachmentMaxSize}`);
+        throw new Error(
+            `unexpected merged attachments: enabled=${merged.attachmentSaveEnabled} size=${merged.attachmentMaxSize}`,
+        );
     }
     if (merged.openaiChatModel !== 'gpt-test') {
         throw new Error(`unexpected merged openaiChatModel: ${merged.openaiChatModel}`);

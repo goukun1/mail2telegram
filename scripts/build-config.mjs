@@ -92,8 +92,7 @@ function isPlaceholder(value) {
     return !value || value === 'local';
 }
 
-const databaseId = process.env.DEPLOY_D1_DATABASE_ID
-    || config.d1_databases?.[0]?.database_id;
+const databaseId = process.env.DEPLOY_D1_DATABASE_ID || config.d1_databases?.[0]?.database_id;
 if (isPlaceholder(databaseId)) {
     fail('DEPLOY_D1_DATABASE_ID is required (or set a real d1_databases[0].database_id in the config)');
 }
@@ -105,9 +104,7 @@ if (config.vars && Object.hasOwn(config.vars, 'DEV_BYPASS_AUTH')) {
     console.warn('[build-config] removed DEV_BYPASS_AUTH from deploy vars (local-only setting)');
 }
 
-const databaseName = process.env.DEPLOY_D1_DATABASE_NAME
-    || config.d1_databases?.[0]?.database_name
-    || 'mail2telegram';
+const databaseName = process.env.DEPLOY_D1_DATABASE_NAME || config.d1_databases?.[0]?.database_name || 'mail2telegram';
 config.d1_databases = [
     {
         binding: 'DB',
@@ -116,8 +113,8 @@ config.d1_databases = [
     },
 ];
 
-const bucketName = process.env.DEPLOY_R2_BUCKET_NAME
-    || config.r2_buckets?.find(item => item.binding === 'BUCKET')?.bucket_name;
+const bucketName =
+    process.env.DEPLOY_R2_BUCKET_NAME || config.r2_buckets?.find(item => item.binding === 'BUCKET')?.bucket_name;
 if (!isPlaceholder(bucketName)) {
     const bucket = {
         binding: 'BUCKET',
@@ -132,4 +129,6 @@ if (!isPlaceholder(bucketName)) {
 }
 
 writeFileSync(targetPath, `${JSON.stringify(config, null, 4)}\n`);
-console.log(`[build-config] wrote ${targetPath} from ${sourcePath} (d1=${databaseName}, r2=${!isPlaceholder(bucketName) ? bucketName : 'disabled'})`);
+console.log(
+    `[build-config] wrote ${targetPath} from ${sourcePath} (d1=${databaseName}, r2=${!isPlaceholder(bucketName) ? bucketName : 'disabled'})`,
+);

@@ -30,7 +30,10 @@ function parsedEmail(overrides: Partial<ParsedEmail> = {}): ParsedEmail {
 }
 
 /** Insert a mail row and return its id. */
-async function seedEmail(dao: Dao, overrides: { id?: string; messageId?: string; size?: number } = {}): Promise<{ id: string; size: number }> {
+async function seedEmail(
+    dao: Dao,
+    overrides: { id?: string; messageId?: string; size?: number } = {},
+): Promise<{ id: string; size: number }> {
     const id = overrides.id ?? crypto.randomUUID();
     const size = overrides.size ?? 42;
     await dao.insertEmail(parsedEmail({ messageId: overrides.messageId ?? 'msg-1@test' }), {
@@ -81,14 +84,16 @@ describe('purgeEmailsByIds', () => {
         expect(await count('mail_status')).toBe(1);
         expect(await count('telegram_messages')).toBe(1);
 
-        await purgeEmailsByIds(dao, undefined, [{
-            id,
-            message_id: 'purge@test',
-            size,
-            raw_key: null,
-            body_html: null,
-            body_text: null,
-        }]);
+        await purgeEmailsByIds(dao, undefined, [
+            {
+                id,
+                message_id: 'purge@test',
+                size,
+                raw_key: null,
+                body_html: null,
+                body_text: null,
+            },
+        ]);
 
         expect(await count('emails')).toBe(0);
         expect(await count('mail_status')).toBe(0);

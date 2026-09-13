@@ -1,6 +1,6 @@
-/* eslint-disable unicorn/no-new-buffer */
+/* oxlint-disable unicorn/no-new-buffer */
 if (typeof Buffer === 'undefined') {
-    // eslint-disable-next-line ts/ban-ts-comment
+    // oxlint-disable-next-line typescript/ban-ts-comment
     // @ts-expect-error
     globalThis.Buffer = class Buffer extends ArrayBuffer {
         constructor(bufferOrLength: ArrayBuffer | number) {
@@ -31,7 +31,9 @@ if (typeof Buffer === 'undefined') {
         toString(encoding: string): string {
             switch (encoding) {
                 case 'hex':
-                    return Array.from(new Uint8Array(this)).map(b => b.toString(16).padStart(2, '0')).join('');
+                    return Array.from(new Uint8Array(this))
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('');
                 case 'base64':
                     return btoa(String.fromCharCode.apply(null, new Uint8Array(this) as unknown as number[]));
                 default:

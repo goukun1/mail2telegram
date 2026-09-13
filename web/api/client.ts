@@ -40,7 +40,7 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
     if (!response.ok) {
         let message = response.statusText;
         try {
-            const body = await response.json() as { error?: string };
+            const body = (await response.json()) as { error?: string };
             message = body.error || message;
         } catch {
             // ignore non-json error bodies
@@ -50,7 +50,7 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true): Pr
     if (response.status === 204) {
         return undefined as T;
     }
-    return await response.json() as T;
+    return (await response.json()) as T;
 }
 
 export interface EmailQuery {
@@ -68,16 +68,11 @@ export const api = {
 
     listEmails(query: EmailQuery = {}): Promise<EmailListResponse> {
         const params = new URLSearchParams();
-        if (query.q)
-            params.set('q', query.q);
-        if (query.starred !== undefined)
-            params.set('starred', `${query.starred}`);
-        if (query.unread !== undefined)
-            params.set('unread', `${query.unread}`);
-        if (query.limit !== undefined)
-            params.set('limit', `${query.limit}`);
-        if (query.offset !== undefined)
-            params.set('offset', `${query.offset}`);
+        if (query.q) params.set('q', query.q);
+        if (query.starred !== undefined) params.set('starred', `${query.starred}`);
+        if (query.unread !== undefined) params.set('unread', `${query.unread}`);
+        if (query.limit !== undefined) params.set('limit', `${query.limit}`);
+        if (query.offset !== undefined) params.set('offset', `${query.offset}`);
         const suffix = params.toString();
         return request<EmailListResponse>(`/api/emails${suffix ? `?${suffix}` : ''}`);
     },

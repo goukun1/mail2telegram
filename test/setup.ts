@@ -7,5 +7,4 @@ const testEnv = env as unknown as { DB: D1Database; TEST_MIGRATIONS: D1Migration
 // Each test runs against isolated storage, so the schema is (re)applied for the
 // current isolate before the first test touches D1. Vitest setup files support
 // top-level await; there is no other hook that runs early enough.
-// eslint-disable-next-line antfu/no-top-level-await
 await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);

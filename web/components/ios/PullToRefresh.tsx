@@ -114,7 +114,7 @@ export function PullToRefresh({ onRefresh, className = '', scrollRef, children }
 
     return (
         <div
-            ref={(node) => {
+            ref={node => {
                 ref.current = node;
                 if (scrollRef) {
                     scrollRef.current = node;
@@ -127,7 +127,10 @@ export function PullToRefresh({ onRefresh, className = '', scrollRef, children }
                     <Preloader />
                 </span>
             </div>
-            <div className={`ptr-content ${dragging ? 'ptr-content--dragging' : ''}`} style={{ transform: `translateY(${pull}px)` }}>
+            <div
+                className={`ptr-content ${dragging ? 'ptr-content--dragging' : ''}`}
+                style={{ transform: `translateY(${pull}px)` }}
+            >
                 {children}
             </div>
         </div>

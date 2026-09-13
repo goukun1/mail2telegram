@@ -6,7 +6,7 @@ interface WorkersAiResponse {
 }
 
 export async function summarizedByWorkerAI(ai: Ai, model: string, prompt: string): Promise<string> {
-    const result = await ai.run(model as any, {
+    const result = (await ai.run(model as any, {
         messages: [
             {
                 role: 'system',
@@ -17,7 +17,7 @@ export async function summarizedByWorkerAI(ai: Ai, model: string, prompt: string
                 content: prompt,
             },
         ],
-    }) as WorkersAiResponse | string;
+    })) as WorkersAiResponse | string;
 
     if (typeof result === 'string') {
         return result;
@@ -26,7 +26,12 @@ export async function summarizedByWorkerAI(ai: Ai, model: string, prompt: string
     return result?.response ?? '';
 }
 
-export async function summarizedByOpenAI(key: string, endpoint: string, model: string, prompt: string): Promise<string> {
+export async function summarizedByOpenAI(
+    key: string,
+    endpoint: string,
+    model: string,
+    prompt: string,
+): Promise<string> {
     if (!key || !endpoint || !model) {
         return 'Sorry, the OpenAI API is not configured properly.';
     }
@@ -34,7 +39,7 @@ export async function summarizedByOpenAI(key: string, endpoint: string, model: s
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${key}`,
+            Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
             model,
@@ -53,12 +58,15 @@ export async function summarizedByOpenAI(key: string, endpoint: string, model: s
     if (!resp.ok) {
         throw new Error(`OpenAI API request failed: ${resp.status}`);
     }
-    const body = await resp.json() as any;
+    const body = (await resp.json()) as any;
     return body?.choices?.[0]?.message?.content || '';
 }
 
 export function summaryEnabled(env: Environment, settings: RuntimeSettings): boolean {
-    return settings.summaryEnabled && ((Boolean(env.AI) && Boolean(settings.workersAiModel)) || Boolean(settings.openaiApiKey));
+    return (
+        settings.summaryEnabled &&
+        ((Boolean(env.AI) && Boolean(settings.workersAiModel)) || Boolean(settings.openaiApiKey))
+    );
 }
 
 /** Summarize an email body using the configured provider. */
@@ -69,7 +77,12 @@ export async function summarizeEmail(mail: EmailRecord, env: Environment, settin
         return await summarizedByWorkerAI(env.AI, settings.workersAiModel, prompt);
     }
     if (settings.openaiApiKey) {
-        return await summarizedByOpenAI(settings.openaiApiKey, settings.openaiCompletionsApi, settings.openaiChatModel, prompt);
+        return await summarizedByOpenAI(
+            settings.openaiApiKey,
+            settings.openaiCompletionsApi,
+            settings.openaiChatModel,
+            prompt,
+        );
     }
     throw new Error('No summarization provider is configured.');
 }

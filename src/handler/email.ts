@@ -1,4 +1,8 @@
-import type { ExecutionContext, ForwardableEmailMessage, ReadableStream as WorkerReadableStream } from '@cloudflare/workers-types';
+import type {
+    ExecutionContext,
+    ForwardableEmailMessage,
+    ReadableStream as WorkerReadableStream,
+} from '@cloudflare/workers-types';
 import type { AttachmentRecord, EmailRecord, Environment, ParsedEmailResult, RuntimeSettings } from '../types';
 import { Dao } from '../db';
 import { loadSettings } from '../db/settings';
@@ -39,7 +43,9 @@ async function readAllBytes(stream: WorkerReadableStream<Uint8Array>): Promise<U
  * message has already passed the reject check, so nothing is buffered only to
  * be discarded.
  */
-async function resolveMessageIdentity(message: ForwardableEmailMessage): Promise<{ id: string; rawBytes: Uint8Array | null }> {
+async function resolveMessageIdentity(
+    message: ForwardableEmailMessage,
+): Promise<{ id: string; rawBytes: Uint8Array | null }> {
     const header = message.headers.get('Message-ID')?.trim();
     if (header) {
         return { id: header, rawBytes: null };
@@ -65,34 +71,40 @@ async function persistEmail(
         const bucket = env.BUCKET;
         // The puts are independent: run them concurrently and let one failure
         // drop only its own attachment.
-        const stored = await Promise.all(parsed.attachments.map(async (attachment): Promise<AttachmentRecord | null> => {
-            // A limit of zero (or less) means "no limit": storing nothing
-            // silently would be a worse default than honouring every attachment.
-            if (settings.attachmentMaxSize > 0 && attachment.content.byteLength > settings.attachmentMaxSize) {
-                console.error('[email] attachment.skip.oversize', attachment.filename, attachment.content.byteLength);
-                return null;
-            }
-            const attachmentId = crypto.randomUUID();
-            const key = `attachments/${id}/${attachmentId}/${attachment.filename}`;
-            try {
-                await bucket.put(key, attachment.content, {
-                    httpMetadata: { contentType: attachment.mimetype },
-                });
-            } catch (e) {
-                console.error('[email] attachment.store.failed', attachment.filename, (e as Error).message);
-                return null;
-            }
-            return {
-                id: attachmentId,
-                email_id: id,
-                filename: attachment.filename,
-                mimetype: attachment.mimetype,
-                size: attachment.content.byteLength,
-                content_id: attachment.contentId,
-                disposition: attachment.disposition,
-                r2_key: key,
-            };
-        }));
+        const stored = await Promise.all(
+            parsed.attachments.map(async (attachment): Promise<AttachmentRecord | null> => {
+                // A limit of zero (or less) means "no limit": storing nothing
+                // silently would be a worse default than honouring every attachment.
+                if (settings.attachmentMaxSize > 0 && attachment.content.byteLength > settings.attachmentMaxSize) {
+                    console.error(
+                        '[email] attachment.skip.oversize',
+                        attachment.filename,
+                        attachment.content.byteLength,
+                    );
+                    return null;
+                }
+                const attachmentId = crypto.randomUUID();
+                const key = `attachments/${id}/${attachmentId}/${attachment.filename}`;
+                try {
+                    await bucket.put(key, attachment.content, {
+                        httpMetadata: { contentType: attachment.mimetype },
+                    });
+                } catch (e) {
+                    console.error('[email] attachment.store.failed', attachment.filename, (e as Error).message);
+                    return null;
+                }
+                return {
+                    id: attachmentId,
+                    email_id: id,
+                    filename: attachment.filename,
+                    mimetype: attachment.mimetype,
+                    size: attachment.content.byteLength,
+                    content_id: attachment.contentId,
+                    disposition: attachment.disposition,
+                    r2_key: key,
+                };
+            }),
+        );
         attachmentRecords.push(...stored.filter((record): record is AttachmentRecord => record !== null));
     }
 
@@ -148,21 +160,25 @@ export async function sendMailToTelegram(mail: EmailRecord, env: Environment): P
     const settings = await loadSettings(env);
     const hydrated = await hydrateEmail(mail, env.BUCKET);
     const api = createTelegramBotAPI(TELEGRAM_TOKEN);
-    const chats = TELEGRAM_ID.split(',').map(item => item.trim()).filter(Boolean);
+    const chats = TELEGRAM_ID.split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
     // Only numeric positive chat ids are private chats, which are the only
     // chats that accept a `web_app` button for the Open action. Group,
     // channel and @username destinations omit it rather than risk a send
     // failure with an unsupported button.
-    const outcomes = await Promise.allSettled(chats.map(async (id): Promise<TelegramNotification> => {
-        const req = await renderEmailListMode(hydrated, env, settings, {
-            chatType: /^\d+$/.test(id) ? 'private' : 'group',
-        });
-        const msg = await api.sendMessageWithReturns({
-            chat_id: id,
-            ...req,
-        });
-        return { chatId: id, messageId: msg.result.message_id };
-    }));
+    const outcomes = await Promise.allSettled(
+        chats.map(async (id): Promise<TelegramNotification> => {
+            const req = await renderEmailListMode(hydrated, env, settings, {
+                chatType: /^\d+$/.test(id) ? 'private' : 'group',
+            });
+            const msg = await api.sendMessageWithReturns({
+                chat_id: id,
+                ...req,
+            });
+            return { chatId: id, messageId: msg.result.message_id };
+        }),
+    );
     // One failing chat must not lose the message ids of the others.
     return outcomes
         .filter((outcome): outcome is PromiseFulfilledResult<TelegramNotification> => outcome.status === 'fulfilled')
@@ -177,15 +193,19 @@ export async function sendMailToTelegram(mail: EmailRecord, env: Environment): P
 async function notifyTelegram(mail: EmailRecord, env: Environment, dao: Dao): Promise<void> {
     try {
         const notifications = await sendMailToTelegram(mail, env);
-        await Promise.all(notifications.map(({ chatId, messageId }) =>
-            dao.saveTelegramMessage(messageId, chatId, mail.id),
-        ));
+        await Promise.all(
+            notifications.map(({ chatId, messageId }) => dao.saveTelegramMessage(messageId, chatId, mail.id)),
+        );
     } catch (e) {
         console.error('[email] telegram.notify.failed', mail.id, (e as Error).message);
     }
 }
 
-export async function emailHandler(message: ForwardableEmailMessage, env: Environment, ctx: ExecutionContext): Promise<void> {
+export async function emailHandler(
+    message: ForwardableEmailMessage,
+    env: Environment,
+    ctx: ExecutionContext,
+): Promise<void> {
     const dao = new Dao(env.DB);
     const settings = await loadSettings(env);
     const isBlock = await isMessageBlock(message, env);
@@ -207,7 +227,12 @@ export async function emailHandler(message: ForwardableEmailMessage, env: Enviro
     // hash, which is stable across redeliveries of the same bytes; the size is
     // mixed in because a sender may reuse one Message-ID for distinct messages.
     const journalId = `${id}|${message.rawSize}`;
-    const status = await dao.getMailStatus(journalId) ?? { message_id: journalId, telegram: 0, forwards: '[]', updated_at: '' };
+    const status = (await dao.getMailStatus(journalId)) ?? {
+        message_id: journalId,
+        telegram: 0,
+        forwards: '[]',
+        updated_at: '',
+    };
     const forwarded = new Set(JSON.parse(status.forwards) as string[]);
 
     // Forward to email; one bad address only skips itself.

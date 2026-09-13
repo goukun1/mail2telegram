@@ -34,10 +34,12 @@ export function AddressListPage({ type }: AddressListPageProps) {
     const [error, setError] = useState<string | null>(null);
     const [testResult, setTestResult] = useState<AddressTestResponse | null>(null);
 
-    const { data, loading, error: loadError, reload } = useAsync<{ addresses: Address[] }>(
-        () => api.listAddresses(type),
-        [type],
-    );
+    const {
+        data,
+        loading,
+        error: loadError,
+        reload,
+    } = useAsync<{ addresses: Address[] }>(() => api.listAddresses(type), [type]);
     const addresses = data?.addresses ?? [];
 
     const add = async () => {
@@ -132,13 +134,23 @@ export function AddressListPage({ type }: AddressListPageProps) {
                     {testResult.matchedBlock.length > 0 ? ` · block: ${testResult.matchedBlock.join(', ')}` : ''}
                 </div>
             ) : null}
-            {error ? <div className="settings-note" style={{ color: '#ff3b30' }}>{error}</div> : null}
+            {error ? (
+                <div className="settings-note" style={{ color: '#ff3b30' }}>
+                    {error}
+                </div>
+            ) : null}
             <div className="settings-note">{copy.hint}</div>
 
             <div className="settings-section-title">{copy.section}</div>
             <List strongIos outlineIos className="!mt-0">
                 {loading && addresses.length === 0 ? (
-                    <ListItem title={<span className="flex justify-center py-2"><Preloader /></span>} />
+                    <ListItem
+                        title={
+                            <span className="flex justify-center py-2">
+                                <Preloader />
+                            </span>
+                        }
+                    />
                 ) : addresses.length === 0 ? (
                     <ListItem title={<span className="text-[var(--ios-gray)]">No Entries</span>} />
                 ) : (
@@ -147,7 +159,7 @@ export function AddressListPage({ type }: AddressListPageProps) {
                             key={address.id}
                             title={address.address}
                             subtitle={address.note || undefined}
-                            after={(
+                            after={
                                 <button
                                     type="button"
                                     className="settings-remove"
@@ -156,7 +168,7 @@ export function AddressListPage({ type }: AddressListPageProps) {
                                 >
                                     Delete
                                 </button>
-                            )}
+                            }
                         />
                     ))
                 )}

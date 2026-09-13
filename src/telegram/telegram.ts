@@ -3,7 +3,14 @@ import type { EmailRender } from '../mail';
 import type { Environment } from '../types';
 import { Dao } from '../db';
 import { loadSettings } from '../db/settings';
-import { hydrateEmail, renderEmailDebugMode, renderEmailListMode, renderEmailPreviewMode, renderEmailSummaryMode, replyToEmail } from '../mail';
+import {
+    hydrateEmail,
+    renderEmailDebugMode,
+    renderEmailListMode,
+    renderEmailPreviewMode,
+    renderEmailSummaryMode,
+    replyToEmail,
+} from '../mail';
 import { createTelegramBotAPI } from './api';
 
 type TelegramMessageHandler = (message: Telegram.Message) => Promise<Response>;
@@ -14,11 +21,13 @@ function logTelegram(event: string, data?: Record<string, unknown>): void {
 
 function logTelegramError(event: string, error: unknown, data?: Record<string, unknown>): void {
     const err = error as Error;
-    console.error(`[telegram] ${event} ${JSON.stringify({
-        ...data,
-        message: err?.message || String(error),
-        stack: err?.stack,
-    })}`);
+    console.error(
+        `[telegram] ${event} ${JSON.stringify({
+            ...data,
+            message: err?.message || String(error),
+            stack: err?.stack,
+        })}`,
+    );
 }
 
 async function logTelegramResponse(method: string, response: Response): Promise<void> {
@@ -87,7 +96,9 @@ function handleStartCommand(env: Environment): TelegramMessageHandler {
 
 /** Chat ids (or @usernames) allowed to interact with the bot commands. */
 function allowedChats(env: Environment): string[] {
-    return env.TELEGRAM_ID.split(',').map(item => item.trim()).filter(Boolean);
+    return env.TELEGRAM_ID.split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
 }
 
 /** True when the update comes from a chat the owner configured in TELEGRAM_ID. */
@@ -199,7 +210,12 @@ async function telegramCallbackHandler(callback: Telegram.CallbackQuery, env: En
     const dao = new Dao(DB);
 
     if (!data || !chatId || !messageId) {
-        logTelegram('callback.missing_fields', { hasData: !!data, hasChatId: !!chatId, hasMessageId: !!messageId, callbackId });
+        logTelegram('callback.missing_fields', {
+            hasData: !!data,
+            hasChatId: !!chatId,
+            hasMessageId: !!messageId,
+            callbackId,
+        });
         return;
     }
 
@@ -209,7 +225,7 @@ async function telegramCallbackHandler(callback: Telegram.CallbackQuery, env: En
     // same chat type the initial notification used to keep the Open button out
     // of group chats.
     const chatType = callback.message?.chat?.type;
-    const renderHandlerBuilder = (render: EmailRender): (arg: string) => Promise<void> => {
+    const renderHandlerBuilder = (render: EmailRender): ((arg: string) => Promise<void>) => {
         return async (arg: string): Promise<void> => {
             const record = await dao.getEmail(arg);
             if (!record) {
@@ -263,7 +279,7 @@ async function telegramCallbackHandler(callback: Telegram.CallbackQuery, env: En
 }
 
 export async function telegramWebhookHandler(req: Request, env: Environment): Promise<void> {
-    const body = await req.json() as Telegram.Update;
+    const body = (await req.json()) as Telegram.Update;
     logTelegram('webhook.update', {
         updateId: body?.update_id,
         hasMessage: !!body?.message,

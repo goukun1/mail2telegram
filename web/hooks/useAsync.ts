@@ -29,8 +29,9 @@ export function useAsync<T>(factory: () => Promise<T>, deps: unknown[] = []): As
         let cancelled = false;
         setLoading(true);
         setError(undefined);
-        factoryRef.current()
-            .then((result) => {
+        factoryRef
+            .current()
+            .then(result => {
                 if (!cancelled && mounted.current) {
                     setData(result);
                 }
@@ -52,7 +53,9 @@ export function useAsync<T>(factory: () => Promise<T>, deps: unknown[] = []): As
 
     const reload = useCallback(() => setNonce(value => value + 1), []);
     const update = useCallback((updater: T | ((previous: T | undefined) => T | undefined)) => {
-        setData(previous => (typeof updater === 'function' ? (updater as (p: T | undefined) => T | undefined)(previous) : updater));
+        setData(previous =>
+            typeof updater === 'function' ? (updater as (p: T | undefined) => T | undefined)(previous) : updater,
+        );
     }, []);
 
     return { data, loading, error, reload, setData: update };

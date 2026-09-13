@@ -27,7 +27,9 @@ interface TMAUser {
 
 function createTmaAuthMiddleware(env: Environment): (req: IRequest) => Promise<void> {
     const { TELEGRAM_TOKEN, TELEGRAM_ID } = env;
-    const allowed = TELEGRAM_ID.split(',').map(item => item.trim()).filter(Boolean);
+    const allowed = TELEGRAM_ID.split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
     // Local development only: serve the first configured chat id without a
     // valid signature. Never enable this in a deployed worker.
     const bypassAuth = env.DEV_BYPASS_AUTH === 'true';
@@ -39,7 +41,7 @@ function createTmaAuthMiddleware(env: Environment): (req: IRequest) => Promise<v
         if (bypassAuth) {
             const rawUser = authData ? new URLSearchParams(authData).get('user') : null;
             const user = rawUser
-                ? JSON.parse(rawUser) as TMAUser
+                ? (JSON.parse(rawUser) as TMAUser)
                 : { id: Number.parseInt(allowed[0] || '0', 10), first_name: 'Dev' };
             (req as IRequest & { user?: TMAUser }).user = user;
             return;
@@ -62,12 +64,15 @@ function createTmaAuthMiddleware(env: Environment): (req: IRequest) => Promise<v
 
 function errorHandler(error: Error): Response {
     const status = error instanceof HTTPError ? error.status : 500;
-    return new Response(JSON.stringify({
-        error: error.message,
-    }), {
-        status,
-        headers: { 'content-type': 'application/json; charset=utf-8' },
-    });
+    return new Response(
+        JSON.stringify({
+            error: error.message,
+        }),
+        {
+            status,
+            headers: { 'content-type': 'application/json; charset=utf-8' },
+        },
+    );
 }
 
 function parseFolder(value: string | null | undefined): Folder | 'all' {
@@ -75,7 +80,7 @@ function parseFolder(value: string | null | undefined): Folder | 'all' {
     return allowed.includes(value as Folder) ? (value as Folder) : 'inbox';
 }
 
-const FOLDERS: Folder[] = ['inbox', 'spam', 'trash', 'sent'];
+const FOLDERS = new Set<Folder>(['inbox', 'spam', 'trash', 'sent']);
 
 function parseAddressType(value: unknown): AddressType {
     if (value === 'block' || value === 'white') {
@@ -217,8 +222,8 @@ function createRouter(env: Environment): RouterType {
     });
 
     router.patch('/api/emails/:id', auth, async (req: IRequest): Promise<any> => {
-        const body = await req.json() as { isRead?: boolean; isStarred?: boolean; folder?: Folder };
-        if (body.folder !== undefined && !FOLDERS.includes(body.folder)) {
+        const body = (await req.json()) as { isRead?: boolean; isStarred?: boolean; folder?: Folder };
+        if (body.folder !== undefined && !FOLDERS.has(body.folder)) {
             throw new HTTPError(400, 'Invalid folder');
         }
         const record = await dao.getEmail(req.params.id);
@@ -256,7 +261,7 @@ function createRouter(env: Environment): RouterType {
     });
 
     router.post('/api/emails/cleanup', auth, async (req: IRequest): Promise<any> => {
-        const body = await req.json() as { days?: number; all?: boolean; attachmentsOnly?: boolean };
+        const body = (await req.json()) as { days?: number; all?: boolean; attachmentsOnly?: boolean };
         const cutoff = parseCutoff(body.all, body.days);
         return body.attachmentsOnly
             ? await purgeAttachments(dao, BUCKET, cutoff)
@@ -277,7 +282,7 @@ function createRouter(env: Environment): RouterType {
         if (!env.RESEND_API_KEY) {
             throw new HTTPError(400, 'Resend API is not enabled');
         }
-        const body = await req.json() as { text?: string };
+        const body = (await req.json()) as { text?: string };
         if (!body.text?.trim()) {
             throw new HTTPError(400, 'Reply text is required');
         }
@@ -323,7 +328,7 @@ function createRouter(env: Environment): RouterType {
     });
 
     router.post('/api/addresses', auth, async (req: IRequest): Promise<any> => {
-        const body = await req.json() as { address?: string; type?: unknown; note?: string };
+        const body = (await req.json()) as { address?: string; type?: unknown; note?: string };
         if (!body.address?.trim()) {
             throw new HTTPError(400, 'Address is required');
         }
@@ -338,7 +343,7 @@ function createRouter(env: Environment): RouterType {
     });
 
     router.post('/api/addresses/test', auth, async (req: IRequest): Promise<any> => {
-        const body = await req.json() as { address?: string };
+        const body = (await req.json()) as { address?: string };
         if (!body.address?.trim()) {
             throw new HTTPError(400, 'Address is required');
         }
@@ -352,7 +357,7 @@ function createRouter(env: Environment): RouterType {
     });
 
     router.put('/api/settings', auth, async (req: IRequest): Promise<any> => {
-        const patch = await req.json() as Partial<RuntimeSettings>;
+        const patch = (await req.json()) as Partial<RuntimeSettings>;
         await saveSettings(dao, patch);
         return { settings: await loadSettings(env) };
     });
@@ -386,7 +391,7 @@ function createRouter(env: Environment): RouterType {
 
 export async function fetchHandler(request: Request, env: Environment): Promise<Response> {
     const router = createRouter(env);
-    return router.fetch(request).catch((e) => {
+    return router.fetch(request).catch(e => {
         return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500 });
     });
 }

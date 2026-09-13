@@ -942,7 +942,9 @@ body {
 
 .ios-segmented button.k-segmented-strong-button-active {
     background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.06);
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.15),
+        0 0 1px rgba(0, 0, 0, 0.06);
     font-weight: 600;
 }
 
@@ -1342,7 +1344,6 @@ body {
 /* Gestures stay fully functional; only the decorative settle animations are
    dropped for users who ask the system to reduce motion. */
 @media (prefers-reduced-motion: reduce) {
-
     .swipe-row__content:not(.swipe-row__content--dragging),
     .ptr-content:not(.ptr-content--dragging),
     .ptr-spinner--settle,

@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import { api } from '../api/client';
-import { AttachmentIcon, CheckIcon, DevicesIcon, FastForwardIcon, GitHubIcon, InboxIcon, MailIcon, ReplyIcon, SentIcon, SparkleIcon } from '../components/ios/Icons';
+import {
+    AttachmentIcon,
+    CheckIcon,
+    DevicesIcon,
+    FastForwardIcon,
+    GitHubIcon,
+    InboxIcon,
+    MailIcon,
+    ReplyIcon,
+    SentIcon,
+    SparkleIcon,
+} from '../components/ios/Icons';
 
 const REPO_URL = 'https://github.com/TBXark/mail2telegram';
 
@@ -16,14 +27,46 @@ interface Feature {
 }
 
 const FEATURES: Feature[] = [
-    { Icon: SentIcon, title: 'Instant Push', text: 'Every incoming mail arrives as a Telegram notification with Preview, Summary and Open buttons.' },
-    { Icon: InboxIcon, title: 'Mini App Inbox', text: 'Browse the full history by folder with search, unread and starred filters.' },
-    { Icon: ReplyIcon, title: 'Reply Anywhere', text: 'Answer the sender from the chat or the Mini App, delivered through Resend.' },
-    { Icon: SparkleIcon, title: 'AI Summaries', text: 'One tap summarizes long mail via Workers AI or any OpenAI-compatible API.' },
-    { Icon: CheckIcon, title: 'Sender Rules', text: 'White and block lists with regex matching, an address tester and per-list policies.' },
-    { Icon: AttachmentIcon, title: 'Attachments', text: 'Files are stored in R2 and can be downloaded from the message reader.' },
-    { Icon: FastForwardIcon, title: 'Auto Forwarding', text: 'Keep a backup copy at your real address through Email Routing.' },
-    { Icon: DevicesIcon, title: 'iOS & iPadOS UI', text: 'A flat native-feeling interface: tab bar on phones, split view on wide screens.' },
+    {
+        Icon: SentIcon,
+        title: 'Instant Push',
+        text: 'Every incoming mail arrives as a Telegram notification with Preview, Summary and Open buttons.',
+    },
+    {
+        Icon: InboxIcon,
+        title: 'Mini App Inbox',
+        text: 'Browse the full history by folder with search, unread and starred filters.',
+    },
+    {
+        Icon: ReplyIcon,
+        title: 'Reply Anywhere',
+        text: 'Answer the sender from the chat or the Mini App, delivered through Resend.',
+    },
+    {
+        Icon: SparkleIcon,
+        title: 'AI Summaries',
+        text: 'One tap summarizes long mail via Workers AI or any OpenAI-compatible API.',
+    },
+    {
+        Icon: CheckIcon,
+        title: 'Sender Rules',
+        text: 'White and block lists with regex matching, an address tester and per-list policies.',
+    },
+    {
+        Icon: AttachmentIcon,
+        title: 'Attachments',
+        text: 'Files are stored in R2 and can be downloaded from the message reader.',
+    },
+    {
+        Icon: FastForwardIcon,
+        title: 'Auto Forwarding',
+        text: 'Keep a backup copy at your real address through Email Routing.',
+    },
+    {
+        Icon: DevicesIcon,
+        title: 'iOS & iPadOS UI',
+        text: 'A flat native-feeling interface: tab bar on phones, split view on wide screens.',
+    },
 ];
 
 interface Step {
@@ -36,18 +79,8 @@ const STEPS: Step[] = [
         title: 'Create a Telegram bot',
         children: (
             <>
-                Start a chat with
-                {' '}
-                <code>@BotFather</code>
-                , run
-                {' '}
-                <code>/newbot</code>
-                {' '}
-                and copy the token. Set the bot privacy policy to
-                {' '}
-                <code>https://telegram.org/privacy-tpa</code>
-                {' '}
-                to enable Mini Apps.
+                Start a chat with <code>@BotFather</code>, run <code>/newbot</code> and copy the token. Set the bot
+                privacy policy to <code>https://telegram.org/privacy-tpa</code> to enable Mini Apps.
             </>
         ),
     },
@@ -55,26 +88,10 @@ const STEPS: Step[] = [
         title: 'Deploy to Cloudflare Workers',
         children: (
             <>
-                Create a
-                {' '}
-                <code>D1</code>
-                {' '}
-                database and an
-                {' '}
-                <code>R2</code>
-                {' '}
-                bucket, then connect this repository in the Cloudflare dashboard or run
-                {' '}
-                <code>pnpm run deploy</code>
-                . Set
-                <code>TELEGRAM_TOKEN</code>
-                ,
-                <code>TELEGRAM_ID</code>
-                {' '}
-                and
-                <code>DOMAIN</code>
-                {' '}
-                on the worker.
+                Create a <code>D1</code> database and an <code>R2</code> bucket, then connect this repository in the
+                Cloudflare dashboard or run <code>pnpm run deploy</code>. Set
+                <code>TELEGRAM_TOKEN</code>,<code>TELEGRAM_ID</code> and
+                <code>DOMAIN</code> on the worker.
             </>
         ),
     },
@@ -82,19 +99,8 @@ const STEPS: Step[] = [
         title: 'Bind Email Routing',
         children: (
             <>
-                In your Cloudflare zone, point the
-                {' '}
-                <code>Email Routing</code>
-                {' '}
-                catch-all rule at the
-                {' '}
-                <code>mail2telegram</code>
-                {' '}
-                worker, then send
-                {' '}
-                <code>/start</code>
-                {' '}
-                to your bot and open the Mini App.
+                In your Cloudflare zone, point the <code>Email Routing</code> catch-all rule at the{' '}
+                <code>mail2telegram</code> worker, then send <code>/start</code> to your bot and open the Mini App.
             </>
         ),
     },
@@ -132,12 +138,7 @@ export function LandingPage() {
             <div className="landing__wrap">
                 <nav className="landing__nav">
                     <span>mail2telegram</span>
-                    <a
-                        className="landing__nav-link"
-                        href={REPO_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                    >
+                    <a className="landing__nav-link" href={REPO_URL} target="_blank" rel="noreferrer">
                         <GitHubIcon size={18} />
                         GitHub
                     </a>
@@ -146,29 +147,42 @@ export function LandingPage() {
                 <header className="landing__hero">
                     <h1 className="landing__title">Your email, delivered to Telegram.</h1>
                     <p className="landing__subtitle">
-                        mail2telegram forwards incoming mail to Telegram as instant push notifications and keeps a full, searchable inbox in a
-                        Mini App. Self-hosted on Cloudflare Workers, free tier friendly.
+                        mail2telegram forwards incoming mail to Telegram as instant push notifications and keeps a full,
+                        searchable inbox in a Mini App. Self-hosted on Cloudflare Workers, free tier friendly.
                     </p>
                     <div className="landing__actions">
-                        <a className="landing__button" href={REPO_URL} target="_blank" rel="noreferrer">Get Started</a>
-                        <a className="landing__button landing__button--secondary" href={`${REPO_URL}#readme`} target="_blank" rel="noreferrer">
+                        <a className="landing__button" href={REPO_URL} target="_blank" rel="noreferrer">
+                            Get Started
+                        </a>
+                        <a
+                            className="landing__button landing__button--secondary"
+                            href={`${REPO_URL}#readme`}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
                             Documentation
                         </a>
                     </div>
 
                     <div className="landing__flow">
                         <span className="landing__flow-step">
-                            <span className="landing__flow-icon"><MailIcon size={20} /></span>
+                            <span className="landing__flow-icon">
+                                <MailIcon size={20} />
+                            </span>
                             Email
                         </span>
                         <span className="landing__flow-arrow">→</span>
                         <span className="landing__flow-step">
-                            <span className="landing__flow-icon"><SentIcon size={20} /></span>
+                            <span className="landing__flow-icon">
+                                <SentIcon size={20} />
+                            </span>
                             Telegram push
                         </span>
                         <span className="landing__flow-arrow">→</span>
                         <span className="landing__flow-step">
-                            <span className="landing__flow-icon"><InboxIcon size={20} /></span>
+                            <span className="landing__flow-icon">
+                                <InboxIcon size={20} />
+                            </span>
                             Mini App inbox
                         </span>
                     </div>
@@ -178,7 +192,9 @@ export function LandingPage() {
                 <div className="landing__grid">
                     {FEATURES.map(({ Icon, title, text }) => (
                         <div key={title} className="landing__card">
-                            <span className="landing__card-icon"><Icon size={20} /></span>
+                            <span className="landing__card-icon">
+                                <Icon size={20} />
+                            </span>
                             <h3 className="landing__card-title">{title}</h3>
                             <p className="landing__card-text">{text}</p>
                         </div>
@@ -198,9 +214,10 @@ export function LandingPage() {
                     ))}
                 </div>
                 <p className="landing__more">
-                    Full configuration reference in the
-                    {' '}
-                    <a href={`${REPO_URL}#installation`} target="_blank" rel="noreferrer">README</a>
+                    Full configuration reference in the{' '}
+                    <a href={`${REPO_URL}#installation`} target="_blank" rel="noreferrer">
+                        README
+                    </a>
                     .
                 </p>
 
@@ -210,8 +227,9 @@ export function LandingPage() {
                         <div>
                             <div className="landing__step-title">Register webhook &amp; menu button</div>
                             <p className="landing__step-text">
-                                Already deployed? Bind the webhook, bot commands and menu button to this worker right here, without opening
-                                Telegram first. The action is public but parameter-less: it can only ever register this deployment.
+                                Already deployed? Bind the webhook, bot commands and menu button to this worker right
+                                here, without opening Telegram first. The action is public but parameter-less: it can
+                                only ever register this deployment.
                             </p>
                         </div>
                         <button
@@ -224,7 +242,9 @@ export function LandingPage() {
                         </button>
                     </div>
                     {bind.message ? (
-                        <p className={`landing__bind-status ${bind.status === 'error' ? 'landing__bind-status--error' : 'landing__bind-status--ok'}`}>
+                        <p
+                            className={`landing__bind-status ${bind.status === 'error' ? 'landing__bind-status--error' : 'landing__bind-status--ok'}`}
+                        >
                             {bind.message}
                         </p>
                     ) : null}
@@ -232,16 +252,17 @@ export function LandingPage() {
 
                 <footer className="landing__footer">
                     <div className="landing__notice">
-                        This page appears when the Mini App is opened outside Telegram. If this is your deployment, open the bot in Telegram
-                        and send
-                        {' '}
-                        <code>/start</code>
-                        .
+                        This page appears when the Mini App is opened outside Telegram. If this is your deployment, open
+                        the bot in Telegram and send <code>/start</code>.
                     </div>
                     <div>
-                        <a href={REPO_URL} target="_blank" rel="noreferrer">GitHub</a>
+                        <a href={REPO_URL} target="_blank" rel="noreferrer">
+                            GitHub
+                        </a>
                         {' · '}
-                        <a href={`${REPO_URL}/blob/master/LICENSE`} target="_blank" rel="noreferrer">MIT License</a>
+                        <a href={`${REPO_URL}/blob/master/LICENSE`} target="_blank" rel="noreferrer">
+                            MIT License
+                        </a>
                         {' · Built with Cloudflare Workers & Telegram Mini Apps'}
                     </div>
                 </footer>

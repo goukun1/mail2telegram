@@ -20,12 +20,7 @@ export function MailPage() {
 
     return (
         <div className="split-column">
-            <MessageReader
-                key={id}
-                emailId={id}
-                onBack={back}
-                onDeleted={back}
-            />
+            <MessageReader key={id} emailId={id} onBack={back} onDeleted={back} />
         </div>
     );
 }

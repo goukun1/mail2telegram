@@ -1,4 +1,13 @@
-import { backButton, initData, init as initSdk, miniApp, retrieveLaunchParams, setDebug, themeParams, viewport } from '@tma.js/sdk-react';
+import {
+    backButton,
+    initData,
+    init as initSdk,
+    miniApp,
+    retrieveLaunchParams,
+    setDebug,
+    themeParams,
+    viewport,
+} from '@tma.js/sdk-react';
 
 export interface InitOptions {
     debug: boolean;

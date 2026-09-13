@@ -17,7 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import puppeteer from 'puppeteer';
+import { launch } from 'puppeteer';
 import { createServer as createViteServer, loadConfigFromFile } from 'vite';
 import {
     DETAIL_ATTACHMENTS,
@@ -64,17 +64,18 @@ const SOURCE_FILE = /\.(?:ts|tsx|js|jsx|mjs|css|json|map|html|svg|png|jpg|jpeg|g
 /** Installs request interception that answers the app's API calls with mock data. */
 async function mockApi(page) {
     await page.setRequestInterception(true);
-    page.on('request', (request) => {
+    page.on('request', request => {
         const url = new URL(request.url());
         if (!url.pathname.startsWith('/api/') || SOURCE_FILE.test(url.pathname)) {
             request.continue();
             return;
         }
-        const json = (body, status = 200) => request.respond({
-            status,
-            contentType: 'application/json',
-            body: JSON.stringify(body),
-        });
+        const json = (body, status = 200) =>
+            request.respond({
+                status,
+                contentType: 'application/json',
+                body: JSON.stringify(body),
+            });
 
         if (url.pathname === '/api/me') {
             return json(ME);
@@ -93,7 +94,10 @@ async function mockApi(page) {
         if (match) {
             const id = decodeURIComponent(match[1]);
             if (match[2] === '/summary') {
-                return json({ summary: 'Airbnb sent your check-in details for the Sunset Loft in Shibuya: self check-in from 3 PM with door code 5842#, pocket wifi on site, and quiet hours after 10 PM.' });
+                return json({
+                    summary:
+                        'Airbnb sent your check-in details for the Sunset Loft in Shibuya: self check-in from 3 PM with door code 5842#, pocket wifi on site, and quiet hours after 10 PM.',
+                });
             }
             if (match[2] === '/reply') {
                 return json({ success: true });
@@ -116,9 +120,7 @@ async function mockApi(page) {
             return json(detailResponse(id));
         }
         if (url.pathname === '/api/settings') {
-            return request.method() === 'PUT'
-                ? json({ settings: ME.settings })
-                : json({ settings: ME.settings });
+            return request.method() === 'PUT' ? json({ settings: ME.settings }) : json({ settings: ME.settings });
         }
         return json({ error: 'not mocked' }, 404);
     });
@@ -172,8 +174,7 @@ async function resetScroll(page) {
 async function showHtmlBody(page) {
     await page.waitForSelector('.reader__subject');
     await page.evaluate(() => {
-        const button = [...document.querySelectorAll('button')]
-            .find(node => node.textContent.trim() === 'HTML');
+        const button = [...document.querySelectorAll('button')].find(node => node.textContent.trim() === 'HTML');
         button?.click();
     });
     // Plain text is the default view; the rich body only mounts after the toggle.
@@ -191,11 +192,11 @@ async function injectBackButton(page) {
         if (!nav || nav.querySelector('[data-mock-back]')) {
             return;
         }
-        const slot = nav.querySelector('.k-navbar-left')
-            ?? nav.querySelector('[class*="navbar-left"]');
-        const chevron = '<svg width="25" height="25" viewBox="0 0 24 24" fill="none">'
-            + '<path d="M15 5.5 8.5 12l6.5 6.5" stroke="#0a84ff" stroke-width="2.6" '
-            + 'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        const slot = nav.querySelector('.k-navbar-left') ?? nav.querySelector('[class*="navbar-left"]');
+        const chevron =
+            '<svg width="25" height="25" viewBox="0 0 24 24" fill="none">' +
+            '<path d="M15 5.5 8.5 12l6.5 6.5" stroke="#0a84ff" stroke-width="2.6" ' +
+            'stroke-linecap="round" stroke-linejoin="round"/></svg>';
         if (slot) {
             slot.innerHTML = `<span data-mock-back style="display:flex;align-items:center;">${chevron}</span>`;
         } else {
@@ -270,11 +271,15 @@ export function telegramPushHtml(push) {
           <div class="bubble__time">${message.time}</div>
         </div>
         <div class="kb">
-          ${push.buttons.map(button => `
+          ${push.buttons
+              .map(
+                  button => `
             <div class="kb__btn">
               ${button.label}
               ${button.miniapp ? '<span class="kb__icon"></span>' : ''}
-            </div>`).join('')}
+            </div>`,
+              )
+              .join('')}
         </div>`;
 
     return `<!doctype html>
@@ -359,10 +364,14 @@ export function telegramPushHtml(push) {
 </head>
 <body>
   <div class="chat">
-    ${push.groups.map(group => `
+    ${push.groups
+        .map(
+            group => `
       <div class="chip">${group.label}</div>
       ${group.messages.map(bubble).join('')}
-    `).join('')}
+    `,
+        )
+        .join('')}
   </div>
   <div class="nav">
     <div class="nav__back">
@@ -468,8 +477,12 @@ function compositeHtml(panels) {
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: transparent; }
   body {
-    width: ${panels.reduce((sum, panel) => sum + panel.displayWidth, 0)
-    + 2 * BEZEL * panels.length + 2 * PADDING + GAP * (panels.length - 1)}px;
+    width: ${
+        panels.reduce((sum, panel) => sum + panel.displayWidth, 0) +
+        2 * BEZEL * panels.length +
+        2 * PADDING +
+        GAP * (panels.length - 1)
+    }px;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
@@ -520,8 +533,10 @@ function compositeHtml(panels) {
 
 async function composeComposite(browser, panels, outPath) {
     const deviceHeight = panels[0].displayHeight + 2 * BEZEL;
-    const width = panels.reduce((sum, panel) => sum + panel.displayWidth + 2 * BEZEL, 0)
-        + 2 * PADDING + GAP * (panels.length - 1);
+    const width =
+        panels.reduce((sum, panel) => sum + panel.displayWidth + 2 * BEZEL, 0) +
+        2 * PADDING +
+        GAP * (panels.length - 1);
     const height = deviceHeight + PADDING * 2 + LABEL_SPACE;
 
     const page = await browser.newPage();
@@ -530,10 +545,9 @@ async function composeComposite(browser, panels, outPath) {
     await page.evaluate(() => document.fonts.ready);
     // `page.screenshot()` returns a Uint8Array in current Puppeteer; make sure
     // every inlined panel actually decoded before capturing the composite.
-    await page.waitForFunction(
-        () => [...document.images].every(img => img.complete && img.naturalWidth > 0),
-        { timeout: 15_000 },
-    );
+    await page.waitForFunction(() => [...document.images].every(img => img.complete && img.naturalWidth > 0), {
+        timeout: 15_000,
+    });
     await new Promise(resolve => setTimeout(resolve, 200));
     const png = await page.screenshot({ omitBackground: true });
     await page.close();
@@ -574,7 +588,7 @@ async function startWebServer() {
         ...config,
         configFile: false,
         logLevel: 'error',
-        server: { ...(config.server ?? {}), port: 0, strictPort: false, proxy: {} },
+        server: { ...config.server, port: 0, strictPort: false, proxy: {} },
     });
     await server.listen();
     const url = server.resolvedUrls?.local?.[0] ?? server.resolvedUrls?.network?.[0];
@@ -591,7 +605,7 @@ async function main() {
     const { server, base } = await startWebServer();
     console.log(`  serving ${base}`);
 
-    const browser = await puppeteer.launch({
+    const browser = await launch({
         headless: true,
         args: ['--force-color-profile=srgb', '--hide-scrollbars'],
     });
@@ -606,14 +620,35 @@ async function main() {
         // The iPad capture is rescaled to the phone screenshot height so every
         // panel lines up in one strip.
         const panels = [
-            { label: 'Push Notification', device: 'phone', img: push, displayWidth: PHONE.width, displayHeight: PHONE.height, status: { time: TELEGRAM_PUSH.statusBarTime, battery: TELEGRAM_PUSH.batteryPercent } },
-            { label: 'Inbox', device: 'phone', img: inbox, displayWidth: PHONE.width, displayHeight: PHONE.height, status: { time: '9:41', battery: 72 } },
-            { label: 'Reader', device: 'phone', img: reader, displayWidth: PHONE.width, displayHeight: PHONE.height, status: { time: '9:41', battery: 72 } },
+            {
+                label: 'Push Notification',
+                device: 'phone',
+                img: push,
+                displayWidth: PHONE.width,
+                displayHeight: PHONE.height,
+                status: { time: TELEGRAM_PUSH.statusBarTime, battery: TELEGRAM_PUSH.batteryPercent },
+            },
+            {
+                label: 'Inbox',
+                device: 'phone',
+                img: inbox,
+                displayWidth: PHONE.width,
+                displayHeight: PHONE.height,
+                status: { time: '9:41', battery: 72 },
+            },
+            {
+                label: 'Reader',
+                device: 'phone',
+                img: reader,
+                displayWidth: PHONE.width,
+                displayHeight: PHONE.height,
+                status: { time: '9:41', battery: 72 },
+            },
             {
                 label: 'iPad Split View',
                 device: 'ipad',
                 img: ipad,
-                displayWidth: Math.round(IPAD.width * PHONE.height / IPAD.height),
+                displayWidth: Math.round((IPAD.width * PHONE.height) / IPAD.height),
                 displayHeight: PHONE.height,
                 status: { time: '9:41', battery: 92 },
             },
@@ -646,7 +681,7 @@ async function main() {
 // Only run when executed directly, so the HTML builders stay importable for
 // layout inspection without launching a browser.
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-    main().catch((error) => {
+    main().catch(error => {
         console.error(error);
         process.exit(1);
     });

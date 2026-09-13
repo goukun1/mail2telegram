@@ -82,16 +82,19 @@ export function useSettingsDraft(): SettingsDraft {
         };
     }, [flush]);
 
-    const update = useCallback(<K extends keyof RuntimeSettings>(key: K, value: RuntimeSettings[K]) => {
-        setDraft(current => (current ? { ...current, [key]: value } : current));
-        pending.current = { ...pending.current, [key]: value };
-        if (timer.current) {
-            clearTimeout(timer.current);
-        }
-        timer.current = setTimeout(() => {
-            void flush();
-        }, 600);
-    }, [flush]);
+    const update = useCallback(
+        <K extends keyof RuntimeSettings>(key: K, value: RuntimeSettings[K]) => {
+            setDraft(current => (current ? { ...current, [key]: value } : current));
+            pending.current = { ...pending.current, [key]: value };
+            if (timer.current) {
+                clearTimeout(timer.current);
+            }
+            timer.current = setTimeout(() => {
+                void flush();
+            }, 600);
+        },
+        [flush],
+    );
 
     return {
         draft,

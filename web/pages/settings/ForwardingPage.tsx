@@ -30,7 +30,10 @@ export function ForwardingPage() {
     };
 
     const remove = (index: number) => {
-        update('forwardList', forwardList.filter((_, i) => i !== index));
+        update(
+            'forwardList',
+            forwardList.filter((_, i) => i !== index),
+        );
         haptic.impact();
     };
 
@@ -80,9 +83,9 @@ export function ForwardingPage() {
                                 ) : (
                                     forwardList.map((address, index) => (
                                         <ListItem
-                                            key={`${address}-${index}`}
+                                            key={address}
                                             title={address}
-                                            after={(
+                                            after={
                                                 <button
                                                     type="button"
                                                     className="settings-remove"
@@ -91,7 +94,7 @@ export function ForwardingPage() {
                                                 >
                                                     <TrashIcon size={18} />
                                                 </button>
-                                            )}
+                                            }
                                         />
                                     ))
                                 )}

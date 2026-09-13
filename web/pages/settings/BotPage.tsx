@@ -4,7 +4,10 @@ import { api } from '../../api/client';
 import { haptic } from '../../lib/haptics';
 import { SettingsSubPage } from './SettingsSubPage';
 
-interface ActionState { status: 'idle' | 'running' | 'ok' | 'error'; message?: string }
+interface ActionState {
+    status: 'idle' | 'running' | 'ok' | 'error';
+    message?: string;
+}
 
 const idle: ActionState = { status: 'idle' };
 
@@ -19,7 +22,10 @@ export function BotPage() {
         try {
             const result = await api.rebindWebhook();
             const ok = result?.webhook?.ok !== false;
-            setRebindState({ status: ok ? 'ok' : 'error', message: result?.webhook?.description || 'Webhook re-registered.' });
+            setRebindState({
+                status: ok ? 'ok' : 'error',
+                message: result?.webhook?.description || 'Webhook re-registered.',
+            });
             haptic.notification(ok ? 'success' : 'error');
         } catch (e) {
             setRebindState({ status: 'error', message: (e as Error).message });
@@ -57,10 +63,14 @@ export function BotPage() {
                 />
             </List>
             <div className="settings-note">
-                Re-registers the Telegram webhook, the bot command list and the menu button. Run this after changing the worker domain or when the bot stops responding.
+                Re-registers the Telegram webhook, the bot command list and the menu button. Run this after changing the
+                worker domain or when the bot stops responding.
             </div>
             {rebindState.message ? (
-                <div className="settings-note" style={{ color: rebindState.status === 'error' ? '#ff3b30' : 'var(--ios-gray)' }}>
+                <div
+                    className="settings-note"
+                    style={{ color: rebindState.status === 'error' ? '#ff3b30' : 'var(--ios-gray)' }}
+                >
                     {rebindState.message}
                 </div>
             ) : null}
@@ -76,10 +86,16 @@ export function BotPage() {
                 />
             </List>
             <div className="settings-note">
-                Copies the deployment variables into the app's stored settings: block policy, forwarding, mail limits, summary options and the allow/block lists. After importing you can remove those variables from the worker config — everything else is managed here. The bot token, chat IDs, domain and API keys stay in the deployment.
+                Copies the deployment variables into the app's stored settings: block policy, forwarding, mail limits,
+                summary options and the allow/block lists. After importing you can remove those variables from the
+                worker config — everything else is managed here. The bot token, chat IDs, domain and API keys stay in
+                the deployment.
             </div>
             {importState.message ? (
-                <div className="settings-note" style={{ color: importState.status === 'error' ? '#ff3b30' : 'var(--ios-gray)' }}>
+                <div
+                    className="settings-note"
+                    style={{ color: importState.status === 'error' ? '#ff3b30' : 'var(--ios-gray)' }}
+                >
                     {importState.message}
                 </div>
             ) : null}
@@ -89,7 +105,8 @@ export function BotPage() {
                 <ListItem title="/start" after="Open Mini App" />
             </List>
             <div className="settings-note">
-                The first /start also binds the webhook and points the bot menu button at this worker. Reply to any forwarded message in Telegram to answer the sender through Resend.
+                The first /start also binds the webhook and points the bot menu button at this worker. Reply to any
+                forwarded message in Telegram to answer the sender through Resend.
             </div>
         </SettingsSubPage>
     );

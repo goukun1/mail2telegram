@@ -81,7 +81,15 @@ export function testEnv(overrides: Partial<Environment> = {}): Environment {
 /** Wipe every table between tests so counts are independent of ordering. */
 export async function resetStorage(): Promise<void> {
     const bindings = env as unknown as { DB: Environment['DB'] };
-    for (const table of ['attachments', 'telegram_messages', 'telegram_starts', 'mail_status', 'emails', 'addresses', 'settings']) {
+    for (const table of [
+        'attachments',
+        'telegram_messages',
+        'telegram_starts',
+        'mail_status',
+        'emails',
+        'addresses',
+        'settings',
+    ]) {
         await bindings.DB.prepare(`DELETE FROM ${table}`).run();
     }
 }

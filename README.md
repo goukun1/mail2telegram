@@ -117,7 +117,10 @@ pnpm build          # typecheck and build the Mini App into dist/client
 pnpm test           # pure-logic tests (tsx) + Worker-runtime tests (vitest, Miniflare)
 pnpm test:unit      # mergeSettings / testAddress / parseEmail only
 pnpm test:pool      # D1, inbound-email and cleanup tests in the Workers runtime
-pnpm lint           # eslint --fix
+pnpm lint           # oxlint
+pnpm lint:fix       # oxlint --fix
+pnpm format         # oxfmt
+pnpm format:check   # oxfmt --check (used by CI)
 pnpm screenshots    # regenerate the README images in doc/ from mock data
 ```
 

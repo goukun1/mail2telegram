@@ -78,7 +78,7 @@ export async function parseEmail(
     // The caller may hand back the bytes it already read for hashing; the global
     // `Response` type is DOM-shaped here, so cast to the Workers stream type.
     let emailRaw: ReadableStream<Uint8Array> = options.rawBytes
-        ? new Response(options.rawBytes.slice().buffer as ArrayBuffer).body as unknown as ReadableStream<Uint8Array>
+        ? (new Response(options.rawBytes.slice().buffer as ArrayBuffer).body as unknown as ReadableStream<Uint8Array>)
         : message.raw;
     try {
         const policy = message.rawSize > maxSize ? maxSizePolicy : 'continue';
@@ -102,12 +102,27 @@ export async function parseEmail(
         }
         base.from = email.from?.address || base.from;
         base.fromName = email.from?.name || null;
-        base.to = email.to?.map(addr => addr.address).filter(Boolean).join(', ') || base.to;
-        base.cc = email.cc?.map(addr => addr.address).filter(Boolean).join(', ') || null;
-        base.bcc = email.bcc?.map(addr => addr.address).filter(Boolean).join(', ') || null;
+        base.to =
+            email.to
+                ?.map(addr => addr.address)
+                .filter(Boolean)
+                .join(', ') || base.to;
+        base.cc =
+            email.cc
+                ?.map(addr => addr.address)
+                .filter(Boolean)
+                .join(', ') || null;
+        base.bcc =
+            email.bcc
+                ?.map(addr => addr.address)
+                .filter(Boolean)
+                .join(', ') || null;
         base.date = email.date ? new Date(email.date).toISOString() : base.date;
         base.inReplyTo = email.inReplyTo?.trim() || null;
-        base.references = (email.references || '').split(/\s+/).map(ref => ref.trim()).filter(Boolean);
+        base.references = (email.references || '')
+            .split(/\s+/)
+            .map(ref => ref.trim())
+            .filter(Boolean);
         // Repeated header names (e.g. `Received`) are joined instead of collapsed.
         const headerMap: Record<string, string> = {};
         for (const header of email.headers || []) {

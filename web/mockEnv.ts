@@ -60,12 +60,15 @@ export async function setupMockEnv(): Promise<boolean> {
     mockTelegramEnv({
         launchParams: new URLSearchParams([
             ['tgWebAppThemeParams', JSON.stringify(themeParams)],
-            ['tgWebAppData', new URLSearchParams([
-                ['auth_date', `${Math.floor(Date.now() / 1000)}`],
-                ['hash', 'mock-hash'],
-                ['signature', 'mock-signature'],
-                ['user', JSON.stringify({ id: 1, first_name: 'Dev', username: 'dev' })],
-            ]).toString()],
+            [
+                'tgWebAppData',
+                new URLSearchParams([
+                    ['auth_date', `${Math.floor(Date.now() / 1000)}`],
+                    ['hash', 'mock-hash'],
+                    ['signature', 'mock-signature'],
+                    ['user', JSON.stringify({ id: 1, first_name: 'Dev', username: 'dev' })],
+                ]).toString(),
+            ],
             ['tgWebAppVersion', '8.4'],
             ['tgWebAppPlatform', platform],
         ]),
@@ -84,12 +87,15 @@ export async function setupMockEnv(): Promise<boolean> {
                     break;
                 case 'web_app_request_safe_area':
                 case 'web_app_request_content_safe_area':
-                    emitEvent(event.name === 'web_app_request_safe_area' ? 'safe_area_changed' : 'content_safe_area_changed', {
-                        left: 0,
-                        top: safeArea.top,
-                        bottom: safeArea.bottom,
-                        right: 0,
-                    });
+                    emitEvent(
+                        event.name === 'web_app_request_safe_area' ? 'safe_area_changed' : 'content_safe_area_changed',
+                        {
+                            left: 0,
+                            top: safeArea.top,
+                            bottom: safeArea.bottom,
+                            right: 0,
+                        },
+                    );
                     break;
                 default:
                     break;

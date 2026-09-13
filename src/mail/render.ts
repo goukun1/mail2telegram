@@ -35,11 +35,7 @@ export async function renderEmailListMode(
     settings: RuntimeSettings,
     options: EmailListRenderOptions = {},
 ): Promise<EmailDetailParams> {
-    const {
-        DEBUG,
-        AI,
-        DOMAIN,
-    } = env;
+    const { DEBUG, AI, DOMAIN } = env;
     const text = `${mail.subject}\n\n-----------\nFrom\t:\t${mail.sender}\nTo\t\t:\t${mail.recipient}`;
     const keyboard: Telegram.InlineKeyboardButton[] = [
         {
@@ -101,12 +97,23 @@ function renderEmailDetail(text: string | undefined | null, id: string): EmailDe
     };
 }
 
-// eslint-disable-next-line unused-imports/no-unused-vars
-export async function renderEmailPreviewMode(mail: EmailRecord, env: Environment, settings: RuntimeSettings): Promise<EmailDetailParams> {
+// Uses the same three-argument shape as the other render modes so callers can
+// swap them; `env` and `settings` are not needed in preview mode.
+/* oxlint-disable no-unused-vars */
+export async function renderEmailPreviewMode(
+    mail: EmailRecord,
+    env: Environment,
+    settings: RuntimeSettings,
+): Promise<EmailDetailParams> {
     return renderEmailDetail(sendableText(mail).substring(0, 4096), mail.id);
 }
+/* oxlint-enable no-unused-vars */
 
-export async function renderEmailSummaryMode(mail: EmailRecord, env: Environment, settings: RuntimeSettings): Promise<EmailDetailParams> {
+export async function renderEmailSummaryMode(
+    mail: EmailRecord,
+    env: Environment,
+    settings: RuntimeSettings,
+): Promise<EmailDetailParams> {
     const req = renderEmailDetail('', mail.id);
     try {
         // Same provider selection and body truncation as the Mini App endpoint.
@@ -117,7 +124,11 @@ export async function renderEmailSummaryMode(mail: EmailRecord, env: Environment
     return req;
 }
 
-export async function renderEmailDebugMode(mail: EmailRecord, env: Environment, settings: RuntimeSettings): Promise<EmailDetailParams> {
+export async function renderEmailDebugMode(
+    mail: EmailRecord,
+    env: Environment,
+    settings: RuntimeSettings,
+): Promise<EmailDetailParams> {
     const res = await checkAddressStatus([mail.sender, mail.recipient], env);
     const obj = {
         id: mail.id,

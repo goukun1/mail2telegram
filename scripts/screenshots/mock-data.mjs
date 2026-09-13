@@ -51,7 +51,8 @@ export const EMAILS = [
         sender_name: 'GitHub',
         sender: 'noreply@github.com',
         subject: 'Release v2.0.0 · TBXark/mail2telegram',
-        snippet: 'Version 2.0.0 of TBXark/mail2telegram is now live. What is changed: split settings into pages, deep link notifications into the Mini App…',
+        snippet:
+            'Version 2.0.0 of TBXark/mail2telegram is now live. What is changed: split settings into pages, deep link notifications into the Mini App…',
         minutesAgo: 47,
         is_read: 0,
         is_starred: 0,
@@ -63,7 +64,8 @@ export const EMAILS = [
         sender_name: 'Stripe',
         sender: 'receipts@stripe.com',
         subject: 'Your payout of $1,248.50 is on its way',
-        snippet: 'Your payout of $1,248.50 USD is on its way. It should arrive in your bank account in 1-2 business days. Bank: WELL…',
+        snippet:
+            'Your payout of $1,248.50 USD is on its way. It should arrive in your bank account in 1-2 business days. Bank: WELL…',
         minutesAgo: 143,
         is_read: 0,
         is_starred: 0,
@@ -75,7 +77,8 @@ export const EMAILS = [
         sender_name: 'Airbnb',
         sender: 'automated@airbnb.com',
         subject: 'Your check-in details for the Sunset Loft',
-        snippet: 'Hi Dev, here is everything you need for a smooth arrival. The Sunset Loft is a 5-minute walk from the Shibuya Crossing…',
+        snippet:
+            'Hi Dev, here is everything you need for a smooth arrival. The Sunset Loft is a 5-minute walk from the Shibuya Crossing…',
         minutesAgo: 212,
         is_read: 0,
         is_starred: 0,
@@ -87,7 +90,8 @@ export const EMAILS = [
         sender_name: 'Figma',
         sender: 'updates@figma.com',
         subject: 'Alex Rivera mentioned you in Checkout Redesign',
-        snippet: 'Alex Rivera mentioned you in Checkout Redesign: can you double check the empty state on step 3 of the new flow?',
+        snippet:
+            'Alex Rivera mentioned you in Checkout Redesign: can you double check the empty state on step 3 of the new flow?',
         minutesAgo: DAY + 96,
         is_read: 1,
         is_starred: 1,
@@ -99,7 +103,8 @@ export const EMAILS = [
         sender_name: 'Cloudflare',
         sender: 'noreply@notify.cloudflare.com',
         subject: 'Weekly usage report for your account',
-        snippet: 'Your weekly usage report: Workers 184,203 requests, D1 32,118 rows read, R2 1.2 GB egress. Everything within plan limits…',
+        snippet:
+            'Your weekly usage report: Workers 184,203 requests, D1 32,118 rows read, R2 1.2 GB egress. Everything within plan limits…',
         minutesAgo: DAY + 152,
         is_read: 1,
         is_starred: 0,
@@ -111,7 +116,8 @@ export const EMAILS = [
         sender_name: 'Apple',
         sender: 'no_reply@email.apple.com',
         subject: 'Your Apple Account code is 482913',
-        snippet: 'Use this code to complete Apple Account sign-in: 482913. If you did not attempt to sign in, ignore this email.',
+        snippet:
+            'Use this code to complete Apple Account sign-in: 482913. If you did not attempt to sign in, ignore this email.',
         minutesAgo: DAY + 240,
         is_read: 1,
         is_starred: 0,
@@ -123,7 +129,8 @@ export const EMAILS = [
         sender_name: 'Notion',
         sender: 'team@notionmail.com',
         subject: 'Monthly invoice: 3 additional workspace members',
-        snippet: 'Thanks for being a Plus customer. Your September invoice for 3 additional workspace members is now available.',
+        snippet:
+            'Thanks for being a Plus customer. Your September invoice for 3 additional workspace members is now available.',
         minutesAgo: 2 * DAY + 30,
         is_read: 1,
         is_starred: 0,
@@ -159,7 +166,8 @@ export const EMAILS = [
         sender_name: 'Amazon.com',
         sender: 'ship-confirm@amazon.com',
         subject: 'Your order has shipped: USB-C Cable 2-Pack',
-        snippet: 'Your package with USB-C Cable 2-Pack has shipped and arrives Wednesday. Track your delivery in Your Orders.',
+        snippet:
+            'Your package with USB-C Cable 2-Pack has shipped and arrives Wednesday. Track your delivery in Your Orders.',
         minutesAgo: 4 * DAY + 60,
         is_read: 1,
         is_starred: 0,
@@ -183,7 +191,8 @@ export const EMAILS = [
         sender_name: 'Hacker Newsletter',
         sender: 'issue@hackernewsletter.com',
         subject: 'Issue #712: The Cult of the Diff',
-        snippet: 'This week: The Cult of the Diff, why calendars beat to-do lists, and a deep dive into the oldest running web server.',
+        snippet:
+            'This week: The Cult of the Diff, why calendars beat to-do lists, and a deep dive into the oldest running web server.',
         minutesAgo: 6 * DAY + 45,
         is_read: 1,
         is_starred: 0,
@@ -342,9 +351,5 @@ export const TELEGRAM_PUSH = {
         },
     ],
     /** Inline keyboard row under each push. `miniapp` draws the small square icon. */
-    buttons: [
-        { label: 'Preview' },
-        { label: 'Summary' },
-        { label: 'Open', miniapp: true },
-    ],
+    buttons: [{ label: 'Preview' }, { label: 'Summary' }, { label: 'Open', miniapp: true }],
 };

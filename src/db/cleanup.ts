@@ -29,7 +29,9 @@ async function deleteR2Objects(bucket: R2Bucket | undefined, keys: string[]): Pr
     }
 }
 
-function collectStoredKeys(targets: { raw_key: string | null; body_html: string | null; body_text: string | null }[]): string[] {
+function collectStoredKeys(
+    targets: { raw_key: string | null; body_html: string | null; body_text: string | null }[],
+): string[] {
     const keys: string[] = [];
     for (const target of targets) {
         if (target.raw_key) {
@@ -51,7 +53,11 @@ function collectStoredKeys(targets: { raw_key: string | null; body_html: string 
  * chat mappings are removed too, otherwise they would grow without bound as
  * mail is cleaned up.
  */
-export async function purgeEmailsByIds(dao: Dao, bucket: R2Bucket | undefined, targets: EmailCleanupTarget[]): Promise<CleanupResult> {
+export async function purgeEmailsByIds(
+    dao: Dao,
+    bucket: R2Bucket | undefined,
+    targets: EmailCleanupTarget[],
+): Promise<CleanupResult> {
     if (targets.length === 0) {
         return { emails: 0, attachments: 0, remaining: 0 };
     }
@@ -64,15 +70,17 @@ export async function purgeEmailsByIds(dao: Dao, bucket: R2Bucket | undefined, t
     await dao.deleteEmailsByIds(ids);
     await dao.deleteTelegramMessagesByEmailIds(ids);
     await dao.deleteMailStatusByJournalKeys(
-        targets
-            .filter(target => target.message_id)
-            .map(target => `${target.message_id}|${target.size}`),
+        targets.filter(target => target.message_id).map(target => `${target.message_id}|${target.size}`),
     );
     return { emails: targets.length, attachments: attachments.length, remaining: 0 };
 }
 
 /** Permanently remove every non-starred email received before the cutoff (null removes all). */
-export async function purgeEmails(dao: Dao, bucket: R2Bucket | undefined, before: string | null): Promise<CleanupResult> {
+export async function purgeEmails(
+    dao: Dao,
+    bucket: R2Bucket | undefined,
+    before: string | null,
+): Promise<CleanupResult> {
     let emails = 0;
     let attachments = 0;
     for (let pass = 0; pass < MAX_SCANS; pass++) {
@@ -91,14 +99,21 @@ export async function purgeEmails(dao: Dao, bucket: R2Bucket | undefined, before
 }
 
 /** Remove stored attachments of non-starred emails in the range, keeping the messages. */
-export async function purgeAttachments(dao: Dao, bucket: R2Bucket | undefined, before: string | null): Promise<CleanupResult> {
+export async function purgeAttachments(
+    dao: Dao,
+    bucket: R2Bucket | undefined,
+    before: string | null,
+): Promise<CleanupResult> {
     let attachments = 0;
     for (let pass = 0; pass < MAX_SCANS; pass++) {
         const rows = await dao.findAttachmentsBefore(before, SCAN_BATCH);
         if (rows.length === 0) {
             break;
         }
-        await deleteR2Objects(bucket, rows.map(row => row.r2_key));
+        await deleteR2Objects(
+            bucket,
+            rows.map(row => row.r2_key),
+        );
         await dao.deleteAttachmentsByIds(rows.map(row => row.id));
         attachments += rows.length;
         if (rows.length < SCAN_BATCH) {

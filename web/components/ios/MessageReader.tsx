@@ -78,14 +78,20 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
     );
 
     if (loading && !data) {
-        return <div className="spin-center"><Preloader /></div>;
+        return (
+            <div className="spin-center">
+                <Preloader />
+            </div>
+        );
     }
     if (error || !email || !data) {
         return (
             <div className="reader-empty">
                 <div>
                     <p className="mb-3">{error?.message || 'This message could not be loaded.'}</p>
-                    <button type="button" className="text-button" onClick={reload}>Try Again</button>
+                    <button type="button" className="text-button" onClick={reload}>
+                        Try Again
+                    </button>
                 </div>
             </div>
         );
@@ -103,43 +109,48 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
         }
     };
 
-    const toggleStar = () => run('star', async () => {
-        const next = email.is_starred === 0;
-        haptic.selection();
-        await api.updateEmail(email.id, { isStarred: next });
-        setData(prev => (prev ? { ...prev, email: { ...prev.email, is_starred: next ? 1 : 0 } } : prev));
-        onChanged?.();
-    });
+    const toggleStar = () =>
+        run('star', async () => {
+            const next = email.is_starred === 0;
+            haptic.selection();
+            await api.updateEmail(email.id, { isStarred: next });
+            setData(prev => (prev ? { ...prev, email: { ...prev.email, is_starred: next ? 1 : 0 } } : prev));
+            onChanged?.();
+        });
 
-    const toggleRead = () => run('read', async () => {
-        const markUnread = email.is_read === 1;
-        await api.updateEmail(email.id, { isRead: !markUnread });
-        setData(prev => (prev ? { ...prev, email: { ...prev.email, is_read: markUnread ? 0 : 1 } } : prev));
-        onChanged?.();
-    });
+    const toggleRead = () =>
+        run('read', async () => {
+            const markUnread = email.is_read === 1;
+            await api.updateEmail(email.id, { isRead: !markUnread });
+            setData(prev => (prev ? { ...prev, email: { ...prev.email, is_read: markUnread ? 0 : 1 } } : prev));
+            onChanged?.();
+        });
 
-    const remove = () => run('delete', async () => {
-        haptic.impact();
-        await api.deleteEmail(email.id);
-        onDeleted?.();
-    });
+    const remove = () =>
+        run('delete', async () => {
+            haptic.impact();
+            await api.deleteEmail(email.id);
+            onDeleted?.();
+        });
 
-    const summarize = () => run('summary', async () => {
-        const result = await api.summarize(email.id);
-        setSummary(result.summary);
-    });
+    const summarize = () =>
+        run('summary', async () => {
+            const result = await api.summarize(email.id);
+            setSummary(result.summary);
+        });
 
-    const download = (attachmentId: string, filename: string) => run(attachmentId, async () => {
-        const blob = await fetchAttachmentBlob(email.id, attachmentId);
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    });
+    const download = (attachmentId: string, filename: string) =>
+        run(attachmentId, async () => {
+            const blob = await fetchAttachmentBlob(email.id, attachmentId);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10_000);
+        });
 
     const hasHtml = Boolean(email.body_html);
     // Plain text is the default view; emails without a text part fall back to HTML.
@@ -178,8 +189,12 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
                 {hasHtml && email.body_text ? (
                     <div className="px-4 pb-3">
                         <Segmented strong className="ios-segmented">
-                            <SegmentedButton active={!preferHtml} onClick={() => setShowHtml(false)}>Plain Text</SegmentedButton>
-                            <SegmentedButton active={preferHtml} onClick={() => setShowHtml(true)}>HTML</SegmentedButton>
+                            <SegmentedButton active={!preferHtml} onClick={() => setShowHtml(false)}>
+                                Plain Text
+                            </SegmentedButton>
+                            <SegmentedButton active={preferHtml} onClick={() => setShowHtml(true)}>
+                                HTML
+                            </SegmentedButton>
                         </Segmented>
                     </div>
                 ) : null}
@@ -222,7 +237,11 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
                     </>
                 ) : null}
 
-                {actionError ? <div className="settings-note" style={{ color: '#ff3b30' }}>{actionError}</div> : null}
+                {actionError ? (
+                    <div className="settings-note" style={{ color: '#ff3b30' }}>
+                        {actionError}
+                    </div>
+                ) : null}
             </div>
 
             {/* iOS Mail style action bar: the primary actions sit in a pill,
@@ -242,7 +261,9 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
                             }}
                         >
                             <MailIcon size={20} />
-                            <span>{busy === 'read' ? 'Working…' : email.is_read === 0 ? 'Mark as Read' : 'Mark as Unread'}</span>
+                            <span>
+                                {busy === 'read' ? 'Working…' : email.is_read === 0 ? 'Mark as Read' : 'Mark as Unread'}
+                            </span>
                         </button>
                         {data.summaryEnabled ? (
                             <button
@@ -264,7 +285,12 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
                 <div className="ios-toolbar__inner">
                     <div className="ios-toolbar__pill">
                         {data.resendEnabled ? (
-                            <button type="button" className="ios-toolbar__button bar-button" aria-label="Reply" onClick={() => setReplyOpen(true)}>
+                            <button
+                                type="button"
+                                className="ios-toolbar__button bar-button"
+                                aria-label="Reply"
+                                onClick={() => setReplyOpen(true)}
+                            >
                                 <ReplyIcon size={24} />
                             </button>
                         ) : null}

@@ -43,7 +43,9 @@ export function MessageTabBar({ active, unread, onChange }: MessageTabBarProps) 
                     >
                         <span className="relative">
                             <Icon size={26} />
-                            {key === 'inbox' && unread > 0 ? <span className="ios-tabbar__badge">{unread > 99 ? '99+' : unread}</span> : null}
+                            {key === 'inbox' && unread > 0 ? (
+                                <span className="ios-tabbar__badge">{unread > 99 ? '99+' : unread}</span>
+                            ) : null}
                         </span>
                     </button>
                 );

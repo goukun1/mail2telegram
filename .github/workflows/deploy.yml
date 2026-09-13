@@ -45,8 +45,10 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
-            - name: Lint
-              run: pnpm exec eslint src web scripts test vitest.config.mts
+            - name: Lint and check formatting
+              run: |
+                  pnpm exec oxlint
+                  pnpm exec oxfmt --check
 
             - name: Test
               run: pnpm test

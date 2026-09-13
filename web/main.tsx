@@ -33,6 +33,6 @@ async function bootstrap(): Promise<void> {
     );
 }
 
-bootstrap().catch((e) => {
+bootstrap().catch(e => {
     console.error('[app] bootstrap failed', e);
 });

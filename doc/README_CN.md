@@ -112,7 +112,10 @@ pnpm install
 pnpm dev            # Vite 开发服务器 :5173 + wrangler dev :8787
 pnpm build          # 类型检查并构建 Mini App 到 dist/client
 pnpm test           # parseEmail 单元测试
-pnpm lint           # eslint --fix
+pnpm lint           # oxlint
+pnpm lint:fix       # oxlint --fix
+pnpm format         # oxfmt
+pnpm format:check   # oxfmt --check（CI 使用）
 pnpm screenshots    # 用 mock 数据重新生成 doc/ 下的 README 截图
 ```
 

@@ -123,7 +123,7 @@ function SwipeRow({ onDelete, children }: { onDelete?: () => void; children: Rea
                 onPointerMove={onPointerMove}
                 onPointerUp={finishDrag}
                 onPointerCancel={finishDrag}
-                onClickCapture={(e) => {
+                onClickCapture={e => {
                     if (suppressClick.current) {
                         suppressClick.current = false;
                         e.preventDefault();
@@ -145,7 +145,15 @@ function SwipeRow({ onDelete, children }: { onDelete?: () => void; children: Rea
 }
 
 /** A single iOS Mail message cell. */
-function MessageRow({ email, selected, onSelect }: { email: Email; selected: boolean; onSelect: (email: Email) => void }) {
+function MessageRow({
+    email,
+    selected,
+    onSelect,
+}: {
+    email: Email;
+    selected: boolean;
+    onSelect: (email: Email) => void;
+}) {
     const unread = email.is_read === 0;
     return (
         <div
@@ -154,7 +162,7 @@ function MessageRow({ email, selected, onSelect }: { email: Email; selected: boo
             aria-current={selected || undefined}
             className={`message-row ${unread ? 'message-row--unread' : ''} ${selected ? 'message-row--selected' : ''}`}
             onClick={() => onSelect(email)}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     onSelect(email);
                 }
@@ -165,20 +173,14 @@ function MessageRow({ email, selected, onSelect }: { email: Email; selected: boo
             </span>
             <div className="message-row__body">
                 <div className="message-row__top">
-                    <span className="message-row__sender">
-                        {senderLabel(email)}
-                    </span>
+                    <span className="message-row__sender">{senderLabel(email)}</span>
                     <span className="message-row__time">
                         {email.is_starred ? <StarIcon size={13} filled className="message-row__star" /> : null}
                         {formatListDate(email.date)}
                     </span>
                 </div>
-                <div className="message-row__subject">
-                    {email.subject || '(no subject)'}
-                </div>
-                <div className="message-row__preview">
-                    {email.snippet || ''}
-                </div>
+                <div className="message-row__subject">{email.subject || '(no subject)'}</div>
+                <div className="message-row__preview">{email.snippet || ''}</div>
             </div>
         </div>
     );
@@ -187,28 +189,30 @@ function MessageRow({ email, selected, onSelect }: { email: Email; selected: boo
 /** Scrolling list of messages with swipe-to-delete and infinite loading. */
 export function MessageList({ emails, selectedId, onSelect, onDelete, onEndReached }: MessageListProps) {
     const observer = useRef<IntersectionObserver | null>(null);
-    const sentinel = useCallback((node: HTMLDivElement | null) => {
-        observer.current?.disconnect();
-        if (!node || !onEndReached) {
-            return;
-        }
-        observer.current = new IntersectionObserver((entries) => {
-            if (entries[0]?.isIntersecting) {
-                onEndReached();
+    const sentinel = useCallback(
+        (node: HTMLDivElement | null) => {
+            observer.current?.disconnect();
+            if (!node || !onEndReached) {
+                return;
             }
-        }, { rootMargin: '300px' });
-        observer.current.observe(node);
-    }, [onEndReached]);
+            observer.current = new IntersectionObserver(
+                entries => {
+                    if (entries[0]?.isIntersecting) {
+                        onEndReached();
+                    }
+                },
+                { rootMargin: '300px' },
+            );
+            observer.current.observe(node);
+        },
+        [onEndReached],
+    );
 
     return (
         <div>
             {emails.map(email => (
                 <SwipeRow key={email.id} onDelete={onDelete ? () => onDelete(email) : undefined}>
-                    <MessageRow
-                        email={email}
-                        selected={email.id === selectedId}
-                        onSelect={onSelect}
-                    />
+                    <MessageRow email={email} selected={email.id === selectedId} onSelect={onSelect} />
                 </SwipeRow>
             ))}
             {onEndReached && emails.length > 0 ? <div ref={sentinel} style={{ height: 1 }} /> : null}

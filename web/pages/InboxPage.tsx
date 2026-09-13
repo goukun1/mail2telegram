@@ -43,12 +43,13 @@ export function InboxPage({
     const searchRef = useRef<HTMLDivElement | null>(null);
 
     const { data, loading, error, reload } = useAsync<EmailListResponse>(
-        () => api.listEmails({
-            q: appliedQuery || undefined,
-            limit,
-            unread: filter === 'unread' ? true : undefined,
-            starred: filter === 'starred' ? true : undefined,
-        }),
+        () =>
+            api.listEmails({
+                q: appliedQuery || undefined,
+                limit,
+                unread: filter === 'unread' ? true : undefined,
+                starred: filter === 'starred' ? true : undefined,
+            }),
         [appliedQuery, limit, filter, refreshToken],
     );
 
@@ -135,7 +136,7 @@ export function InboxPage({
             // open the reader owns the native button instead, so the two
             // never subscribe at the same time.
             close={!hasSidebar && !selectedId}
-            right={(
+            right={
                 <button
                     type="button"
                     aria-label={searching ? 'Close search' : 'Search'}
@@ -144,7 +145,7 @@ export function InboxPage({
                 >
                     {searching ? <CloseIcon size={20} /> : <SearchIcon size={22} />}
                 </button>
-            )}
+            }
         />
     );
 
@@ -166,9 +167,15 @@ export function InboxPage({
             ) : null}
             <div className="px-3 pb-2 pt-2">
                 <Segmented strong className="ios-segmented">
-                    <SegmentedButton active={filter === 'all'} onClick={() => setFilter('all')}>All</SegmentedButton>
-                    <SegmentedButton active={filter === 'unread'} onClick={() => setFilter('unread')}>Unread</SegmentedButton>
-                    <SegmentedButton active={filter === 'starred'} onClick={() => setFilter('starred')}>Starred</SegmentedButton>
+                    <SegmentedButton active={filter === 'all'} onClick={() => setFilter('all')}>
+                        All
+                    </SegmentedButton>
+                    <SegmentedButton active={filter === 'unread'} onClick={() => setFilter('unread')}>
+                        Unread
+                    </SegmentedButton>
+                    <SegmentedButton active={filter === 'starred'} onClick={() => setFilter('starred')}>
+                        Starred
+                    </SegmentedButton>
                 </Segmented>
             </div>
         </div>
@@ -177,12 +184,16 @@ export function InboxPage({
     const list = (
         <PullToRefresh className="page-scroll" scrollRef={scrollRef} onRefresh={reload}>
             {loading && emails.length === 0 ? (
-                <div className="spin-center"><Preloader /></div>
+                <div className="spin-center">
+                    <Preloader />
+                </div>
             ) : error ? (
                 <div className="reader-empty">
                     <div>
                         <p className="mb-3">{error.message}</p>
-                        <button type="button" className="text-button" onClick={reload}>Try Again</button>
+                        <button type="button" className="text-button" onClick={reload}>
+                            Try Again
+                        </button>
                     </div>
                 </div>
             ) : emails.length === 0 ? (

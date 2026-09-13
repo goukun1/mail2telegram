@@ -34,9 +34,9 @@ function toInt(value: string | undefined, fallback: number): number {
 }
 
 function toBlockPolicy(value: string | undefined): BlockPolicy[] {
-    const allowed: BlockPolicy[] = ['reject', 'forward', 'telegram'];
+    const allowed = new Set<BlockPolicy>(['reject', 'forward', 'telegram']);
     const list = (value || 'telegram').split(',').map(item => item.trim()) as BlockPolicy[];
-    const filtered = list.filter(item => allowed.includes(item));
+    const filtered = list.filter(item => allowed.has(item));
     return filtered.length > 0 ? filtered : ['telegram'];
 }
 
@@ -52,7 +52,10 @@ export function defaultSettings(env: Environment): RuntimeSettings {
         attachmentSaveEnabled: toBool(env.ATTACHMENT_SAVE_ENABLED, true),
         attachmentMaxSize: toInt(env.ATTACHMENT_MAX_SIZE, 25 * 1024 * 1024),
         blockPolicy: toBlockPolicy(env.BLOCK_POLICY),
-        forwardList: (env.FORWARD_LIST || '').split(',').map(item => item.trim()).filter(Boolean),
+        forwardList: (env.FORWARD_LIST || '')
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean),
         maxEmailSize: toInt(env.MAX_EMAIL_SIZE, 512 * 1024),
         maxEmailSizePolicy: toMaxSizePolicy(env.MAX_EMAIL_SIZE_POLICY),
         summaryEnabled: Boolean((env.AI && env.WORKERS_AI_MODEL) || env.OPENAI_API_KEY),
@@ -182,9 +185,7 @@ export interface ImportEnvResult {
 export async function importSettingsFromEnv(dao: Dao, env: Environment): Promise<ImportEnvResult> {
     await saveSettings(dao, defaultSettings(env));
 
-    const existing = new Set(
-        (await dao.listAddresses()).map(item => `${item.type}:${item.address.toLowerCase()}`),
-    );
+    const existing = new Set((await dao.listAddresses()).map(item => `${item.type}:${item.address.toLowerCase()}`));
     const importedAddresses = { white: 0, block: 0 };
     const seeds: { type: 'white' | 'block'; patterns: string[] }[] = [
         { type: 'white', patterns: loadArrayFromRaw(env.WHITE_LIST) },

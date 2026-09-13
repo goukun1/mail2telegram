@@ -25,7 +25,10 @@ const RANGES: CleanupRange[] = [
 /** How long the armed confirm state stays active before it resets. */
 const CONFIRM_RESET_MS = 4000;
 
-interface ActionState { status: 'idle' | 'running' | 'ok' | 'error'; message?: string }
+interface ActionState {
+    status: 'idle' | 'running' | 'ok' | 'error';
+    message?: string;
+}
 
 function plural(count: number, noun: string): string {
     return `${count} ${noun}${count === 1 ? '' : 's'}`;
@@ -40,10 +43,7 @@ export function CleanupPage() {
     const armTimer = useRef<number | null>(null);
 
     const range = RANGES.find(item => item.key === rangeKey) ?? RANGES[2];
-    const preview = useAsync(
-        () => api.previewCleanup({ days: range.days, all: range.all }),
-        [range.key],
-    );
+    const preview = useAsync(() => api.previewCleanup({ days: range.days, all: range.all }), [range.key]);
 
     const disarm = useCallback(() => {
         setArmed(false);
@@ -98,8 +98,8 @@ export function CleanupPage() {
                 ? `Will remove ${plural(counts.attachments, 'attachment')}; the messages themselves are kept.`
                 : 'No attachments in this range.'
             : counts.emails > 0
-                ? `Will permanently remove ${plural(counts.emails, 'message')} and ${plural(counts.attachments, 'attachment')}.`
-                : 'Nothing to clear in this range.'
+              ? `Will permanently remove ${plural(counts.emails, 'message')} and ${plural(counts.attachments, 'attachment')}.`
+              : 'Nothing to clear in this range.'
         : 'Counting…';
 
     const actionTitle = result.status === 'running' ? 'Clearing…' : armed ? 'Tap Again to Confirm' : 'Clear Mail';
@@ -112,9 +112,11 @@ export function CleanupPage() {
                     <ListItem
                         key={item.key}
                         title={item.label}
-                        after={item.key === rangeKey
-                            ? <CheckIcon size={20} className="text-[var(--ios-blue)]" />
-                            : undefined}
+                        after={
+                            item.key === rangeKey ? (
+                                <CheckIcon size={20} className="text-[var(--ios-blue)]" />
+                            ) : undefined
+                        }
                         onClick={() => {
                             haptic.selection();
                             setRangeKey(item.key);
@@ -122,9 +124,7 @@ export function CleanupPage() {
                     />
                 ))}
             </List>
-            <div className="settings-note">
-                {preview.error ? preview.error.message : note}
-            </div>
+            <div className="settings-note">{preview.error ? preview.error.message : note}</div>
 
             <div className="settings-section-title">Options</div>
             <List strongIos outlineIos className="!mt-0">
@@ -146,10 +146,14 @@ export function CleanupPage() {
                 />
             </List>
             <div className="settings-note">
-                Cleanup permanently erases mail from the worker database and deletes stored attachments, so removed mail cannot be recovered. Starred mail is never removed.
+                Cleanup permanently erases mail from the worker database and deletes stored attachments, so removed mail
+                cannot be recovered. Starred mail is never removed.
             </div>
             {result.message ? (
-                <div className="settings-note" style={{ color: result.status === 'error' ? '#ff3b30' : 'var(--ios-gray)' }}>
+                <div
+                    className="settings-note"
+                    style={{ color: result.status === 'error' ? '#ff3b30' : 'var(--ios-gray)' }}
+                >
                     {result.message}
                 </div>
             ) : null}
