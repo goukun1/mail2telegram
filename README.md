@@ -4,7 +4,7 @@ mail2telegram
 </h1>
 
 <p align="center">
-    <br> English | <a href="doc/README_CN.md">中文</a>
+    <br> English | <a href="docs/README_CN.md">中文</a>
 </p>
 <p align="center">
     <em>Receive email in Telegram: instant push notifications plus a Mini App inbox.</em>
@@ -12,7 +12,7 @@ mail2telegram
 
 **mail2telegram** is a Telegram bot for receiving email. It combines instant push notifications with a Telegram Mini App: every incoming email is pushed to your chat with quick action buttons, while the full history, attachments and every setting live in the Mini App.
 
-<img width="100%" alt="Telegram Mini App: push notification, inbox, message reader and iPad split view" src="doc/miniapp_screens.png">
+<img width="100%" alt="Telegram Mini App: push notification, inbox, message reader and iPad split view" src="docs/assets/miniapp_screens.png">
 
 
 
@@ -27,40 +27,12 @@ Email ──▶ Telegram push with quick action buttons
 - **Mini App inbox** lists history per folder, renders HTML in a sandbox, downloads attachments, replies through Resend, and manages all settings.
 - **Settings in the Mini App** include white/black lists with regex matching, an address tester, block policy, forwarding, AI summary options and mail handling limits.
 
-## Installation
+All behavior is configured in the Mini App and stored in D1 — the worker itself only needs a few variables for its Telegram identity and optional API keys.
 
-Deployment is documented in the [Migration & Deployment Guide](doc/MIGRATION.md) ([中文](doc/MIGRATION_CN.md)), which covers fresh installs of 2.0 and the upgrade path from 1.0.
+## Guides
 
-The short version: create a D1 database (plus an optional R2 bucket), connect the repository to Cloudflare Workers Builds with `pnpm build` / `pnpm run deploy`, pass the resource ids as `DEPLOY_*` build variables, then add the runtime variables below under **Settings → Variables and Secrets**, point the Email Routing catch-all at the worker and call `/init` once.
-
-The tracked `wrangler.jsonc` contains no secrets and no real resource ids, so you can deploy this repository as-is. Resource ids come from the `DEPLOY_*` build variables and the runtime variables come from the dashboard; `keep_vars: true` in the config stops a deploy from deleting them.
-
-## Configuration
-
-All behavior is configured in the Mini App. The worker itself only needs a few variables for its Telegram identity and optional API keys. If you deployed an earlier version and configured behavior through variables, open **Settings → Bot & Webhook → Import from Environment** in the Mini App to copy them into the stored settings, then remove the variables.
-
-Location: Workers & Pages → your_worker → Settings → Variables and Secrets. These are **not** set in `wrangler.jsonc`.
-
-| KEY              | Description                                                                                                                                                            |
-|:-----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `TELEGRAM_ID`    | Required. Destination chat IDs, comma separated. Get yours from `@userinfobot`. Groups start with `-100`.                                                              |
-| `TELEGRAM_TOKEN` | Required. Telegram Bot Token, e.g. `7123456780:AAjkLAbvSgDdfsDdfsaSK0`.                                                                                                |
-| `DOMAIN`         | Required. Worker domain, e.g. `project_name.user_name.workers.dev`. Used for webhook and Mini App links.                                                               |
-| `WEB_PASSWORD`   | Optional. Password for opening the Mini App in a plain browser outside Telegram. Leave unset or empty to allow only the Telegram Mini App.                              |
-| `RESEND_API_KEY` | Optional. Resend API Key, https://resend.com/docs/introduction. Enables replying to emails from Telegram or the Mini App.                                               |
-| `DEBUG`          | Optional. When `true`, adds a `Debug` button to pushes.                                                                                                                 |
-
-Everything else lives in **Settings** inside the Mini App: allow/block lists with regex matching, block policy, forwarding, summary options (Workers AI, or an OpenAI-compatible base URL + token, with the model picked from the provider's list or typed manually), the duplicate-notification guard, and mail handling limits (retention and size policy).
-
-Bindings:
-
-| Binding  | Type              | Description                                          |
-|:---------|:------------------|:-----------------------------------------------------|
-| `DB`     | D1 Database       | Required. Mail history, address lists and settings.  |
-| `BUCKET` | R2 Bucket         | Attachments and large email bodies. Optional.        |
-| `AI`     | Workers AI        | Optional, for summaries.                             |
-
-`DB` and `BUCKET` are wired up automatically from `DEPLOY_D1_DATABASE_ID` / `DEPLOY_R2_BUCKET_NAME`; you never edit binding ids in `wrangler.jsonc`.
+- **[Deployment Guide](docs/DEPLOY.md)** ([中文](docs/DEPLOY_CN.md)) — install 2.0 from scratch: Telegram bot setup, D1 / R2 storage, deploying with Cloudflare Workers Builds, GitHub Actions or the CLI, runtime variables and Email Routing.
+- **[Migration Guide](docs/MIGRATION.md)** ([中文](docs/MIGRATION_CN.md)) — upgrade an existing 1.0 deployment: what changed in 2.0, the step-by-step upgrade path and the variable mapping.
 
 ## Telegram Mini App
 
@@ -128,7 +100,7 @@ pnpm lint           # oxlint
 pnpm lint:fix       # oxlint --fix
 pnpm format         # oxfmt
 pnpm format:check   # oxfmt --check (used by CI)
-pnpm screenshots    # regenerate the README images in doc/ from mock data
+pnpm screenshots    # regenerate the README images in docs/assets from mock data
 ```
 
 `wrangler dev` serves the built `packages/web/dist/client`, so run `pnpm build` (or keep `pnpm build:web` running) at least once before starting it; `pnpm dev` runs both processes but does not build the assets.

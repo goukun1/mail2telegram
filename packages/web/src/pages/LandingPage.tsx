@@ -214,9 +214,9 @@ export function LandingPage() {
                     ))}
                 </div>
                 <p className="landing__more">
-                    Full configuration reference in the{' '}
-                    <a href={`${REPO_URL}#installation`} target="_blank" rel="noreferrer">
-                        README
+                    Full deployment and configuration reference in the{' '}
+                    <a href={`${REPO_URL}/blob/master/docs/DEPLOY.md`} target="_blank" rel="noreferrer">
+                        Deployment Guide
                     </a>
                     .
                 </p>

@@ -4,13 +4,13 @@
  *
  * Renders the real Mini App (and a mock of the Telegram push chat) in headless
  * Chrome with mock API data, then composites the captures into one equal-height,
- * dark, transparent strip at `doc/miniapp_screens.png`.
+ * dark, transparent strip at `docs/assets/miniapp_screens.png`.
  *
  * The app is served by a throwaway Vite dev server, so the screenshots always
  * track the current UI; the mail content lives in `mock-data.mjs`.
  *
  * Usage:
- *   pnpm screenshots                     # regenerate doc/miniapp_screens.png
+ *   pnpm screenshots                     # regenerate docs/assets/miniapp_screens.png
  *   node scripts/screenshots/generate-screenshots.mjs --out other.png
  *   node scripts/screenshots/generate-screenshots.mjs --keep-raw   # keep panels
  */
@@ -32,7 +32,7 @@ import {
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const REPO_ROOT = path.resolve(PACKAGE_ROOT, '..', '..');
-const DEFAULT_OUT = path.join(REPO_ROOT, 'doc', 'miniapp_screens.png');
+const DEFAULT_OUT = path.join(REPO_ROOT, 'docs', 'assets', 'miniapp_screens.png');
 
 /** Capture viewports. Phones keep iPhone proportions; the iPad shows the split view (>= 720px). */
 const PHONE = { width: 390, height: 844, deviceScaleFactor: 2, safeTop: 59, safeBottom: 34 };
@@ -664,7 +664,7 @@ async function main() {
             console.log(`  raw panels written to ${rawDir}`);
         }
 
-        // README also embeds the push chat on its own (`doc/example.png`); keep
+        // README also embeds the push chat on its own (`docs/assets/example.png`); keep
         // the standalone panel in sync with the strip.
         const examplePath = path.join(path.dirname(args.out), 'example.png');
         fs.writeFileSync(examplePath, push);

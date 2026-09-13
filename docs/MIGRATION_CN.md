@@ -1,12 +1,9 @@
 
-# 迁移部署指南
+# 迁移指南（1.0 → 2.0）
 
 [English](./MIGRATION.md) | 中文
 
-本指南覆盖两种场景：
-
-- **从 1.0 升级到 2.0** —— 变化点与安全的迁移步骤。
-- **从零部署 2.0** —— 完整的安装流程。
+本指南将已有的 **mail2telegram 1.0** 部署升级到 2.0。如需全新安装 2.0，请看[部署指南](./DEPLOY_CN.md)（[English](./DEPLOY.md)）。
 
 ## 1. 2.0 有哪些变化
 
@@ -59,7 +56,7 @@ npx wrangler r2 bucket create mail2telegram          # 可选：附件
 
 ### 第 2 步 —— 部署 2.0
 
-按[第 3 节](#3-部署-20)选择一种部署方式。两种方式都会自动应用 D1 迁移并替换旧绑定 —— 原来绑定在 `DB` 上的 KV 命名空间会被解绑，`DB` 改为指向 D1 数据库。不需要去控制台手动改绑定。
+按[部署指南](./DEPLOY_CN.md#3-部署)选择一种部署方式。这些方式都会自动应用 D1 迁移并替换旧绑定 —— 原来绑定在 `DB` 上的 KV 命名空间会被解绑，`DB` 改为指向 D1 数据库。不需要去控制台手动改绑定。
 
 请保持 Worker 名称（`mail2telegram`）以及 `TELEGRAM_TOKEN` / `TELEGRAM_ID` / `DOMAIN` 不变，Webhook 和 Email Routing 就能继续工作。
 
@@ -96,109 +93,7 @@ https://你的-worker-域名/init
 
 如需退回 1.0：用旧配置重新部署 `master` 分支，并把 `DB` 重新绑定到旧的 KV 命名空间（控制台 → Settings → Bindings，或使用旧的 `wrangler.jsonc`）。2.0 从不写 KV-as-`DB`，1.0 也从不写 D1，两个版本不会互相破坏数据。注意 2.0 期间收到的邮件保存在 D1 中，回退后在 1.0 里看不到。
 
-## 3. 部署 2.0
-
-### 0. 配置 Telegram
-
-1. 使用 `@BotFather > /newbot` 创建机器人并复制 Token。
-2. Mini App 需要设置隐私政策：`@BotFather > /mybots > (选择你的机器人) > Edit Bot > Edit Privacy Policy`，设置为 `https://telegram.org/privacy-tpa`。
-3. 部署完成后，访问一次 `https://你的-worker-域名/init` 绑定 Webhook 并设置菜单按钮。
-
-### 1. 创建存储
-
-```bash
-npx wrangler d1 create mail2telegram
-npx wrangler r2 bucket create mail2telegram          # 可选
-```
-
-记下 D1 database id。
-
-### 2. 部署
-
-#### 方式 A —— Cloudflare Workers Builds（推荐）
-
-连接 Git 之后，每次推送到生产分支都会自动构建并部署，无需再维护 CLI 凭据或 CI 配置。
-
-1. Fork 或推送本仓库到 GitHub。
-2. 在 Cloudflare 控制台进入 **Workers & Pages → Create → Workers → Connect to Git**，选择该仓库。
-3. 设置构建参数：
-
-   | 设置项                              | 值                                     |
-   |:------------------------------------|:---------------------------------------|
-   | Production branch                   | `master`                               |
-   | Build command                       | `pnpm build`                           |
-   | Deploy command                      | `pnpm run deploy`                      |
-   | Root directory                      | 留空（仓库根目录）                     |
-   | Non-production branch deploy command | 保持默认（`npx wrangler versions upload`） |
-
-   `pnpm run deploy` 会注入资源 id、应用 D1 迁移、构建 Mini App 并部署 Worker。必须带 `run` —— 不带 `run` 的 `pnpm deploy` 会和 pnpm 内置的 workspace 命令冲突。
-4. 添加 **build variables**（**Settings → Environment variables**，仅构建阶段可读）：
-
-   | Build variable                  | 必填 | 说明                                       |
-   |:--------------------------------|:-----|:-------------------------------------------|
-   | `DEPLOY_D1_DATABASE_ID`         | 是   | `wrangler d1 create` 得到的 D1 数据库 id。 |
-   | `DEPLOY_D1_DATABASE_NAME`       | 否   | D1 数据库名，默认 `mail2telegram`。        |
-   | `DEPLOY_R2_BUCKET_NAME`         | 否   | 存放附件的 R2 存储桶，省略则不启用附件。   |
-   | `DEPLOY_R2_PREVIEW_BUCKET_NAME` | 否   | 预览部署使用的 R2 存储桶。                 |
-
-   这些值由 `scripts/build-config.mjs` 注入到生成的（已 gitignore 的）`wrangler.deploy.jsonc`；仓库里的 `wrangler.jsonc` 只有 `local` 占位值，**不要把生产 id 写进它**。
-5. **部署凭据无需手动配置。** 连接仓库时 Cloudflare 会自动生成部署令牌，你不用像方式 B 那样粘贴 `CLOUDFLARE_API_TOKEN`；该令牌默认已包含 D1 写权限，可直接执行 D1 迁移。只有当迁移步骤报 `Authentication error [code: 10000]` 或 `7403` 时，才需要到 **My Profile → API Tokens** 给它补上 `D1 Edit`。
-6. **确认绑定名称**：`DB`（D1）、`BUCKET`（R2，启用附件时）、`AI`（Workers AI）。它们由 `scripts/build-config.mjs` 自动写入生成的配置，无需手动编辑。
-7. 在 **Settings → Variables and Secrets** 中，按 README 的[配置](./README_CN.md#配置)一表添加运行参数。注意 build variables 只在构建时可读，运行时读不到，所以运行参数必须在这里设置；`keep_vars: true` 保证后续部署不会删除它们。`TELEGRAM_TOKEN`、`RESEND_API_KEY` 请放入加密的 **Secrets** 区域。
-
-#### 方式 B —— GitHub Actions
-
-仓库自带 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)，作为手动备用通道：在 Actions 页手动触发后，它才会构建 Mini App、应用 D1 迁移并部署 Worker。它**不会**在 push 时自动运行 —— 方案 A 的 Workers Builds 已经会随每次 push 部署，两者同时开启会对同一次提交重复部署。
-
-1. 在仓库 **Settings → Secrets and variables → Actions → Variables** 中添加：
-
-   | 变量                     | 必填 | 说明                                       |
-   |:-------------------------|:-----|:-------------------------------------------|
-   | `CLOUDFLARE_ACCOUNT_ID`  | 是   | 通过 `wrangler whoami` 或控制台获取。      |
-   | `DEPLOY_D1_DATABASE_ID`  | 是   | `wrangler d1 create` 得到的 D1 数据库 id。 |
-   | `DEPLOY_R2_BUCKET_NAME`  | 否   | 存放附件的 R2 存储桶，省略则不启用附件。   |
-
-2. 在 Cloudflare **My Profile → API Tokens** 创建 API Token：以 **Edit Cloudflare Workers** 模板为基础，追加 `D1 Edit`、`Workers R2 Storage Edit`、`Workers AI Edit` 权限。然后把它作为仓库 **Secret** `CLOUDFLARE_API_TOKEN` 添加（Secrets 页）。
-
-3. 在 **Actions** 页手动运行该 workflow。方案 A 与方案 B 只保留一个，避免同一次提交重复部署。
-
-#### 方式 C —— 命令行
-
-环境要求：Node.js 20.19+（Vite 7）和 pnpm。先执行 `npx wrangler login` 登录。
-
-```bash
-git clone git@github.com:TBXark/mail2telegram.git
-cd mail2telegram
-pnpm install
-```
-
-仓库中的 `wrangler.jsonc` 是公开配置，只含 `local` 占位值，无需编辑。通过 `DEPLOY_*` 变量传入你的资源 id 并部署：
-
-```bash
-DEPLOY_D1_DATABASE_ID=你的-d1-id \
-DEPLOY_R2_BUCKET_NAME=mail2telegram \
-pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
-```
-
-`DEPLOY_R2_BUCKET_NAME` 可选 —— 省略则不启用附件。`DEPLOY_D1_DATABASE_NAME` 默认 `mail2telegram`。
-
-部署完成后，在控制台的 **Settings → Variables and Secrets** 中设置运行参数（`DOMAIN`、`TELEGRAM_ID`、`TELEGRAM_TOKEN`，以及可选的 `RESEND_API_KEY`），与方式 A 相同。`wrangler.jsonc` 中的 `keep_vars: true` 保证后续部署不会删除它们。
-
-`scripts/build-config.mjs` 会把这些 id 解析进生成的（已 gitignore 的）`wrangler.deploy.jsonc`；`local` 占位绑定会被跳过，不会部署。
-
-### 3. 配置 Cloudflare Email Routing
-
-1. 在你的域名上启用 [Cloudflare Email Routing](https://blog.cloudflare.com/introducing-email-routing/)。
-2. 在 `Email Routing → Routing Rules` 中，将 `Catch-all address` 的动作设为 `Send to a Worker: mail2telegram`。
-3. 如需备份所有邮件，在 Mini App 中开启转发并添加备份地址。该地址需要在 `Email Routing → Destination addresses` 中完成验证。
-
-### 4. 首次运行
-
-1. 访问一次 `https://你的-worker-域名/init`。
-2. 给机器人发送 `/start`，通过菜单按钮打开 Mini App。
-3. 在设置中录入白名单 / 黑名单 —— 其余参数之后也都可以在 Mini App 中调整。
-
-## 4. 变量对比：1.0 vs 2.0
+## 3. 变量对比：1.0 vs 2.0
 
 2.0 的所有行为配置都在 Mini App 中。下列旧变量仍然作为初始默认值生效 —— 通过 **Settings → Bot & Webhook → Import from Environment** 一键迁移到存储配置后即可删除。
 
@@ -225,19 +120,15 @@ pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 | `BUCKET`| —                  | R2 Bucket，可选：附件与超大正文            |
 | `AI`    | Workers AI，可选   | 相同                                       |
 
-## 5. 常见问题
+## 4. 常见问题
 
 **旧邮件会出现在 Mini App 里吗？**
 不会。1.0 没有保存邮件，收件箱从空开始，从部署 2.0 起逐步累积。
 
-**必须创建 R2 存储桶吗？**
-不必，可选。不配置 `BUCKET` 时邮件仍存入 D1，只是不包含附件内容（超大正文按大小策略设置截断）。
-
 **能继续用原来的机器人和 Email Routing 配置吗？**
 可以。保持 `TELEGRAM_TOKEN`、`TELEGRAM_ID` 和 `DOMAIN` 不变，重新部署后访问一次 `/init` 即可。
 
-**部署时报绑定相关错误？**
-`DEPLOY_D1_DATABASE_ID` 是必填项 —— 缺失时构建会直接报错并给出提示。`DEPLOY_R2_BUCKET_NAME` 可选：不配置时 R2 绑定会被自动省略，无需手动编辑或删除绑定块。
-
 **`Text` / `HTML` 按钮去哪了？**
 2.0 用 Mini App 取代了临时网页。`Open` 按钮直接深链到该邮件的详情页，那里有沙箱 HTML 视图、纯文本切换和附件下载。
+
+从零部署的常见问题（R2、绑定报错）见[部署指南的常见问题](./DEPLOY_CN.md#7-常见问题)。

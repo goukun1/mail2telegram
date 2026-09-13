@@ -12,7 +12,7 @@ mail2telegram
 
 **mail2telegram** 是一个在 Telegram 中收邮件的机器人，结合了即时推送通知与 Telegram Mini App：每封新邮件都会带着快捷操作按钮推送到你的聊天，完整历史、附件和全部设置都在 Mini App 中管理。
 
-<img width="100%" alt="Telegram Mini App：推送通知、收件箱、阅读器与 iPad 分栏视图" src="miniapp_screens.png">
+<img width="100%" alt="Telegram Mini App：推送通知、收件箱、阅读器与 iPad 分栏视图" src="assets/miniapp_screens.png">
 
 ## 工作原理
 
@@ -25,40 +25,12 @@ mail2telegram
 - **Mini App 收件箱**按文件夹浏览历史、沙箱渲染 HTML、下载附件、通过 Resend 回信，并管理全部设置。
 - **Mini App 设置**包含支持正则匹配的白/黑名单、地址测试、阻断策略、转发、AI 摘要选项和邮件处理限制。
 
-## 安装
+所有行为都在 Mini App 中配置并存储于 D1 —— Worker 本身只需要少量变量来标识机器人和可选的 API Key。
 
-部署流程见[迁移部署指南](./MIGRATION_CN.md)（[English](./MIGRATION.md)），包含 2.0 的全新安装以及从 1.0 升级的完整步骤。
+## 文档
 
-简版流程：创建 D1 数据库（可选 R2 存储桶），将仓库接入 Cloudflare Workers Builds 并配置 `pnpm build` / `pnpm run deploy`，通过 `DEPLOY_*` 构建变量传入资源 id，然后在 **Settings → Variables and Secrets** 中添加上面的运行参数，最后把 Email Routing 的 catch-all 指向该 Worker 并访问一次 `/init`。
-
-仓库中的 `wrangler.jsonc` 不含任何密钥和真实资源 id，可直接使用、无需改动。资源 id 来自 `DEPLOY_*` 构建变量，运行参数来自控制台；配置里的 `keep_vars: true` 保证部署不会删除控制台中设置的变量。
-
-## 配置
-
-所有行为都在 Mini App 中配置，Worker 本身只需要少量变量来标识机器人和可选的 API Key。如果你部署过旧版本、习惯用变量配置行为，在 Mini App 中打开 **Settings → Bot & Webhook → Import from Environment**，一键把变量迁移到配置里，之后即可删除这些变量。
-
-位置：Workers & Pages → 你的 worker → Settings → Variables and Secrets。这些变量**不**在 `wrangler.jsonc` 中设置。
-
-| KEY              | 说明                                                                                                  |
-|:-----------------|:------------------------------------------------------------------------------------------------------|
-| `TELEGRAM_ID`    | 必填。推送目标 Chat ID，多个用英文逗号分隔。可通过 `@userinfobot` 获取，群组以 `-100` 开头。            |
-| `TELEGRAM_TOKEN` | 必填。Telegram Bot Token，例如 `7123456780:AAjkLAbvSgDdfsDdfsaSK0`。                                   |
-| `DOMAIN`         | 必填。Worker 域名，例如 `project_name.user_name.workers.dev`，用于 Webhook 与 Mini App 链接。          |
-| `WEB_PASSWORD`   | 可选。在 Telegram 之外用普通浏览器打开 Mini App 时所需的密码。留空或不设置则只允许通过 Telegram Mini App 访问。 |
-| `RESEND_API_KEY` | 可选。Resend API Key，https://resend.com/docs/introduction。启用后可在 Telegram 或 Mini App 中回信。   |
-| `DEBUG`          | 可选。为 `true` 时推送会增加 `Debug` 按钮。                                                            |
-
-其余全部在 Mini App 的 **Settings** 中管理：支持正则的白名单/黑名单、阻断策略、转发、摘要选项（Workers AI，或 OpenAI 兼容的 Base URL + Token，模型可从列表选择或手动填写）、摘要语言、重复通知拦截，以及邮件处理限制（保留时间与大小策略）。
-
-Bindings：
-
-| Binding  | 类型         | 说明                                    |
-|:---------|:-------------|:----------------------------------------|
-| `DB`     | D1 Database  | 必需。邮件历史、地址名单、设置。        |
-| `BUCKET` | R2 Bucket    | 附件与超大正文，可选。                  |
-| `AI`     | Workers AI   | 可选，用于摘要。                        |
-
-`DB` 和 `BUCKET` 由 `DEPLOY_D1_DATABASE_ID` / `DEPLOY_R2_BUCKET_NAME` 自动注入，无需在 `wrangler.jsonc` 中编辑绑定 id。
+- **[部署指南](./DEPLOY_CN.md)**（[English](./DEPLOY.md)）—— 从零安装 2.0：Telegram 机器人配置、D1 / R2 存储、通过 Cloudflare Workers Builds、GitHub Actions 或命令行部署、运行参数与 Email Routing。
+- **[迁移指南](./MIGRATION_CN.md)**（[English](./MIGRATION.md)）—— 从 1.0 升级到 2.0：变化点、分步升级流程与变量对照。
 
 ## Telegram Mini App
 
@@ -124,7 +96,7 @@ pnpm lint           # oxlint
 pnpm lint:fix       # oxlint --fix
 pnpm format         # oxfmt
 pnpm format:check   # oxfmt --check（CI 使用）
-pnpm screenshots    # 用 mock 数据重新生成 doc/ 下的 README 截图
+pnpm screenshots    # 用 mock 数据重新生成 docs/assets 下的 README 截图
 ```
 
 `wrangler dev` 托管的是构建产物 `packages/web/dist/client`，因此首次启动前需先执行一次 `pnpm build`（或让 `pnpm build:web` 保持运行）；`pnpm dev` 会同时启动两个进程，但不会构建静态资源。
