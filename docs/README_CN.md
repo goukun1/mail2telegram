@@ -9,6 +9,9 @@ mail2telegram
 <p align="center">
     <em>在 Telegram 中收邮件：即时推送通知 + Mini App 收件箱。</em>
 </p>
+<p align="center">
+    <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/TBXark/mail2telegram"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
+</p>
 
 **mail2telegram** 是一个在 Telegram 中收邮件的机器人，结合了即时推送通知与 Telegram Mini App：每封新邮件都会带着快捷操作按钮推送到你的聊天，完整历史、附件和全部设置都在 Mini App 中管理。
 
@@ -29,7 +32,8 @@ mail2telegram
 
 ## 文档
 
-- **[部署指南](./DEPLOY_CN.md)**（[English](./DEPLOY.md)）—— 从零安装 2.0：Telegram 机器人配置、D1 / R2 存储、通过 Cloudflare Workers Builds、GitHub Actions 或命令行部署、运行参数与 Email Routing。
+- **一键部署** —— [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/TBXark/mail2telegram) 会克隆仓库、创建 D1 / R2 资源、询问 Telegram 相关参数并完成部署，之后绑定机器人与 Email Routing 即可。
+- **[部署指南](./DEPLOY_CN.md)**（[English](./DEPLOY.md)）—— 从零安装 2.0：Telegram 机器人配置、D1 / R2 存储、通过 Deploy to Cloudflare 按钮、Cloudflare Workers Builds、GitHub Actions 或命令行部署、运行参数与 Email Routing。
 - **[迁移指南](./MIGRATION_CN.md)**（[English](./MIGRATION.md)）—— 从 1.0 升级到 2.0：变化点、分步升级流程与变量对照。
 
 ## Telegram Mini App

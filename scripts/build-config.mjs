@@ -1,23 +1,28 @@
 /**
  * Injects deployment ids into a gitignored `wrangler.deploy.jsonc`.
  *
- * Reads the tracked, public `wrangler.jsonc`, which holds `local` placeholders
- * instead of real resource ids. Each value resolves in order:
+ * Reads the tracked, public `wrangler.jsonc`, which holds provisionable
+ * placeholders instead of real resource ids. Each value resolves in order:
  *   1. the DEPLOY_* environment variable (how CI and manual deploys inject ids),
- *   2. the binding already present in the config (handy when you edit real ids
- *      locally without committing them).
- * The `local` placeholder used for `wrangler dev` state means "not configured":
- * a missing D1 id fails the build, missing R2 bindings are omitted.
+ *   2. the binding already present in the config.
+ * The provisionable default means "not configured": an empty D1 id fails the
+ * build, and a missing R2 binding is dropped.
+ *
+ * A config that already carries a real D1 id and no DEPLOY_D1_DATABASE_ID has
+ * been provisioned for this deployment -- by a Deploy to Cloudflare button, or
+ * by editing real ids in the config yourself -- so its bindings are used as-is.
+ * That is what keeps a button-provisioned R2 bucket bound.
  *
  * Required:
- *   DEPLOY_D1_DATABASE_ID
+ *   DEPLOY_D1_DATABASE_ID (or a real d1_databases[0].database_id in the config)
  * Optional (defaults below):
  *   DEPLOY_D1_DATABASE_NAME   (default: mail2telegram)
- *   DEPLOY_R2_BUCKET_NAME     (omit to remove the R2 binding)
+ *   DEPLOY_R2_BUCKET_NAME     (manual deploys omit it to disable attachments)
  *   DEPLOY_R2_PREVIEW_BUCKET_NAME
  *
- * Runtime variables (DOMAIN, TELEGRAM_ID, TELEGRAM_TOKEN) are not handled here;
- * set them in the dashboard under Settings → Variables and Secrets.
+ * Runtime variables (TELEGRAM_ID, TELEGRAM_TOKEN; DOMAIN is optional) are not
+ * handled here; set them in the dashboard under Settings → Variables and
+ * Secrets.
  *
  * Usage: node scripts/build-config.mjs
  */
@@ -87,12 +92,14 @@ try {
     fail(`failed to read ${sourcePath}: ${error.message}`);
 }
 
-// `local` (and an empty value) marks a `wrangler dev` placeholder binding.
+// `local` (and an empty value) marks a provisionable placeholder binding.
 function isPlaceholder(value) {
     return !value || value === 'local';
 }
 
-const databaseId = process.env.DEPLOY_D1_DATABASE_ID || config.d1_databases?.[0]?.database_id;
+const explicitDatabaseId = process.env.DEPLOY_D1_DATABASE_ID;
+const configDatabaseId = config.d1_databases?.[0]?.database_id;
+const databaseId = explicitDatabaseId || configDatabaseId;
 if (isPlaceholder(databaseId)) {
     // This message is read from a CI log, so name the fix and show which
     // DEPLOY_* variables did arrive (names only) to point at the missing one.
@@ -109,6 +116,13 @@ if (isPlaceholder(databaseId)) {
     );
 }
 
+// Real ids already in the config with no DEPLOY_* override mean the resources
+// were provisioned for this deployment (Deploy to Cloudflare button, or real
+// ids edited in by hand). Such a config is deployed verbatim so provisioned
+// optional bindings are not dropped; otherwise only explicitly requested ones
+// are added.
+const provisioned = !explicitDatabaseId && !isPlaceholder(configDatabaseId);
+
 const databaseName = process.env.DEPLOY_D1_DATABASE_NAME || config.d1_databases?.[0]?.database_name || 'mail2telegram';
 // Rebuilt from scratch, so carry migrations_dir across: it now lives in the
 // server package, and dropping it would send `d1 migrations apply` looking in
@@ -124,7 +138,8 @@ config.d1_databases = [
 ];
 
 const bucketName =
-    process.env.DEPLOY_R2_BUCKET_NAME || config.r2_buckets?.find(item => item.binding === 'BUCKET')?.bucket_name;
+    process.env.DEPLOY_R2_BUCKET_NAME ||
+    (provisioned ? config.r2_buckets?.find(item => item.binding === 'BUCKET')?.bucket_name : undefined);
 if (!isPlaceholder(bucketName)) {
     const bucket = {
         binding: 'BUCKET',

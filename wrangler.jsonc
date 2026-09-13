@@ -7,9 +7,10 @@
 //     `keep_vars` below stops a deploy from deleting them. DOMAIN is
 //     optional: when unset, /init discovers the worker host and stores it
 //     in D1.
-//   - D1 / R2 ids are injected from the DEPLOY_* build variables by
-//     scripts/build-config.mjs; the `local` placeholders are only used by
-//     `wrangler dev`.
+//   - D1 / R2 use provisionable placeholders, so a Deploy to Cloudflare button
+//     creates the resources and writes the real ids back. Manual deploys pass
+//     DEPLOY_* build variables to scripts/build-config.mjs, which writes them
+//     to the gitignored wrangler.deploy.jsonc instead of editing this file.
 // Local development values (TELEGRAM_TOKEN, RESEND_API_KEY, …) go in the
 // gitignored `.dev.vars`.
 {
@@ -40,22 +41,23 @@
             "/telegram/*"
         ]
     },
-    // `local` is a wrangler dev placeholder. scripts/build-config.mjs replaces
-    // it with DEPLOY_D1_DATABASE_ID / DEPLOY_R2_BUCKET_NAME at deploy time and
-    // omits the R2 binding when no bucket is configured.
+    // Provisionable defaults: an empty D1 id means "create this database", and
+    // the concrete bucket name is what a Deploy to Cloudflare button creates
+    // and binds. scripts/build-config.mjs turns them into the real ids in the
+    // gitignored wrangler.deploy.jsonc, or keeps the ids the button wrote back.
     // Migrations are read from packages/server/migrations.
     "d1_databases": [
         {
             "binding": "DB",
             "database_name": "mail2telegram",
-            "database_id": "local",
+            "database_id": "",
             "migrations_dir": "packages/server/migrations"
         }
     ],
     "r2_buckets": [
         {
             "binding": "BUCKET",
-            "bucket_name": "local"
+            "bucket_name": "mail2telegram"
         }
     ],
     "ai": {

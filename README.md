@@ -9,6 +9,9 @@ mail2telegram
 <p align="center">
     <em>Receive email in Telegram: instant push notifications plus a Mini App inbox.</em>
 </p>
+<p align="center">
+    <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/TBXark/mail2telegram"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
+</p>
 
 **mail2telegram** is a Telegram bot for receiving email. It combines instant push notifications with a Telegram Mini App: every incoming email is pushed to your chat with quick action buttons, while the full history, attachments and every setting live in the Mini App.
 
@@ -31,7 +34,8 @@ All behavior is configured in the Mini App and stored in D1 — the worker itsel
 
 ## Guides
 
-- **[Deployment Guide](docs/DEPLOY.md)** ([中文](docs/DEPLOY_CN.md)) — install 2.0 from scratch: Telegram bot setup, D1 / R2 storage, deploying with Cloudflare Workers Builds, GitHub Actions or the CLI, runtime variables and Email Routing.
+- **Quick deploy** — [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/TBXark/mail2telegram) clones the repo, creates the D1 / R2 resources, asks for the Telegram values and deploys. Bind the bot and Email Routing afterwards.
+- **[Deployment Guide](docs/DEPLOY.md)** ([中文](docs/DEPLOY_CN.md)) — install 2.0 from scratch: Telegram bot setup, D1 / R2 storage, deploying with the Deploy to Cloudflare button, Cloudflare Workers Builds, GitHub Actions or the CLI, runtime variables and Email Routing.
 - **[Migration Guide](docs/MIGRATION.md)** ([中文](docs/MIGRATION_CN.md)) — upgrade an existing 1.0 deployment: what changed in 2.0, the step-by-step upgrade path and the variable mapping.
 
 ## Telegram Mini App

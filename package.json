@@ -10,6 +10,32 @@
         "type": "git",
         "url": "https://github.com/TBXark/mail2telegram"
     },
+    "cloudflare": {
+        "label": "mail2telegram",
+        "products": [
+            "Workers",
+            "D1",
+            "R2"
+        ],
+        "docs_url": "https://github.com/TBXark/mail2telegram#readme",
+        "bindings": {
+            "TELEGRAM_TOKEN": {
+                "description": "Telegram bot token from [@BotFather](https://t.me/BotFather) (`/newbot`)."
+            },
+            "TELEGRAM_ID": {
+                "description": "Destination chat ids, comma separated. Get yours from [@userinfobot](https://t.me/userinfobot). Groups start with `-100`."
+            },
+            "WEB_PASSWORD": {
+                "description": "Optional password for opening the Mini App in a plain browser outside Telegram. Leave empty to allow only the Telegram Mini App."
+            },
+            "RESEND_API_KEY": {
+                "description": "Optional [Resend](https://resend.com/docs/introduction) API key. Enables replying to email from Telegram or the Mini App."
+            },
+            "OPENAI_API_KEY": {
+                "description": "Optional OpenAI-compatible API key used as the default summary backend. Can also be set later in the Mini App settings."
+            }
+        }
+    },
     "private": true,
     "packageManager": "pnpm@11.11.0",
     "scripts": {

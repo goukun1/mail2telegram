@@ -9,9 +9,11 @@
 
 1. 使用 `@BotFather > /newbot` 创建机器人并复制 Token。
 2. Mini App 需要设置隐私政策：`@BotFather > /mybots > (选择你的机器人) > Edit Bot > Edit Privacy Policy`，设置为 `https://telegram.org/privacy-tpa`。
-3. 部署完成后，访问一次 `https://你的-worker-域名/init` 绑定 Webhook 并设置菜单按钮（[首次运行](#6-首次运行)中还会提到）。
+3. 部署完成后，访问一次 `https://你的-worker-域名/init` 绑定 Webhook 并设置菜单按钮（[首次运行](#6-首次运行)中还会提到）。如果你没有设置 `DOMAIN`，Worker 也会在此处自动识别自己的域名。
 
 ## 2. 创建存储
+
+如果你使用 Deploy to Cloudflare 按钮部署，可以跳过本节 —— Cloudflare 会自动创建 D1 数据库和 R2 存储桶。
 
 ```bash
 npx wrangler d1 create mail2telegram                 # 必需
@@ -22,7 +24,15 @@ npx wrangler r2 bucket create mail2telegram          # 可选：附件
 
 ## 3. 部署
 
-### 方式 A —— Cloudflare Workers Builds（推荐）
+### 方式 A —— Deploy to Cloudflare 按钮（最快）
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TBXark/mail2telegram)
+
+点击按钮、登录 Cloudflare 并按提示操作即可。Cloudflare 会把仓库克隆到你的账号下，按 `wrangler.jsonc` 声明创建 `D1` 数据库与 `R2` 存储桶，把真实 id 写回克隆后的仓库，并询问 `.dev.vars.example` 中的运行参数（`TELEGRAM_TOKEN`、`TELEGRAM_ID` 必填，其余可选）。随后它会执行 `package.json` 中的 `build` / `deploy` 脚本：应用 D1 迁移、构建 Mini App 并部署 Worker。
+
+之后继续看[首次运行](#6-首次运行)完成机器人与 Email Routing 绑定。克隆出的仓库归你所有，可继续开发；Deploy to Cloudflare 按钮适用于全新部署，而不是更新已有部署。
+
+### 方式 B —— Cloudflare Workers Builds（推荐用于持续开发）
 
 连接 Git 之后，每次推送到生产分支都会自动构建并部署，无需再维护 CLI 凭据或 CI 配置。
 
@@ -48,14 +58,14 @@ npx wrangler r2 bucket create mail2telegram          # 可选：附件
    | `DEPLOY_R2_BUCKET_NAME`         | 否   | 存放附件的 R2 存储桶，省略则不启用附件。   |
    | `DEPLOY_R2_PREVIEW_BUCKET_NAME` | 否   | 预览部署使用的 R2 存储桶。                 |
 
-   这些值由 `scripts/build-config.mjs` 注入到生成的（已 gitignore 的）`wrangler.deploy.jsonc`；仓库里的 `wrangler.jsonc` 只有 `local` 占位值，**不要把生产 id 写进它**。
-5. **部署凭据无需手动配置。** 连接仓库时 Cloudflare 会自动生成部署令牌，你不用像方式 B 那样粘贴 `CLOUDFLARE_API_TOKEN`；该令牌默认已包含 D1 写权限，可直接执行 D1 迁移。只有当迁移步骤报 `Authentication error [code: 10000]` 或 `7403` 时，才需要到 **My Profile → API Tokens** 给它补上 `D1 Edit`。
+   这些值由 `scripts/build-config.mjs` 注入到生成的（已 gitignore 的）`wrangler.deploy.jsonc`；仓库里的 `wrangler.jsonc` 只按名称声明数据库与存储桶、并使用可自动创建的占位值，**不要把生产 id 写进它**。
+5. **部署凭据无需手动配置。** 连接仓库时 Cloudflare 会自动生成部署令牌，你不用像方式 C 那样粘贴 `CLOUDFLARE_API_TOKEN`；该令牌默认已包含 D1 写权限，可直接执行 D1 迁移。只有当迁移步骤报 `Authentication error [code: 10000]` 或 `7403` 时，才需要到 **My Profile → API Tokens** 给它补上 `D1 Edit`。
 6. **确认绑定名称**：`DB`（D1）、`BUCKET`（R2，启用附件时）、`AI`（Workers AI）。它们由 `scripts/build-config.mjs` 自动写入生成的配置，无需手动编辑。
 7. 在 **Settings → Variables and Secrets** 中，按[运行参数与绑定](#4-运行参数与绑定)一节添加运行参数。注意 build variables 只在构建时可读，运行时读不到，所以运行参数必须在这里设置；`keep_vars: true` 保证后续部署不会删除它们。`TELEGRAM_TOKEN`、`RESEND_API_KEY` 请放入加密的 **Secrets** 区域。
 
-### 方式 B —— GitHub Actions
+### 方式 C —— GitHub Actions
 
-仓库自带 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)，作为手动备用通道：在 Actions 页手动触发后，它才会构建 Mini App、应用 D1 迁移并部署 Worker。它**不会**在 push 时自动运行 —— 方式 A 的 Workers Builds 已经会随每次 push 部署，两者同时开启会对同一次提交重复部署。
+仓库自带 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)，作为手动备用通道：在 Actions 页手动触发后，它才会构建 Mini App、应用 D1 迁移并部署 Worker。它**不会**在 push 时自动运行 —— 方式 B 的 Workers Builds 已经会随每次 push 部署，两者同时开启会对同一次提交重复部署。
 
 1. 在仓库 **Settings → Secrets and variables → Actions → Variables** 中添加：
 
@@ -67,9 +77,9 @@ npx wrangler r2 bucket create mail2telegram          # 可选：附件
 
 2. 在 Cloudflare **My Profile → API Tokens** 创建 API Token：以 **Edit Cloudflare Workers** 模板为基础，追加 `D1 Edit`、`Workers R2 Storage Edit`、`Workers AI Edit` 权限。然后把它作为仓库 **Secret** `CLOUDFLARE_API_TOKEN` 添加（Secrets 页）。
 
-3. 在 **Actions** 页手动运行该 workflow。方式 A 与方式 B 只保留一个，避免同一次提交重复部署。
+3. 在 **Actions** 页手动运行该 workflow。方式 B 与方式 C 只保留一个，避免同一次提交重复部署。
 
-### 方式 C —— 命令行
+### 方式 D —— 命令行
 
 环境要求：Node.js 20.19+（Vite 7）和 pnpm。先执行 `npx wrangler login` 登录。
 
@@ -79,7 +89,7 @@ cd mail2telegram
 pnpm install
 ```
 
-仓库中的 `wrangler.jsonc` 是公开配置，只含 `local` 占位值，无需编辑。通过 `DEPLOY_*` 变量传入你的资源 id 并部署：
+仓库中的 `wrangler.jsonc` 是公开配置，只按名称声明数据库与存储桶、并使用可自动创建的占位值，无需编辑。通过 `DEPLOY_*` 变量传入你的资源 id 并部署：
 
 ```bash
 DEPLOY_D1_DATABASE_ID=你的-d1-id \
@@ -89,9 +99,9 @@ pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 
 `DEPLOY_R2_BUCKET_NAME` 可选 —— 省略则不启用附件。`DEPLOY_D1_DATABASE_NAME` 默认 `mail2telegram`。
 
-部署完成后，在控制台的 **Settings → Variables and Secrets** 中设置运行参数（`TELEGRAM_ID`、`TELEGRAM_TOKEN`，以及可选的 `RESEND_API_KEY`），与方式 A 相同。`wrangler.jsonc` 中的 `keep_vars: true` 保证后续部署不会删除它们。
+部署完成后，在控制台的 **Settings → Variables and Secrets** 中设置运行参数（`TELEGRAM_ID`、`TELEGRAM_TOKEN`，以及可选的 `RESEND_API_KEY`），与方式 B 相同。`wrangler.jsonc` 中的 `keep_vars: true` 保证后续部署不会删除它们。
 
-`scripts/build-config.mjs` 会把这些 id 解析进生成的（已 gitignore 的）`wrangler.deploy.jsonc`；`local` 占位绑定会被跳过，不会部署。
+`scripts/build-config.mjs` 会把这些 id 解析进生成的（已 gitignore 的）`wrangler.deploy.jsonc`；未配置的占位绑定会被跳过，不会部署。如果配置里已经带有真实 id（由 Deploy to Cloudflare 按钮写回，或你手动编辑），且没有设置 `DEPLOY_*` 变量，则会按原样部署。
 
 ## 4. 运行参数与绑定
 
@@ -140,4 +150,4 @@ Bindings：
 不必，可选。不配置 `BUCKET` 时邮件仍存入 D1，只是不包含附件内容（超大正文按大小策略设置截断）。
 
 **部署时报绑定相关错误？**
-`DEPLOY_D1_DATABASE_ID` 是必填项 —— 缺失时构建会直接报错并给出提示。`DEPLOY_R2_BUCKET_NAME` 可选：不配置时 R2 绑定会被自动省略，无需手动编辑或删除绑定块。
+方式 B–D 中 `DEPLOY_D1_DATABASE_ID` 是必填项 —— 缺失时构建会直接报错并给出提示。`DEPLOY_R2_BUCKET_NAME` 可选：不配置时 R2 绑定会被自动省略，无需手动编辑或删除绑定块。方式 A 的 Deploy to Cloudflare 按钮会自行创建这两个资源，不涉及 `DEPLOY_*` 变量。

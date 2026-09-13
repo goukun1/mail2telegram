@@ -9,9 +9,11 @@ This guide installs **mail2telegram 2.0** from scratch. If you are upgrading an 
 
 1. Create a bot with `@BotFather > /newbot` and copy the token.
 2. Mini Apps require a privacy policy: `@BotFather > /mybots > (select your bot) > Edit Bot > Edit Privacy Policy`, set it to `https://telegram.org/privacy-tpa`.
-3. After deployment, call `https://your-worker-domain/init` once to bind the webhook and set the menu button (repeated in [First run](#6-first-run)).
+3. After deployment, call `https://your-worker-domain/init` once to bind the webhook and set the menu button (repeated in [First run](#6-first-run)). This is also where the worker learns its own host if you did not set `DOMAIN`.
 
 ## 2. Create storage
+
+Skip this section if you deploy with the Deploy to Cloudflare button — Cloudflare creates the D1 database and R2 bucket for you.
 
 ```bash
 npx wrangler d1 create mail2telegram                 # required
@@ -22,7 +24,15 @@ Note the D1 **database id** from the output. R2 is optional — without a `BUCKE
 
 ## 3. Deploy
 
-### Option A — Cloudflare Workers Builds (recommended)
+### Option A — Deploy to Cloudflare button (quickest)
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TBXark/mail2telegram)
+
+Click the button, sign in to Cloudflare and follow the prompts. Cloudflare clones the repository into your account, creates the `D1` database and `R2` bucket declared in `wrangler.jsonc`, writes their ids back into the cloned repository, and asks for the runtime values from `.dev.vars.example` (`TELEGRAM_TOKEN` and `TELEGRAM_ID` are required; the rest are optional). It then runs the `build` and `deploy` scripts from `package.json`, which apply the D1 migrations, build the Mini App and deploy the worker.
+
+Continue with [First run](#6-first-run) to bind the bot and Email Routing. The cloned repository is yours to keep developing in; the Deploy to Cloudflare button is intended for a fresh deployment, not for updating an existing one.
+
+### Option B — Cloudflare Workers Builds (recommended for ongoing development)
 
 Once the repository is connected, every push to the production branch builds and deploys automatically -- no CLI credentials or CI configuration to maintain.
 
@@ -48,14 +58,14 @@ Once the repository is connected, every push to the production branch builds and
    | `DEPLOY_R2_BUCKET_NAME`         | No       | R2 bucket for attachments. Omit to disable attachments. |
    | `DEPLOY_R2_PREVIEW_BUCKET_NAME` | No       | R2 bucket used for preview deployments.                 |
 
-   `scripts/build-config.mjs` injects these into the generated, gitignored `wrangler.deploy.jsonc`; the tracked `wrangler.jsonc` holds only `local` placeholders, so **never put production ids in it**.
-5. **No deploy credential to configure.** Cloudflare generates a deploy token automatically when you connect the repository -- you do not paste a `CLOUDFLARE_API_TOKEN` as in Option B. That token already includes D1 write access, so the D1 migration step authenticates. Only if the migration step fails with `Authentication error [code: 10000]` or `7403` do you need to add `D1 Edit` to it under **My Profile → API Tokens**.
+   `scripts/build-config.mjs` injects these into the generated, gitignored `wrangler.deploy.jsonc`; the tracked `wrangler.jsonc` declares the databases and buckets by name with provisionable placeholders, so **never put production ids in it**.
+5. **No deploy credential to configure.** Cloudflare generates a deploy token automatically when you connect the repository -- you do not paste a `CLOUDFLARE_API_TOKEN` as in Option C. That token already includes D1 write access, so the D1 migration step authenticates. Only if the migration step fails with `Authentication error [code: 10000]` or `7403` do you need to add `D1 Edit` to it under **My Profile → API Tokens**.
 6. **Confirm the binding names**: `DB` (D1), `BUCKET` (R2, when attachments are enabled) and `AI` (Workers AI). `scripts/build-config.mjs` writes them into the generated config, so there is nothing to edit by hand.
 7. Under **Settings → Variables and Secrets**, add the runtime variables from [Runtime variables](#4-runtime-variables-and-bindings). Build variables are readable at build time only, not at runtime, so the runtime values must be set here; `keep_vars: true` stops a later deploy from deleting them. Put `TELEGRAM_TOKEN` and `RESEND_API_KEY` in the encrypted **Secrets** section.
 
-### Option B — GitHub Actions
+### Option C — GitHub Actions
 
-The repository ships [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) as a manual fallback: triggered from the Actions tab, it builds the Mini App, applies D1 migrations and deploys the worker. It deliberately does not run on push, because Workers Builds (Option A) already deploys every push -- running both would deploy twice for one commit.
+The repository ships [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) as a manual fallback: triggered from the Actions tab, it builds the Mini App, applies D1 migrations and deploys the worker. It deliberately does not run on push, because Workers Builds (Option B) already deploys every push -- running both would deploy twice for one commit.
 
 1. Under the repository's **Settings → Secrets and variables → Actions → Variables**, add:
 
@@ -69,7 +79,7 @@ The repository ships [`.github/workflows/deploy.yml`](../.github/workflows/deplo
 
 3. Run the workflow from the **Actions** tab. Use only this option or Workers Builds, not both, so the worker is not deployed twice.
 
-### Option C — Command line
+### Option D — Command line
 
 Requirements: Node.js 20.19+ (Vite 7) and pnpm. Log in with `npx wrangler login` first.
 
@@ -79,7 +89,7 @@ cd mail2telegram
 pnpm install
 ```
 
-The tracked `wrangler.jsonc` is public and holds only `local` placeholders, so there is nothing to edit. Pass your resource ids through the `DEPLOY_*` variables and deploy:
+The tracked `wrangler.jsonc` is public and declares the databases and buckets by name with provisionable placeholders, so there is nothing to edit. Pass your resource ids through the `DEPLOY_*` variables and deploy:
 
 ```bash
 DEPLOY_D1_DATABASE_ID=your-d1-id \
@@ -89,9 +99,9 @@ pnpm run deploy   # applies D1 migrations, builds the Mini App, deploys the work
 
 `DEPLOY_R2_BUCKET_NAME` is optional — omit it to deploy without attachments. `DEPLOY_D1_DATABASE_NAME` defaults to `mail2telegram`.
 
-Set the runtime variables (`TELEGRAM_ID`, `TELEGRAM_TOKEN`, and optionally `RESEND_API_KEY`) afterwards under **Settings → Variables and Secrets** in the dashboard, as in Option A. `keep_vars: true` in `wrangler.jsonc` means later deploys will not delete them.
+Set the runtime variables (`TELEGRAM_ID`, `TELEGRAM_TOKEN`, and optionally `RESEND_API_KEY`) afterwards under **Settings → Variables and Secrets** in the dashboard, as in Option B. `keep_vars: true` in `wrangler.jsonc` means later deploys will not delete them.
 
-`scripts/build-config.mjs` resolves the ids into a generated, gitignored `wrangler.deploy.jsonc`; a `local` placeholder binding is skipped instead of deployed.
+`scripts/build-config.mjs` resolves the ids into a generated, gitignored `wrangler.deploy.jsonc`; an unconfigured placeholder binding is skipped instead of deployed. A config that already carries real ids — written back by a Deploy to Cloudflare button, or edited in by hand — is deployed as-is when no `DEPLOY_*` variables are set.
 
 ## 4. Runtime variables and bindings
 
@@ -140,4 +150,4 @@ Bindings:
 No, it's optional. Without `BUCKET`, mail is stored in D1 without attachment contents (large bodies are truncated by the size policy setting).
 
 **Deployment fails with a bindings error?**
-`DEPLOY_D1_DATABASE_ID` is required — the build stops with a clear message if it is missing. `DEPLOY_R2_BUCKET_NAME` is optional: without it the R2 binding is omitted automatically, so you never have to edit or delete binding blocks by hand.
+`DEPLOY_D1_DATABASE_ID` is required for Options B–D — the build stops with a clear message if it is missing. `DEPLOY_R2_BUCKET_NAME` is optional: without it the R2 binding is omitted automatically, so you never have to edit or delete binding blocks by hand. The Deploy to Cloudflare button (Option A) provisions both resources itself, so no `DEPLOY_*` variables are involved.
