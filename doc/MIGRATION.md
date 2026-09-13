@@ -158,22 +158,21 @@ Requirements: Node.js 20.19+ (Vite 7) and pnpm. Log in with `npx wrangler login`
 git clone git@github.com:TBXark/mail2telegram.git
 cd mail2telegram
 pnpm install
-cp wrangler.example.jsonc wrangler.jsonc
 ```
 
-Edit `wrangler.jsonc`:
-
-- `d1_databases[0].database_id` — your D1 database id (required).
-- `r2_buckets[0].bucket_name` — your bucket name; **delete the whole `r2_buckets` block if you don't want attachments**.
-- `vars` — fill in `DOMAIN`, `TELEGRAM_ID` and `TELEGRAM_TOKEN`; everything else is configured in the Mini App after deployment.
-
-Then:
+The tracked `wrangler.jsonc` is public and holds only `local` placeholders, so there is nothing to edit. Pass your resource ids through the `DEPLOY_*` variables and deploy:
 
 ```bash
+DEPLOY_D1_DATABASE_ID=your-d1-id \
+DEPLOY_R2_BUCKET_NAME=mail2telegram \
 pnpm run deploy   # applies D1 migrations, builds the Mini App, deploys the worker
 ```
 
-`scripts/build-config.mjs` copies the ids above into a generated `wrangler.deploy.jsonc`. `DEPLOY_*` environment variables (used by CI) take precedence over the values in `wrangler.jsonc`; a `local` placeholder binding is skipped instead of deployed.
+`DEPLOY_R2_BUCKET_NAME` is optional — omit it to deploy without attachments. `DEPLOY_D1_DATABASE_NAME` defaults to `mail2telegram`.
+
+Set the runtime variables (`DOMAIN`, `TELEGRAM_ID`, `TELEGRAM_TOKEN`, and optionally `RESEND_API_KEY`) afterwards under **Settings → Variables and Secrets** in the dashboard, as in Option A. `keep_vars: true` in `wrangler.jsonc` means later deploys will not delete them.
+
+`scripts/build-config.mjs` resolves the ids into a generated, gitignored `wrangler.deploy.jsonc`; a `local` placeholder binding is skipped instead of deployed.
 
 ### 3. Configure Cloudflare Email Routing
 
@@ -226,7 +225,7 @@ No, it's optional. Without `BUCKET`, mail is stored in D1 without attachment con
 Yes. Keep `TELEGRAM_TOKEN`, `TELEGRAM_ID` and `DOMAIN` unchanged, redeploy, then call `/init` once.
 
 **Deployment fails with a bindings error?**
-If you deploy manually, an empty `database_id` / `bucket_name` in `wrangler.jsonc` is invalid — fill in real ids or delete the optional binding block entirely. The Workers Builds path avoids this by omitting unconfigured bindings automatically.
+`DEPLOY_D1_DATABASE_ID` is required — the build stops with a clear message if it is missing. `DEPLOY_R2_BUCKET_NAME` is optional: without it the R2 binding is omitted automatically, so you never have to edit or delete binding blocks by hand.
 
 **Where did the `Text` / `HTML` buttons go?**
 2.0 replaces the temporary web pages with the Mini App. The `Open` button deep-links into the message's detail page, which has a sandboxed HTML view, a plain text toggle and attachments.

@@ -158,22 +158,21 @@ npx wrangler r2 bucket create mail2telegram          # 可选
 git clone git@github.com:TBXark/mail2telegram.git
 cd mail2telegram
 pnpm install
-cp wrangler.example.jsonc wrangler.jsonc
 ```
 
-编辑 `wrangler.jsonc`：
-
-- `d1_databases[0].database_id` —— 你的 D1 数据库 id（必填）。
-- `r2_buckets[0].bucket_name` —— 存储桶名；**不需要附件就整段删除 `r2_buckets`**。
-- `vars` —— 填写 `DOMAIN`、`TELEGRAM_ID`、`TELEGRAM_TOKEN` 即可；其余配置部署后在 Mini App 中完成。
-
-然后执行：
+仓库中的 `wrangler.jsonc` 是公开配置，只含 `local` 占位值，无需编辑。通过 `DEPLOY_*` 变量传入你的资源 id 并部署：
 
 ```bash
+DEPLOY_D1_DATABASE_ID=你的-d1-id \
+DEPLOY_R2_BUCKET_NAME=mail2telegram \
 pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 ```
 
-`scripts/build-config.mjs` 会把上面的 id 写入生成的 `wrangler.deploy.jsonc`。`DEPLOY_*` 环境变量（供 CI 使用）优先于 `wrangler.jsonc` 中的值；`local` 占位绑定会被跳过，不会部署。
+`DEPLOY_R2_BUCKET_NAME` 可选 —— 省略则不启用附件。`DEPLOY_D1_DATABASE_NAME` 默认 `mail2telegram`。
+
+部署完成后，在控制台的 **Settings → Variables and Secrets** 中设置运行参数（`DOMAIN`、`TELEGRAM_ID`、`TELEGRAM_TOKEN`，以及可选的 `RESEND_API_KEY`），与方式 A 相同。`wrangler.jsonc` 中的 `keep_vars: true` 保证后续部署不会删除它们。
+
+`scripts/build-config.mjs` 会把这些 id 解析进生成的（已 gitignore 的）`wrangler.deploy.jsonc`；`local` 占位绑定会被跳过，不会部署。
 
 ### 3. 配置 Cloudflare Email Routing
 
@@ -226,7 +225,7 @@ pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 可以。保持 `TELEGRAM_TOKEN`、`TELEGRAM_ID` 和 `DOMAIN` 不变，重新部署后访问一次 `/init` 即可。
 
 **部署时报绑定相关错误？**
-手动部署时，`wrangler.jsonc` 中空的 `database_id` / `bucket_name` 是非法值 —— 要么填真实 id，要么整段删除对应的可选绑定。Workers Builds 方式会自动省略未配置的绑定，不会遇到这个问题。
+`DEPLOY_D1_DATABASE_ID` 是必填项 —— 缺失时构建会直接报错并给出提示。`DEPLOY_R2_BUCKET_NAME` 可选：不配置时 R2 绑定会被自动省略，无需手动编辑或删除绑定块。
 
 **`Text` / `HTML` 按钮去哪了？**
 2.0 用 Mini App 取代了临时网页。`Open` 按钮直接深链到该邮件的详情页，那里有沙箱 HTML 视图、纯文本切换和附件下载。

@@ -144,8 +144,8 @@ dist
 # End of https://www.toptal.com/developers/gitignore/api/node
 
 # build
+# wrangler.jsonc is tracked (public config: no secrets, no resource ids).
 wrangler.toml
-wrangler.jsonc
 wrangler.deploy.jsonc
 .dev.vars
 .idea

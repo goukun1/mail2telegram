@@ -1,0 +1,57 @@
+// Public worker configuration for mail2telegram.
+//
+// This file is tracked in git and intentionally contains no secrets and no real
+// resource ids, so every deployment can use the same copy:
+//   - Runtime variables (DOMAIN, TELEGRAM_ID, TELEGRAM_TOKEN) are configured
+//     under Workers & Pages → your worker → Settings → Variables and Secrets.
+//     `keep_vars` below stops a deploy from deleting them.
+//   - D1 / R2 ids are injected from the DEPLOY_* build variables by
+//     scripts/build-config.mjs; the `local` placeholders are only used by
+//     `wrangler dev`.
+// Local development values (TELEGRAM_TOKEN, RESEND_API_KEY, …) go in the
+// gitignored `.dev.vars`.
+{
+    "$schema": "./node_modules/wrangler/config-schema.json",
+    "name": "mail2telegram",
+    "main": "src/index.ts",
+    "compatibility_date": "2026-09-11",
+    // Without this Wrangler treats the config as the only source of truth and
+    // deletes variables/secrets set in the dashboard on the next deploy.
+    "keep_vars": true,
+    // Daily cron that deletes mail older than the auto cleanup retention
+    // (Settings → Mail Handling → Auto Cleanup, 0 disables it).
+    "triggers": {
+        "crons": ["0 3 * * *"]
+    },
+    // The frontend SPA built by Vite into ./dist/client.
+    // API and webhook routes are handled by the Worker first.
+    "assets": {
+        "directory": "./dist/client",
+        "not_found_handling": "single-page-application",
+        "run_worker_first": [
+            "/api/*",
+            "/init",
+            "/email/*",
+            "/telegram/*"
+        ]
+    },
+    // `local` is a wrangler dev placeholder. scripts/build-config.mjs replaces
+    // it with DEPLOY_D1_DATABASE_ID / DEPLOY_R2_BUCKET_NAME at deploy time and
+    // omits the R2 binding when no bucket is configured.
+    "d1_databases": [
+        {
+            "binding": "DB",
+            "database_name": "mail2telegram",
+            "database_id": "local"
+        }
+    ],
+    "r2_buckets": [
+        {
+            "binding": "BUCKET",
+            "bucket_name": "local"
+        }
+    ],
+    "ai": {
+        "binding": "AI"
+    }
+}

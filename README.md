@@ -34,13 +34,15 @@ Email ──▶ Telegram push with quick action buttons
 
 Deployment is documented in the [Migration & Deployment Guide](doc/MIGRATION.md) ([中文](doc/MIGRATION_CN.md)), which covers fresh installs of 2.0 and the upgrade path from 1.0.
 
-The short version: create a D1 database (plus an optional R2 bucket), connect the repository to Cloudflare Workers Builds with `pnpm build` / `pnpm run deploy` and the `DEPLOY_*` build variables (or keep the real ids in your gitignored `wrangler.jsonc` and run `pnpm run deploy` locally), then point the Email Routing catch-all at the worker and call `/init` once.
+The short version: create a D1 database (plus an optional R2 bucket), connect the repository to Cloudflare Workers Builds with `pnpm build` / `pnpm run deploy`, pass the resource ids as `DEPLOY_*` build variables, then add the runtime variables below under **Settings → Variables and Secrets**, point the Email Routing catch-all at the worker and call `/init` once.
+
+The tracked `wrangler.jsonc` contains no secrets and no real resource ids, so you can deploy this repository as-is. Resource ids come from the `DEPLOY_*` build variables and the runtime variables come from the dashboard; `keep_vars: true` in the config stops a deploy from deleting them.
 
 ## Configuration
 
 All behavior is configured in the Mini App. The worker itself only needs a few variables for its Telegram identity and optional API keys. If you deployed an earlier version and configured behavior through variables, open **Settings → Bot & Webhook → Import from Environment** in the Mini App to copy them into the stored settings, then remove the variables.
 
-Location: Workers & Pages → your_worker → Settings → Variables and Secrets.
+Location: Workers & Pages → your_worker → Settings → Variables and Secrets. These are **not** set in `wrangler.jsonc`.
 
 | KEY              | Description                                                                                                                                                            |
 |:-----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -59,6 +61,8 @@ Bindings:
 | `DB`     | D1 Database       | Required. Mail history, address lists and settings.  |
 | `BUCKET` | R2 Bucket         | Attachments and large email bodies. Optional.        |
 | `AI`     | Workers AI        | Optional, for summaries.                             |
+
+`DB` and `BUCKET` are wired up automatically from `DEPLOY_D1_DATABASE_ID` / `DEPLOY_R2_BUCKET_NAME`; you never edit binding ids in `wrangler.jsonc`.
 
 ## Telegram Mini App
 

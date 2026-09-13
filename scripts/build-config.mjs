@@ -1,30 +1,31 @@
 /**
  * Injects deployment ids into a gitignored `wrangler.deploy.jsonc`.
  *
- * Each value resolves in order:
- *   1. the DEPLOY_* environment variable (how CI builds inject ids),
- *   2. the binding already present in the source config (handy for manual
- *      deploys: keep the real ids in your gitignored `wrangler.jsonc`).
+ * Reads the tracked, public `wrangler.jsonc`, which holds `local` placeholders
+ * instead of real resource ids. Each value resolves in order:
+ *   1. the DEPLOY_* environment variable (how CI and manual deploys inject ids),
+ *   2. the binding already present in the config (handy when you edit real ids
+ *      locally without committing them).
  * The `local` placeholder used for `wrangler dev` state means "not configured":
  * a missing D1 id fails the build, missing R2 bindings are omitted.
  *
- * Required for CI:
+ * Required:
  *   DEPLOY_D1_DATABASE_ID
  * Optional (defaults below):
  *   DEPLOY_D1_DATABASE_NAME   (default: mail2telegram)
  *   DEPLOY_R2_BUCKET_NAME     (omit to remove the R2 binding)
  *   DEPLOY_R2_PREVIEW_BUCKET_NAME
  *
+ * Runtime variables (DOMAIN, TELEGRAM_ID, TELEGRAM_TOKEN) are not handled here;
+ * set them in the dashboard under Settings → Variables and Secrets.
+ *
  * Usage: node scripts/build-config.mjs
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-// `wrangler.jsonc` is gitignored, so CI builds fall back to the tracked template.
-const sourcePath = existsSync(`${root}wrangler.jsonc`)
-    ? `${root}wrangler.jsonc`
-    : `${root}wrangler.example.jsonc`;
+const sourcePath = `${root}wrangler.jsonc`;
 const targetPath = `${root}wrangler.deploy.jsonc`;
 
 function fail(message) {
