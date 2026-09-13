@@ -19,7 +19,7 @@ export default defineConfig({
             const migrations = await readD1Migrations(path.join(root, 'migrations'));
             return {
                 miniflare: {
-                    compatibilityDate: '2026-09-11',
+                    compatibilityDate: '2026-08-04',
                     d1Databases: { DB: 'test-db' },
                     r2Buckets: ['BUCKET'],
                     bindings: { TEST_MIGRATIONS: migrations },

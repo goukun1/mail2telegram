@@ -14,7 +14,10 @@
     "$schema": "./node_modules/wrangler/config-schema.json",
     "name": "mail2telegram",
     "main": "src/index.ts",
-    "compatibility_date": "2026-09-11",
+    // From this date Workers enables nodejs_compat and nodejs_compat_v2 by
+    // default, so no compatibility_flags are needed — adding them would be
+    // redundant and is discouraged by Cloudflare.
+    "compatibility_date": "2026-08-04",
     // Without this Wrangler treats the config as the only source of truth and
     // deletes variables/secrets set in the dashboard on the next deploy.
     "keep_vars": true,
