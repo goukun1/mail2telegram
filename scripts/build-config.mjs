@@ -94,7 +94,19 @@ function isPlaceholder(value) {
 
 const databaseId = process.env.DEPLOY_D1_DATABASE_ID || config.d1_databases?.[0]?.database_id;
 if (isPlaceholder(databaseId)) {
-    fail('DEPLOY_D1_DATABASE_ID is required (or set a real d1_databases[0].database_id in the config)');
+    // This message is read from a CI log, so name the fix and show which
+    // DEPLOY_* variables did arrive (names only) to point at the missing one.
+    const seen = Object.keys(process.env)
+        .filter(key => key.startsWith('DEPLOY_'))
+        .toSorted();
+    fail(
+        'DEPLOY_D1_DATABASE_ID is required (or set a real d1_databases[0].database_id in the config).\n' +
+            '  On Cloudflare Workers Builds, add it under Settings -> Build -> Build variables and secrets.\n' +
+            '  GitHub repository variables are a different store and are not visible here.\n' +
+            (seen.length > 0
+                ? `  DEPLOY_* variables currently set: ${seen.join(', ')}`
+                : '  No DEPLOY_* variables are set in this environment.'),
+    );
 }
 
 // `DEV_BYPASS_AUTH` disables Mini App signature validation and must never
