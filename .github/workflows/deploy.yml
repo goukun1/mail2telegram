@@ -1,9 +1,12 @@
 name: Deploy
 
-# Deploys the worker to Cloudflare on every push to master. Resource ids are
-# injected into the gitignored `wrangler.deploy.jsonc` by
-# `scripts/build-config.mjs` from repository variables, mirroring the
-# Cloudflare Workers Builds setup.
+# Manual fallback deploy. Cloudflare Workers Builds is the primary deployer and
+# already runs on every push, so this workflow deliberately does NOT trigger on
+# push -- running both would deploy twice for one commit. Trigger it by hand
+# from the Actions tab when Workers Builds is unavailable.
+#
+# Resource ids are injected into the gitignored `wrangler.deploy.jsonc` by
+# `scripts/build-config.mjs` from repository variables.
 #
 # Required repository secret:
 #   CLOUDFLARE_API_TOKEN     Token with the "Edit Cloudflare Workers" template
@@ -15,8 +18,6 @@ name: Deploy
 #   DEPLOY_R2_BUCKET_NAME    Omit to deploy without attachments.
 
 on:
-    push:
-        branches: [master]
     workflow_dispatch:
 
 permissions:

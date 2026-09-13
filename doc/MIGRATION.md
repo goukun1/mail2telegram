@@ -117,12 +117,22 @@ Note the D1 database id.
 
 #### Option A — Cloudflare Workers Builds (recommended)
 
+Once the repository is connected, every push to the production branch builds and deploys automatically -- no CLI credentials or CI configuration to maintain.
+
 1. Fork or push this repository to GitHub.
 2. In the Cloudflare dashboard: **Workers & Pages → Create → Workers → Connect to Git**, select the repository.
-3. Set the commands:
-   - **Build command**: `pnpm build`
-   - **Deploy command**: `pnpm run deploy`
-4. Add the **build variables**:
+3. Set the build settings:
+
+   | Setting                             | Value                                      |
+   |:------------------------------------|:-------------------------------------------|
+   | Production branch                   | `master`                                   |
+   | Build command                       | `pnpm build`                               |
+   | Deploy command                      | `pnpm run deploy`                          |
+   | Root directory                      | Leave empty (repository root)              |
+   | Non-production branch deploy command | Keep the default (`npx wrangler versions upload`) |
+
+   `pnpm run deploy` injects the resource ids, applies D1 migrations, builds the Mini App and deploys the worker. The `run` is required -- `pnpm deploy` without it collides with pnpm's built-in workspace command.
+4. Add the **build variables** (**Settings → Environment variables**; readable during the build only):
 
    | Build variable                  | Required | Description                                             |
    |:--------------------------------|:---------|:--------------------------------------------------------|
@@ -131,12 +141,14 @@ Note the D1 database id.
    | `DEPLOY_R2_BUCKET_NAME`         | No       | R2 bucket for attachments. Omit to disable attachments. |
    | `DEPLOY_R2_PREVIEW_BUCKET_NAME` | No       | R2 bucket used for preview deployments.                 |
 
-   `pnpm run deploy` injects these into a generated, gitignored `wrangler.deploy.jsonc`, applies D1 migrations, builds the Mini App and deploys. (`pnpm deploy` without `run` collides with pnpm's built-in workspace command.)
-5. Under **Settings → Variables and Secrets**, add the runtime variables from the README's [Configuration](../README.md#configuration) table. Put `TELEGRAM_TOKEN` and `RESEND_API_KEY` in the encrypted **Secrets** section.
+   `scripts/build-config.mjs` injects these into the generated, gitignored `wrangler.deploy.jsonc`; the tracked `wrangler.jsonc` holds only `local` placeholders, so **never put production ids in it**.
+5. **No deploy credential to configure.** Cloudflare generates a deploy token automatically when you connect the repository -- you do not paste a `CLOUDFLARE_API_TOKEN` as in Option B. That token already includes D1 write access, so the D1 migration step authenticates. Only if the migration step fails with `Authentication error [code: 10000]` or `7403` do you need to add `D1 Edit` to it under **My Profile → API Tokens**.
+6. **Confirm the binding names**: `DB` (D1), `BUCKET` (R2, when attachments are enabled) and `AI` (Workers AI). `scripts/build-config.mjs` writes them into the generated config, so there is nothing to edit by hand.
+7. Under **Settings → Variables and Secrets**, add the runtime variables from the README's [Configuration](../README.md#configuration) table. Build variables are readable at build time only, not at runtime, so the runtime values must be set here; `keep_vars: true` stops a later deploy from deleting them. Put `TELEGRAM_TOKEN` and `RESEND_API_KEY` in the encrypted **Secrets** section.
 
 #### Option B — GitHub Actions
 
-The repository ships [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml). On every push to `master` (or a manual run from the Actions tab) it builds the Mini App, applies D1 migrations and deploys the worker.
+The repository ships [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) as a manual fallback: triggered from the Actions tab, it builds the Mini App, applies D1 migrations and deploys the worker. It deliberately does not run on push, because Workers Builds (Option A) already deploys every push -- running both would deploy twice for one commit.
 
 1. Under the repository's **Settings → Secrets and variables → Actions → Variables**, add:
 
@@ -148,7 +160,7 @@ The repository ships [`.github/workflows/deploy.yml`](../.github/workflows/deplo
 
 2. Create a Cloudflare API token under **My Profile → API Tokens**: start from the **Edit Cloudflare Workers** template and add the `D1 Edit`, `Workers R2 Storage Edit` and `Workers AI Edit` permissions. Add it as the repository **secret** `CLOUDFLARE_API_TOKEN` (Secrets tab).
 
-3. Push to `master`. If you also connected Cloudflare Workers Builds, disable one of the two so the worker is not deployed twice.
+3. Run the workflow from the **Actions** tab. Use only this option or Workers Builds, not both, so the worker is not deployed twice.
 
 #### Option C — Command line
 

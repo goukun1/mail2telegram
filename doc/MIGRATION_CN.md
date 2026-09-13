@@ -117,12 +117,22 @@ npx wrangler r2 bucket create mail2telegram          # 可选
 
 #### 方式 A —— Cloudflare Workers Builds（推荐）
 
+连接 Git 之后，每次推送到生产分支都会自动构建并部署，无需再维护 CLI 凭据或 CI 配置。
+
 1. Fork 或推送本仓库到 GitHub。
 2. 在 Cloudflare 控制台进入 **Workers & Pages → Create → Workers → Connect to Git**，选择该仓库。
-3. 设置命令：
-   - **Build command**: `pnpm build`
-   - **Deploy command**: `pnpm run deploy`
-4. 添加 **build variables**：
+3. 设置构建参数：
+
+   | 设置项                              | 值                                     |
+   |:------------------------------------|:---------------------------------------|
+   | Production branch                   | `master`                               |
+   | Build command                       | `pnpm build`                           |
+   | Deploy command                      | `pnpm run deploy`                      |
+   | Root directory                      | 留空（仓库根目录）                     |
+   | Non-production branch deploy command | 保持默认（`npx wrangler versions upload`） |
+
+   `pnpm run deploy` 会注入资源 id、应用 D1 迁移、构建 Mini App 并部署 Worker。必须带 `run` —— 不带 `run` 的 `pnpm deploy` 会和 pnpm 内置的 workspace 命令冲突。
+4. 添加 **build variables**（**Settings → Environment variables**，仅构建阶段可读）：
 
    | Build variable                  | 必填 | 说明                                       |
    |:--------------------------------|:-----|:-------------------------------------------|
@@ -131,12 +141,14 @@ npx wrangler r2 bucket create mail2telegram          # 可选
    | `DEPLOY_R2_BUCKET_NAME`         | 否   | 存放附件的 R2 存储桶，省略则不启用附件。   |
    | `DEPLOY_R2_PREVIEW_BUCKET_NAME` | 否   | 预览部署使用的 R2 存储桶。                 |
 
-   `pnpm run deploy` 会把这些变量注入生成的（已 gitignore 的）`wrangler.deploy.jsonc`，应用 D1 迁移，构建 Mini App 并部署。（不带 `run` 的 `pnpm deploy` 会和 pnpm 内置的 workspace 命令冲突。）
-5. 在 **Settings → Variables and Secrets** 中，按 README 的[配置](../README_CN.md#配置)一表添加运行参数。`TELEGRAM_TOKEN`、`RESEND_API_KEY` 请放入加密的 **Secrets** 区域。
+   这些值由 `scripts/build-config.mjs` 注入到生成的（已 gitignore 的）`wrangler.deploy.jsonc`；仓库里的 `wrangler.jsonc` 只有 `local` 占位值，**不要把生产 id 写进它**。
+5. **部署凭据无需手动配置。** 连接仓库时 Cloudflare 会自动生成部署令牌，你不用像方式 B 那样粘贴 `CLOUDFLARE_API_TOKEN`；该令牌默认已包含 D1 写权限，可直接执行 D1 迁移。只有当迁移步骤报 `Authentication error [code: 10000]` 或 `7403` 时，才需要到 **My Profile → API Tokens** 给它补上 `D1 Edit`。
+6. **确认绑定名称**：`DB`（D1）、`BUCKET`（R2，启用附件时）、`AI`（Workers AI）。它们由 `scripts/build-config.mjs` 自动写入生成的配置，无需手动编辑。
+7. 在 **Settings → Variables and Secrets** 中，按 README 的[配置](./README_CN.md#配置)一表添加运行参数。注意 build variables 只在构建时可读，运行时读不到，所以运行参数必须在这里设置；`keep_vars: true` 保证后续部署不会删除它们。`TELEGRAM_TOKEN`、`RESEND_API_KEY` 请放入加密的 **Secrets** 区域。
 
 #### 方式 B —— GitHub Actions
 
-仓库自带 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)：每次推送到 `master`（或在 Actions 页手动触发）都会自动构建 Mini App、应用 D1 迁移并部署 Worker。
+仓库自带 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)，作为手动备用通道：在 Actions 页手动触发后，它才会构建 Mini App、应用 D1 迁移并部署 Worker。它**不会**在 push 时自动运行 —— 方案 A 的 Workers Builds 已经会随每次 push 部署，两者同时开启会对同一次提交重复部署。
 
 1. 在仓库 **Settings → Secrets and variables → Actions → Variables** 中添加：
 
@@ -148,7 +160,7 @@ npx wrangler r2 bucket create mail2telegram          # 可选
 
 2. 在 Cloudflare **My Profile → API Tokens** 创建 API Token：以 **Edit Cloudflare Workers** 模板为基础，追加 `D1 Edit`、`Workers R2 Storage Edit`、`Workers AI Edit` 权限。然后把它作为仓库 **Secret** `CLOUDFLARE_API_TOKEN` 添加（Secrets 页）。
 
-3. 推送到 `master` 即可。如果同时接入了 Cloudflare Workers Builds，请停用其中一个，避免重复部署。
+3. 在 **Actions** 页手动运行该 workflow。方案 A 与方案 B 只保留一个，避免同一次提交重复部署。
 
 #### 方式 C —— 命令行
 

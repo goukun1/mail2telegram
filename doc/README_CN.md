@@ -31,7 +31,7 @@ mail2telegram
 
 部署流程见[迁移部署指南](./MIGRATION_CN.md)（[English](./MIGRATION.md)），包含 2.0 的全新安装以及从 1.0 升级的完整步骤。
 
-简版流程：创建 D1 数据库（可选 R2 存储桶），将仓库接入 Cloudflare Workers Builds 并配置 `pnpm build` / `pnpm deploy`，通过 `DEPLOY_*` 构建变量传入资源 id，然后在 **Settings → Variables and Secrets** 中添加上面的运行参数，最后把 Email Routing 的 catch-all 指向该 Worker 并访问一次 `/init`。
+简版流程：创建 D1 数据库（可选 R2 存储桶），将仓库接入 Cloudflare Workers Builds 并配置 `pnpm build` / `pnpm run deploy`，通过 `DEPLOY_*` 构建变量传入资源 id，然后在 **Settings → Variables and Secrets** 中添加上面的运行参数，最后把 Email Routing 的 catch-all 指向该 Worker 并访问一次 `/init`。
 
 仓库中的 `wrangler.jsonc` 不含任何密钥和真实资源 id，可直接使用、无需改动。资源 id 来自 `DEPLOY_*` 构建变量，运行参数来自控制台；配置里的 `keep_vars: true` 保证部署不会删除控制台中设置的变量。
 
@@ -126,4 +126,4 @@ Mini App 正常需要有效的 Telegram `initData` 签名。本地开发时，�
 
 ## License
 
-**mail2telegram** 基于 MIT 协议发布，详见 [LICENSE](LICENSE)。
+**mail2telegram** 基于 MIT 协议发布，详见 [LICENSE](../LICENSE)。
