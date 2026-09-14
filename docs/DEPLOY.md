@@ -134,7 +134,7 @@ Bindings:
 
 ## 5. Configure Cloudflare Email Routing
 
-1. Set up [Cloudflare Email Routing](https://blog.cloudflare.com/introducing-email-routing/) on your domain.
+1. Set up [Cloudflare Email Routing](https://developers.cloudflare.com/email-service/get-started/route-emails/) on your domain.
 2. In `Email Routing → Routing Rules`, set `Catch-all address` to `Send to a Worker: mail2telegram`.
 3. For a backup copy of every mail, enable forwarding in the Mini App and add your backup address. The address must be verified under `Email Routing → Destination addresses`.
 

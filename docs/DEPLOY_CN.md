@@ -134,7 +134,7 @@ Bindings：
 
 ## 5. 配置 Cloudflare Email Routing
 
-1. 在你的域名上启用 [Cloudflare Email Routing](https://blog.cloudflare.com/introducing-email-routing/)。
+1. 在你的域名上启用 [Cloudflare Email Routing](https://developers.cloudflare.com/email-service/get-started/route-emails/)。
 2. 在 `Email Routing → Routing Rules` 中，将 `Catch-all address` 的动作设为 `Send to a Worker: mail2telegram`。
 3. 如需备份所有邮件，在 Mini App 中开启转发并添加备份地址。该地址需要在 `Email Routing → Destination addresses` 中完成验证。
 

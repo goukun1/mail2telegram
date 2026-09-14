@@ -13,7 +13,7 @@ mail2telegram
     <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/TBXark/mail2telegram"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
 </p>
 
-**mail2telegram** 是一个在 Telegram 中收邮件的机器人，结合了即时推送通知与 Telegram Mini App：每封新邮件都会带着快捷操作按钮推送到你的聊天，完整历史、附件和全部设置都在 Mini App 中管理。
+**mail2telegram** 是一个在 Telegram 中收邮件的机器人，完全运行在 [Cloudflare Workers](https://developers.cloudflare.com/workers/) 上。它结合了即时推送通知与 Telegram Mini App：每封新邮件都会带着快捷操作按钮推送到你的聊天，完整历史、附件和全部设置都在 Mini App 中管理。邮件通过 [Cloudflare Email Routing](https://developers.cloudflare.com/email-service/get-started/route-emails/) 投递到 Worker，AI 摘要则使用 [Workers AI](https://developers.cloudflare.com/workers-ai/) 或任意 OpenAI 兼容接口生成。
 
 <img width="100%" alt="Telegram Mini App：推送通知、收件箱、阅读器与 iPad 分栏视图" src="assets/miniapp_screens.png">
 
@@ -63,7 +63,7 @@ To   : [recipient]
 ```
 
 1. `Preview` 直接在聊天中显示纯文本正文，最多 4096 字符。
-2. 在 Settings 中启用了摘要后端（Workers AI 或 OpenAI 兼容接口）后可用 `Summary`。
+2. 在 Settings 中启用了摘要后端（[Workers AI](https://developers.cloudflare.com/workers-ai/) 或 OpenAI 兼容接口）后可用 `Summary`。
 3. `Open` 直接打开 Mini App 中该邮件的详情页。Telegram 只允许在私聊中使用 Mini App 按钮，因此群组推送会省略该按钮。
 
 在 Telegram 中回复任意推送消息即可通过 Resend 给发件人回信。
