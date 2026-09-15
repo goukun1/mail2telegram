@@ -33,7 +33,8 @@ describe('scheduled cleanup', () => {
         await dao.insertEmail(parsed, { id: 'old-id', folder: 'inbox', size: 64 });
         await db.prepare('UPDATE emails SET created_at = ?').bind('2020-01-01T00:00:00.000Z').run();
         await dao.saveTelegramMessage(400, 5, 'old-id');
-        await dao.upsertMailStatus('old@test|64', { telegram: true, forwards: [] });
+        // The journal key is the stored delivery identity (emails.message_id).
+        await dao.upsertMailStatus('old@test', { telegram: true, forwards: [] });
 
         await scheduledHandler(createScheduledController(), testEnv({ AUTO_CLEANUP_DAYS: '1' }));
 

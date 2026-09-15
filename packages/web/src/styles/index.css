@@ -341,11 +341,14 @@ body {
 
 /* -------------------------------------------------------------- message list */
 
-/* Swipeable wrapper: the delete action sits underneath, the row slides over it. */
+/* Swipeable wrapper: the delete action sits underneath, the row slides over it.
+   The wrapper is painted in the surface colour rather than the action's red, so
+   a sub-pixel seam at the row edges shows the list colour instead of red. The
+   action button paints its own red, so an open row still looks right. */
 .swipe-row {
     position: relative;
     overflow: hidden;
-    background: #ff3b30;
+    background: var(--ios-surface);
 }
 
 .swipe-row__action {
@@ -370,11 +373,15 @@ body {
     position: relative;
     background: var(--ios-surface);
     touch-action: pan-y;
-    will-change: transform;
 }
 
+/* Promote the row only for the duration of a drag. Keeping every row on its own
+   compositor layer made the browser paint rows slightly out of step with the red
+   delete action underneath during momentum scrolling, which showed as the button
+   flashing through; it also cost one layer per row. */
 .swipe-row__content--dragging {
     transition: none;
+    will-change: transform;
 }
 
 .swipe-row__content:not(.swipe-row__content--dragging) {
@@ -860,6 +867,65 @@ body {
 .ios-menu__item:disabled {
     color: var(--ios-gray-2);
     cursor: default;
+}
+
+/* Confirmation for actions that write a persistent rule (block/trust sender). */
+.ios-menu__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.35);
+    animation: ios-menu-in 0.12s ease;
+}
+
+.ios-confirm {
+    width: 100%;
+    max-width: 320px;
+    border-radius: 14px;
+    background: var(--ios-surface);
+    border: 0.5px solid var(--ios-separator);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+    text-align: center;
+}
+
+.ios-confirm__title {
+    padding: 18px 18px 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ios-text);
+}
+
+.ios-confirm__body {
+    padding: 6px 18px 18px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ios-gray);
+    word-break: break-word;
+}
+
+.ios-confirm__actions {
+    display: flex;
+    border-top: 0.5px solid var(--ios-separator);
+}
+
+.ios-confirm__actions > .text-button {
+    flex: 1 1 0;
+    margin: 0;
+    padding: 12px;
+    border-radius: 0;
+}
+
+.ios-confirm__actions > .text-button + .text-button {
+    border-left: 0.5px solid var(--ios-separator);
+}
+
+.ios-confirm__actions > .text-button:disabled {
+    color: var(--ios-gray-2);
 }
 
 /* --------------------------------------------------------------- tab bar */

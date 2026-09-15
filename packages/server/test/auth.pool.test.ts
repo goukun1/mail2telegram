@@ -176,4 +176,30 @@ describe('web password auth', () => {
         const response = await call('/api/me', { Authorization: 'tma user=%7B%22id%22%3A1001%7D&hash=deadbeef' });
         expect(response.status).toBe(401);
     });
+
+    // Regression: an empty TELEGRAM_TOKEN collapses the initData verification
+    // key to the public constant HMAC('WebAppData', ''), so a forged signature
+    // used to validate and the allowlist alone decided access.
+    it('rejects Mini App initData when the bot token is empty or missing', async () => {
+        for (const token of ['', undefined]) {
+            const env = testEnv({ TELEGRAM_TOKEN: token as unknown as string, TELEGRAM_ID: '1001' });
+            const response = await fetchHandler(
+                new Request('https://worker.test/api/me', { headers: { Authorization: 'tma nonsense=1&hash=00' } }),
+                env,
+            );
+            expect(response.status).toBe(401);
+            expect(((await response.json()) as { error: string }).error).toBe('Invalid authorization type');
+        }
+    });
+
+    it('rejects a forged initData that validates under the empty-token key', async () => {
+        // Same HMAC scheme as `signedInitData`, but keyed by the public constant
+        // an attacker can compute offline when the bot token is ''.
+        const forged = await signedInitData('', 1001);
+        const response = await fetchHandler(
+            new Request('https://worker.test/api/me', { headers: { Authorization: `tma ${forged}` } }),
+            testEnv({ TELEGRAM_TOKEN: '', TELEGRAM_ID: '1001' }),
+        );
+        expect(response.status).toBe(401);
+    });
 });

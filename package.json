@@ -42,7 +42,7 @@
         "dev": "concurrently -k -n web,worker -c cyan,magenta \"pnpm dev:web\" \"pnpm dev:worker\"",
         "dev:web": "pnpm --filter @mail2telegram/web dev",
         "dev:worker": "wrangler dev",
-        "typecheck": "tsc --noEmit -p packages/shared/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/web/tsconfig.json",
+        "typecheck": "tsc --noEmit -p packages/shared/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.test.json && tsc --noEmit -p packages/web/tsconfig.json",
         "build": "pnpm typecheck && pnpm --filter @mail2telegram/web build",
         "build:web": "pnpm --filter @mail2telegram/web build",
         "deploy:config": "node scripts/build-config.mjs",
@@ -60,11 +60,10 @@
         "wrangler": "wrangler"
     },
     "devDependencies": {
-        "@types/node": "^26.5.1",
         "concurrently": "^10.0.5",
         "oxfmt": "^0.67.0",
         "oxlint": "^1.82.0",
-        "typescript": "^6.0.3",
-        "wrangler": "^4.131.1"
+        "typescript": "^7.0.2",
+        "wrangler": "^4.131.2"
     }
 }

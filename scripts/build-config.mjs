@@ -1,23 +1,27 @@
 /**
  * Injects deployment ids into a gitignored `wrangler.deploy.jsonc`.
  *
- * Reads the tracked, public `wrangler.jsonc`, which holds provisionable
- * placeholders instead of real resource ids. Each value resolves in order:
+ * Reads the tracked, public `wrangler.jsonc` for structure, which holds
+ * provisionable placeholders instead of real resource ids. Each resource id
+ * resolves in order:
  *   1. the DEPLOY_* environment variable (how CI and manual deploys inject ids),
- *   2. the binding already present in the config.
+ *   2. the id already in `wrangler.deploy.jsonc` (a hand-written or
+ *      button-provisioned deploy config is left usable),
+ *   3. the binding in the tracked config.
+ * Taking structure from the tracked file and ids from the deploy file keeps a
+ * hand-written config working while still picking up new keys.
+ *
  * The provisionable default means "not configured": an empty D1 id fails the
  * build, and a missing R2 binding is dropped.
  *
- * A config that already carries a real D1 id and no DEPLOY_D1_DATABASE_ID has
- * been provisioned for this deployment -- by a Deploy to Cloudflare button, or
- * by editing real ids in the config yourself -- so its bindings are used as-is.
- * That is what keeps a button-provisioned R2 bucket bound.
- *
  * Required:
- *   DEPLOY_D1_DATABASE_ID (or a real d1_databases[0].database_id in the config)
+ *   DEPLOY_D1_DATABASE_ID (or a real d1_databases[0].database_id in
+ *   wrangler.deploy.jsonc / wrangler.jsonc)
  * Optional (defaults below):
  *   DEPLOY_D1_DATABASE_NAME   (default: mail2telegram)
- *   DEPLOY_R2_BUCKET_NAME     (manual deploys omit it to disable attachments)
+ *   DEPLOY_R2_BUCKET_NAME     (falls back to the deploy config, then the
+ *                              tracked config; unset everywhere disables
+ *                              attachments)
  *   DEPLOY_R2_PREVIEW_BUCKET_NAME
  *
  * Runtime variables (TELEGRAM_ID, TELEGRAM_TOKEN; DOMAIN is optional) are not
@@ -26,7 +30,7 @@
  *
  * Usage: node scripts/build-config.mjs
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -92,14 +96,33 @@ try {
     fail(`failed to read ${sourcePath}: ${error.message}`);
 }
 
+/** The existing deploy config, when one is present and readable. */
+function readExistingDeployConfig() {
+    if (!existsSync(targetPath)) {
+        return null;
+    }
+    try {
+        return JSON.parse(stripJsonComments(readFileSync(targetPath, 'utf8')));
+    } catch (error) {
+        console.error(`[build-config] ignoring unreadable ${targetPath}: ${error.message}`);
+        return null;
+    }
+}
+
 // `local` (and an empty value) marks a provisionable placeholder binding.
 function isPlaceholder(value) {
     return !value || value === 'local';
 }
 
+const existing = readExistingDeployConfig();
+
 const explicitDatabaseId = process.env.DEPLOY_D1_DATABASE_ID;
+const existingDatabaseId = existing?.d1_databases?.[0]?.database_id;
 const configDatabaseId = config.d1_databases?.[0]?.database_id;
-const databaseId = explicitDatabaseId || configDatabaseId;
+// An id already in the deploy config is a real one this deployment was set up
+// with, so it outranks the tracked placeholder. An explicit DEPLOY_* wins.
+const databaseId =
+    explicitDatabaseId || (isPlaceholder(existingDatabaseId) ? undefined : existingDatabaseId) || configDatabaseId;
 if (isPlaceholder(databaseId)) {
     // This message is read from a CI log, so name the fix and show which
     // DEPLOY_* variables did arrive (names only) to point at the missing one.
@@ -107,7 +130,7 @@ if (isPlaceholder(databaseId)) {
         .filter(key => key.startsWith('DEPLOY_'))
         .toSorted();
     fail(
-        'DEPLOY_D1_DATABASE_ID is required (or set a real d1_databases[0].database_id in the config).\n' +
+        'DEPLOY_D1_DATABASE_ID is required (or set a real d1_databases[0].database_id in wrangler.deploy.jsonc).\n' +
             '  On Cloudflare Workers Builds, add it under Settings -> Build -> Build variables and secrets.\n' +
             '  GitHub repository variables are a different store and are not visible here.\n' +
             (seen.length > 0
@@ -116,18 +139,15 @@ if (isPlaceholder(databaseId)) {
     );
 }
 
-// Real ids already in the config with no DEPLOY_* override mean the resources
-// were provisioned for this deployment (Deploy to Cloudflare button, or real
-// ids edited in by hand). Such a config is deployed verbatim so provisioned
-// optional bindings are not dropped; otherwise only explicitly requested ones
-// are added.
-const provisioned = !explicitDatabaseId && !isPlaceholder(configDatabaseId);
-
-const databaseName = process.env.DEPLOY_D1_DATABASE_NAME || config.d1_databases?.[0]?.database_name || 'mail2telegram';
-// Rebuilt from scratch, so carry migrations_dir across: it now lives in the
-// server package, and dropping it would send `d1 migrations apply` looking in
-// the repo-root `migrations/` directory, which no longer exists.
-const migrationsDir = config.d1_databases?.[0]?.migrations_dir;
+const databaseName =
+    process.env.DEPLOY_D1_DATABASE_NAME ||
+    existing?.d1_databases?.[0]?.database_name ||
+    config.d1_databases?.[0]?.database_name ||
+    'mail2telegram';
+// Rebuilt from scratch, so carry migrations_dir across: it lives in the server
+// package, and dropping it would send `d1 migrations apply` looking in the
+// repo-root `migrations/` directory, which no longer exists.
+const migrationsDir = config.d1_databases?.[0]?.migrations_dir ?? existing?.d1_databases?.[0]?.migrations_dir;
 config.d1_databases = [
     {
         binding: 'DB',
@@ -137,16 +157,19 @@ config.d1_databases = [
     },
 ];
 
+const existingBucket = existing?.r2_buckets?.find(item => item.binding === 'BUCKET');
 const bucketName =
     process.env.DEPLOY_R2_BUCKET_NAME ||
-    (provisioned ? config.r2_buckets?.find(item => item.binding === 'BUCKET')?.bucket_name : undefined);
+    (isPlaceholder(existingBucket?.bucket_name) ? undefined : existingBucket?.bucket_name) ||
+    config.r2_buckets?.find(item => item.binding === 'BUCKET')?.bucket_name;
 if (!isPlaceholder(bucketName)) {
     const bucket = {
         binding: 'BUCKET',
         bucket_name: bucketName,
     };
-    if (process.env.DEPLOY_R2_PREVIEW_BUCKET_NAME) {
-        bucket.preview_bucket_name = process.env.DEPLOY_R2_PREVIEW_BUCKET_NAME;
+    const previewBucket = process.env.DEPLOY_R2_PREVIEW_BUCKET_NAME || existingBucket?.preview_bucket_name;
+    if (previewBucket) {
+        bucket.preview_bucket_name = previewBucket;
     }
     config.r2_buckets = [bucket];
 } else {

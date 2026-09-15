@@ -5,23 +5,47 @@ import type {
 } from '@cloudflare/workers-types';
 import type { AttachmentRecord, EmailRecord, Environment, ParsedEmailResult, RuntimeSettings } from '../types';
 import { Dao } from '../db';
+import { warnIfSchemaOutdated } from '../db/schema';
 import { loadDiscoveredDomain, loadSettings } from '../db/settings';
 import { hydrateEmail, isMessageBlock, parseEmail, renderEmailListMode } from '../mail';
 import { createTelegramBotAPI } from '../telegram';
 
 const BODY_INLINE_LIMIT = 900 * 1024;
 
-async function readAllBytes(stream: WorkerReadableStream<Uint8Array>): Promise<Uint8Array> {
+/**
+ * Smallest prefix buffered for the delivery identity. Without a floor a
+ * degenerate `maxEmailSize` would hash an empty prefix and collapse every
+ * message onto one identity.
+ */
+const MIN_IDENTITY_BYTES = 4096;
+
+/**
+ * Reads at most `limit` bytes, stopping early on the truncating path instead of
+ * draining the rest of the message into memory.
+ */
+async function readBytes(stream: WorkerReadableStream<Uint8Array>, limit: number): Promise<Uint8Array> {
     const reader = stream.getReader();
     const chunks: Uint8Array[] = [];
     let total = 0;
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-            break;
+    try {
+        while (total < limit) {
+            const { done, value } = await reader.read();
+            if (done) {
+                break;
+            }
+            const remaining = limit - total;
+            if (value.byteLength <= remaining) {
+                chunks.push(value);
+                total += value.byteLength;
+            } else {
+                chunks.push(value.subarray(0, remaining));
+                total = limit;
+            }
         }
-        chunks.push(value);
-        total += value.byteLength;
+    } finally {
+        // The bytes past the limit are not wanted, so release the stream rather
+        // than reading to the end.
+        await reader.cancel().catch(() => undefined);
     }
     const bytes = new Uint8Array(total);
     let offset = 0;
@@ -33,27 +57,60 @@ async function readAllBytes(stream: WorkerReadableStream<Uint8Array>): Promise<U
 }
 
 /**
- * Stable identity for one delivery. `Message-ID` is used when the sender
- * provides one. Without it, a content hash keeps a redelivery detectable:
- * a random UUID would differ on every retry, so the journal could never
- * suppress the duplicate and the stored row could never be reused.
+ * How many bytes the delivery identity covers: exactly the prefix `parseEmail`
+ * will look at. A truncating policy caps at `maxEmailSize`, `unhandled` returns
+ * before reading the body, and only `continue` parses an oversized message in
+ * full. Buffering more would pin memory for bytes that are about to be thrown
+ * away.
+ */
+function identityBufferLimit(message: ForwardableEmailMessage, settings: RuntimeSettings): number {
+    const { maxEmailSize, maxEmailSizePolicy } = settings;
+    if (maxEmailSizePolicy === 'continue') {
+        return Math.max(message.rawSize, MIN_IDENTITY_BYTES);
+    }
+    if (maxEmailSizePolicy === 'unhandled') {
+        return MIN_IDENTITY_BYTES;
+    }
+    return Math.max(Math.min(message.rawSize, maxEmailSize), MIN_IDENTITY_BYTES);
+}
+
+function toHex(buffer: ArrayBuffer): string {
+    return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function sha256Hex(data: Uint8Array | string): Promise<string> {
+    const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+    return toHex(await crypto.subtle.digest('SHA-256', bytes.buffer as ArrayBuffer));
+}
+
+/**
+ * Stable identity for one delivery, used as the journal key and as the stored
+ * `message_id`.
  *
- * Hashing requires the full bytes, so header-less mail is buffered once and the
- * same bytes are handed to `parseEmail` instead of re-reading the stream. The
- * message has already passed the reject check, so nothing is buffered only to
- * be discarded.
+ * `Message-ID` is assigned by the sending client and preserved by Email Routing
+ * across retries, which is exactly the property deduplication needs: the same
+ * delivery resolves to the same identity even if the transport perturbs the
+ * bytes. It is mixed with the envelope sender and the raw size because a header
+ * alone is only unique per sender — without the sender, two different senders
+ * could land on one journal slot and a message would be dropped silently.
+ *
+ * Mail without a `Message-ID` is not standards-conformant, so for that case the
+ * identity falls back to a digest of a bounded prefix of the bytes. The bound is
+ * what `parseEmail` will look at anyway, so a retry still resolves to the same
+ * value without buffering the whole message.
  */
 async function resolveMessageIdentity(
     message: ForwardableEmailMessage,
+    settings: RuntimeSettings,
 ): Promise<{ id: string; rawBytes: Uint8Array | null }> {
+    const from = (message.from || '').trim().toLowerCase();
     const header = message.headers.get('Message-ID')?.trim();
     if (header) {
-        return { id: header, rawBytes: null };
+        return { id: `sha256:${await sha256Hex(`${header}\n${from}\n${message.rawSize}`)}`, rawBytes: null };
     }
-    const rawBytes = await readAllBytes(message.raw);
-    const digest = await crypto.subtle.digest('SHA-256', rawBytes as unknown as ArrayBufferView<ArrayBuffer>);
-    const hex = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-    return { id: `sha256:${hex}`, rawBytes };
+    const rawBytes = await readBytes(message.raw, identityBufferLimit(message, settings));
+    const prefix = await sha256Hex(rawBytes);
+    return { id: `sha256:${await sha256Hex(`content\n${from}\n${message.rawSize}\n${prefix}`)}`, rawBytes };
 }
 
 async function persistEmail(
@@ -67,7 +124,14 @@ async function persistEmail(
     const id = crypto.randomUUID();
     const attachmentRecords: AttachmentRecord[] = [];
 
-    if (env.BUCKET && settings.attachmentSaveEnabled && parsed.attachments.length > 0) {
+    // A truncated message was cut off mid-stream, and attachments sit after the
+    // body in the MIME parts, so anything parsed out of it is a fragment. Storing
+    // a partial file would hand the owner a corrupt download that looks normal,
+    // so save nothing and say so instead. Raising `maxEmailSize` above the mail
+    // size (including the MIME overhead) is what makes attachments arrive whole.
+    if (parsed.truncated && parsed.attachments.length > 0) {
+        console.error('[email] attachment.skip.truncated', parsed.attachments.length, rawSize, settings.maxEmailSize);
+    } else if (env.BUCKET && settings.attachmentSaveEnabled && parsed.attachments.length > 0) {
         const bucket = env.BUCKET;
         // The puts are independent: run them concurrently and let one failure
         // drop only its own attachment.
@@ -213,6 +277,9 @@ export async function emailHandler(
     ctx: ExecutionContext,
 ): Promise<void> {
     const dao = new Dao(env.DB);
+    // A database that is behind fails every query on a missing column; say so
+    // once per isolate instead of only surfacing raw SQLITE_ERRORs.
+    await warnIfSchemaOutdated(env.DB);
     const settings = await loadSettings(env);
     const isBlock = await isMessageBlock(message, env);
 
@@ -223,23 +290,18 @@ export async function emailHandler(
         return;
     }
 
-    const identity = await resolveMessageIdentity(message);
+    const identity = await resolveMessageIdentity(message, settings);
     const id = identity.id;
 
-    // Delivery journal keyed by the message identity plus the raw size. Email
-    // Routing re-runs the worker when the handler throws, so the journal is what
-    // turns a redelivery into a no-op instead of a duplicate forward, row or
-    // notification. Without a `Message-ID` header the identity is a content
-    // hash, which is stable across redeliveries of the same bytes; the size is
-    // mixed in because a sender may reuse one Message-ID for distinct messages.
-    const journalId = `${id}|${message.rawSize}`;
-    const status = (await dao.getMailStatus(journalId)) ?? {
-        message_id: journalId,
-        telegram: 0,
-        forwards: '[]',
-        updated_at: '',
-    };
+    // Delivery journal keyed by the delivery identity. Email Routing re-runs the
+    // worker whenever the handler throws, so the journal is what turns a retry
+    // into a resumption instead of a duplicate forward, row or notification.
+    // Claiming first (atomically) means a retry after a crash mid-delivery sees
+    // what the previous attempt already finished and continues from there.
+    const journalId = id;
+    const status = await dao.claimMailStatus(journalId);
     const forwarded = new Set(JSON.parse(status.forwards) as string[]);
+    const storedFlag = status.stored === 1;
 
     // Forward to email; one bad address only skips itself.
     const blockForward = isBlock && settings.blockPolicy.includes('forward');
@@ -252,45 +314,54 @@ export async function emailHandler(
         try {
             await message.forward(address);
             forwarded.add(address);
-            await dao.upsertMailStatus(journalId, { telegram: Boolean(status.telegram), forwards: [...forwarded] });
+            await dao.upsertMailStatus(journalId, { forwards: [...forwarded] });
         } catch (e) {
             console.error('[email] forward.failed', address, (e as Error).message);
         }
     }
 
-    // Parse and persist. Persisting is the transaction boundary: a failure
-    // here propagates so Email Routing retries delivery, while the journal
-    // above and the Message-ID lookup keep that retry from duplicating work.
+    // Parse and persist. Persisting is the transaction boundary: a failure here
+    // propagates so Email Routing retries delivery, while `stored` keeps that
+    // retry from parsing and inserting a second time.
     //
-    // Reaching here means the journal has telegram = 0, so no notification has
-    // been recorded: an existing row with the same identity and size is a
-    // redelivery from a crash between persist and journal write, and it must
-    // still be notified. A same identity with a different size is a distinct
-    // message and is stored as a new row. The residual window is the opposite
-    // one: if the journal write succeeds but the background notify fails, the
-    // notification is not retried (at-most-once for the push, at-least-once
-    // for the stored mail).
+    // The residual windows are the writes themselves: a crash between the insert
+    // and the `stored` write re-parses once and then finds the row by identity, so
+    // nothing is duplicated; a crash between `stored` and the notification drops
+    // that one push (at-most-once for the push, at-least-once for the stored mail).
     const blockTelegram = isBlock && settings.blockPolicy.includes('telegram');
-    if (!status.telegram && !blockTelegram) {
-        const parsed = await parseEmail(message, settings.maxEmailSize, settings.maxEmailSizePolicy, {
-            messageId: id,
-            rawBytes: identity.rawBytes ?? undefined,
-        });
+    if (!storedFlag || !status.telegram) {
         const folder = isBlock ? 'spam' : 'inbox';
-        const existing = await dao.getEmailByMessageId(parsed.messageId);
         let stored: EmailRecord;
-        if (existing && existing.size === message.rawSize) {
+        // Reuse the row a previous attempt persisted. If it is gone (purged mail,
+        // or a cleanup that removed the row but not its journal entry) fall through
+        // and store it again rather than throwing: throwing would make Email
+        // Routing retry a delivery that can never succeed, and at-least-once is
+        // the delivery guarantee this handler promises for stored mail.
+        const existing = storedFlag ? await dao.getEmailByMessageId(id) : null;
+        if (existing) {
             stored = existing;
-            // A redelivery can arrive after the block policy changed; keep the
-            // row's folder in step with how this delivery classified it.
-            if (existing.folder !== folder) {
-                await dao.updateEmailFlags(existing.id, { folder });
-                stored = { ...existing, folder };
-            }
         } else {
-            stored = await persistEmail(env, dao, parsed, folder, message.rawSize, settings);
+            const parsed = await parseEmail(message, settings.maxEmailSize, settings.maxEmailSizePolicy, {
+                messageId: id,
+                rawBytes: identity.rawBytes ?? undefined,
+            });
+            const same = await dao.getEmailByMessageId(parsed.messageId);
+            if (same && same.size === message.rawSize) {
+                stored = same;
+            } else {
+                stored = await persistEmail(env, dao, parsed, folder, message.rawSize, settings);
+            }
+            await dao.upsertMailStatus(journalId, { stored: true });
         }
-        await dao.upsertMailStatus(journalId, { telegram: true, forwards: [...forwarded] });
-        ctx.waitUntil(notifyTelegram(stored, env, dao));
+        // A redelivery can arrive after the block policy changed; keep the row's
+        // folder in step with how this delivery classified it.
+        if (stored.folder !== folder) {
+            await dao.updateEmailFlags(stored.id, { folder });
+            stored = { ...stored, folder };
+        }
+        if (!status.telegram && !blockTelegram) {
+            await dao.upsertMailStatus(journalId, { stored: true, telegram: true });
+            ctx.waitUntil(notifyTelegram(stored, env, dao));
+        }
     }
 }

@@ -70,6 +70,8 @@ To   : [recipient]
 
 Reply to any pushed message in Telegram to answer the sender through Resend.
 
+> **CPU budget:** parsing a message costs roughly 2ms of CPU per MB, so keep `Max Size` under ~2MB on the Workers **free** plan (10ms CPU per request). The paid plan's 30s budget has no such constraint. See [Attachments](#attachments).
+
 ### Address lists
 
 Rules are managed in the Mini App. A rule matches either an exact address (case-insensitive) or a regular expression. The white list takes precedence over the block list, so an allow rule can override a broad block rule for the same address.
@@ -77,6 +79,8 @@ Rules are managed in the Mini App. A rule matches either an exact address (case-
 ### Attachments
 
 Attachments are stored in R2 and listed in the reader, where they can be downloaded. If no `BUCKET` binding is configured, mail is still stored without attachment contents.
+
+Attachments need the whole message, so `Max Size` in **Mail Handling** has to be at least as large as the mail you want to receive. Base64 encoding adds about a third to every attachment, so budget the limit around the largest file you expect. Mail over the limit has its body truncated, and because attachments follow the body in the message, a truncated mail stores no attachments at all — the alternative would be handing you a corrupt download. The oversize policy **Headers** avoids the problem differently by skipping the body altogether.
 
 ### Retention
 

@@ -1,4 +1,4 @@
-import type { EmailDetailResponse } from '@mail2telegram/shared';
+import type { EmailDetailResponse, SenderRuleAction } from '@mail2telegram/shared';
 import { List, ListItem, Preloader, Segmented, SegmentedButton } from 'konsta/react';
 import { useEffect, useMemo, useState } from 'react';
 import { api, fetchAttachmentBlob } from '../../api/client';
@@ -7,7 +7,17 @@ import { useDarkMode } from '../../hooks/useTheme';
 import { formatBytes, formatFullDate, initialOf, senderLabel } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
 import { buildEmailDocument } from '../../lib/sanitize';
-import { AttachmentIcon, EllipsisIcon, MailIcon, ReplyIcon, SparkleIcon, StarIcon, TrashIcon } from './Icons';
+import {
+    AttachmentIcon,
+    CheckIcon,
+    EllipsisIcon,
+    MailIcon,
+    ReplyIcon,
+    SpamIcon,
+    SparkleIcon,
+    StarIcon,
+    TrashIcon,
+} from './Icons';
 import { NavBar } from './NavBar';
 import { ReplySheet } from './ReplySheet';
 
@@ -36,6 +46,9 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
     const [actionError, setActionError] = useState<string | null>(null);
     const [replyOpen, setReplyOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
+    // Blocking/trusting a sender writes a persistent rule and files the mail, so
+    // the menu asks once before doing it.
+    const [pendingRule, setPendingRule] = useState<SenderRuleAction | null>(null);
 
     const email = data?.email;
 
@@ -45,6 +58,7 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
         setActionError(null);
         setBusy(null);
         setMenuOpen(false);
+        setPendingRule(null);
     }, [emailId]);
 
     // Escape dismisses the secondary action menu.
@@ -138,6 +152,19 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
             const result = await api.summarize(email.id);
             setSummary(result.summary);
         });
+
+    const applySenderRule = (action: SenderRuleAction) => {
+        setPendingRule(null);
+        return run('sender-rule', async () => {
+            const result = await api.setSenderRule(email.id, action);
+            haptic.notification('success');
+            if (result.folder) {
+                // The rule re-filed this mail, so the reader shows the new folder.
+                setData(prev => (prev ? { ...prev, email: { ...prev.email, folder: result.folder! } } : prev));
+            }
+            onChanged?.();
+        });
+    };
 
     const download = (attachmentId: string, filename: string) =>
         run(attachmentId, async () => {
@@ -280,6 +307,34 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
                                 <span>{busy === 'summary' ? 'Working…' : 'Summarize'}</span>
                             </button>
                         ) : null}
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="ios-menu__item bar-button"
+                            disabled={busy === 'sender-rule'}
+                            onClick={() => {
+                                haptic.selection();
+                                setMenuOpen(false);
+                                setPendingRule('block');
+                            }}
+                        >
+                            <SpamIcon size={20} />
+                            <span>Block Sender</span>
+                        </button>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="ios-menu__item bar-button"
+                            disabled={busy === 'sender-rule'}
+                            onClick={() => {
+                                haptic.selection();
+                                setMenuOpen(false);
+                                setPendingRule('trust');
+                            }}
+                        >
+                            <CheckIcon size={20} />
+                            <span>Trust Sender</span>
+                        </button>
                     </div>
                 ) : null}
                 <div className="ios-toolbar__inner">
@@ -330,6 +385,40 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
                 </div>
             </div>
 
+            {pendingRule ? (
+                <div className="ios-menu__scrim" role="presentation" onClick={() => setPendingRule(null)}>
+                    <div
+                        className="ios-confirm"
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-label={pendingRule === 'block' ? 'Block sender' : 'Trust sender'}
+                        onClick={event => event.stopPropagation()}
+                    >
+                        <div className="ios-confirm__title">
+                            {pendingRule === 'block' ? 'Block this sender?' : 'Trust this sender?'}
+                        </div>
+                        <div className="ios-confirm__body">
+                            {pendingRule === 'block'
+                                ? `Mail from ${email.sender} will be moved to Spam and blocked from the inbox from now on.`
+                                : `Mail from ${email.sender} will be moved to the inbox and never blocked. Trust wins over the block list.`}
+                        </div>
+                        <div className="ios-confirm__actions">
+                            <button type="button" className="text-button" onClick={() => setPendingRule(null)}>
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="text-button"
+                                style={pendingRule === 'block' ? { color: '#ff3b30' } : undefined}
+                                disabled={busy === 'sender-rule'}
+                                onClick={() => applySenderRule(pendingRule)}
+                            >
+                                {busy === 'sender-rule' ? 'Working…' : pendingRule === 'block' ? 'Block' : 'Trust'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
             <ReplySheet opened={replyOpen} emailId={email.id} onClose={() => setReplyOpen(false)} />
         </div>
     );

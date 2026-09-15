@@ -219,6 +219,15 @@ async function telegramCallbackHandler(callback: Telegram.CallbackQuery, env: En
         return;
     }
 
+    // A button only proves the chat once received a notification: the inline
+    // keyboard keeps working after the chat is removed from TELEGRAM_ID, so the
+    // allowlist has to be re-checked here exactly like the command path does.
+    const chat = callback.message?.chat;
+    if (!chat || !isAllowedChat(env, chat)) {
+        logTelegram('callback.unauthorized_chat', { chatId, messageId, callbackId });
+        return;
+    }
+
     logTelegram('callback.received', { data, callbackId, chatId, messageId });
     const settings = await loadSettings(env);
     // Editing back to the list view re-renders the keyboard, so it needs the
@@ -251,13 +260,17 @@ async function telegramCallbackHandler(callback: Telegram.CallbackQuery, env: En
         await logTelegramResponse('deleteMessage', response);
     };
 
-    const handlers = {
+    const handlers: { [key: string]: (arg: string) => Promise<void> } = {
         p: renderHandlerBuilder(renderEmailPreviewMode),
         l: renderHandlerBuilder(renderEmailListMode),
         s: renderHandlerBuilder(renderEmailSummaryMode),
-        d: renderHandlerBuilder(renderEmailDebugMode),
         delete: deleteMessage,
-    } as { [key: string]: (arg: string) => Promise<void> };
+    };
+    // Gate the action, not just the button: a Debug button rendered while DEBUG
+    // was on must stop working once the variable is turned off.
+    if (env.DEBUG === 'true') {
+        handlers.d = renderHandlerBuilder(renderEmailDebugMode);
+    }
 
     const [act, arg] = data.split(/:(.*)/) as [string, string];
     logTelegram('callback.parsed', { data, act, arg, chatId, messageId });

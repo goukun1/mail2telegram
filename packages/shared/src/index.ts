@@ -16,6 +16,9 @@ export type BlockPolicy = 'reject' | 'forward' | 'telegram';
 
 export type AddressType = 'block' | 'white';
 
+/** What a rule applied from a mail's detail page should do. */
+export type SenderRuleAction = 'block' | 'trust';
+
 /** Backend that generates email summaries. */
 export type SummaryProvider = 'workers-ai' | 'openai';
 
@@ -136,6 +139,26 @@ export interface EmailListResponse {
     unread: number;
 }
 
+/**
+ * Applies a rule to the address a mail came from, from its detail page.
+ *
+ * Only the address is sent; the worker resolves which address to use, so the
+ * client cannot write arbitrary rules through this endpoint.
+ */
+export interface SenderRuleRequest {
+    action: SenderRuleAction;
+}
+
+export interface SenderRuleResponse {
+    /** The address the rule was applied to. */
+    address: string;
+    action: SenderRuleAction;
+    /** False when the rule already existed, so the UI can say so. */
+    changed: boolean;
+    /** New folder of the mail, when the rule moved it out of the inbox. */
+    folder?: Folder;
+}
+
 export interface EmailDetailResponse {
     email: Email;
     attachments: Attachment[];
@@ -152,6 +175,8 @@ export interface AddressTestResponse {
 export interface ImportEnvResponse {
     settings: RuntimeSettings;
     importedAddresses: { white: number; block: number };
+    /** Environment patterns rejected as unsafe and therefore not imported. */
+    skippedAddresses?: string[];
 }
 
 export interface CleanupPreviewResponse {

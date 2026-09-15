@@ -2,6 +2,8 @@ import type {
     Address,
     AddressTestResponse,
     AddressType,
+    SenderRuleAction,
+    SenderRuleResponse,
     AiModelsRequest,
     AiModelsResponse,
     AuthLoginResponse,
@@ -151,6 +153,14 @@ export const api = {
         });
     },
 
+    /** Applies a block/trust rule to the sender of a mail. */
+    setSenderRule(id: string, action: SenderRuleAction): Promise<SenderRuleResponse> {
+        return request<SenderRuleResponse>(`/api/emails/${id}/address-rule`, {
+            method: 'POST',
+            body: JSON.stringify({ action }),
+        });
+    },
+
     deleteEmail(id: string): Promise<{ success: boolean }> {
         return request<{ success: boolean }>(`/api/emails/${id}`, { method: 'DELETE' });
     },
@@ -212,9 +222,10 @@ export const api = {
         commands?: { ok?: boolean };
         menuButton?: { ok?: boolean };
     }> {
-        // `/init` is public and parameter-less, so it also works from the
-        // landing page where no initData exists.
-        return request('/init', {}, false);
+        // `/init` works unauthenticated from the landing page, where no initData
+        // exists. Credentials are still attached when the visitor has them: the
+        // worker only lets an authenticated owner move the remembered host.
+        return request('/init', {});
     },
 
     getSettings(): Promise<SettingsResponse> {

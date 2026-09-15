@@ -103,6 +103,24 @@ Set the runtime variables (`TELEGRAM_ID`, `TELEGRAM_TOKEN`, and optionally `RESE
 
 `scripts/build-config.mjs` resolves the ids into a generated, gitignored `wrangler.deploy.jsonc`; an unconfigured placeholder binding is skipped instead of deployed. A config that already carries real ids — written back by a Deploy to Cloudflare button, or edited in by hand — is deployed as-is when no `DEPLOY_*` variables are set.
 
+### Keeping the database in step
+
+The worker's queries assume the schema in `packages/server/migrations/`. Only the deploy scripts apply migrations:
+
+| How you deploy | Migrations applied? |
+|---|---|
+| `pnpm run deploy`, `pnpm db:migrate:remote` | yes |
+| Deploy to Cloudflare button, Workers Builds, the bundled GitHub Action | yes — they run the deploy script |
+| `wrangler deploy` or `wrangler versions upload` run by hand | **no** |
+
+A database that is behind logs one line naming what does not match, then keeps serving; only the queries that need the missing object fail until the migration runs:
+
+```
+[db] schema.outdated table telegram_messages: primary key is (telegram_message_id), expected (chat_id, telegram_message_id)
+```
+
+Fix it with `pnpm db:migrate:remote`, or use `pnpm run deploy`, which migrates before deploying. Uploading a version by hand is the usual way to end up here.
+
 ## 4. Runtime variables and bindings
 
 All behavior is configured in the Mini App; the worker itself only needs a few variables for its Telegram identity and optional API keys.

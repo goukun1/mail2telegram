@@ -2,6 +2,7 @@ import type { BlockPolicy, Environment, MaxEmailSizePolicy, RuntimeSettings, Sum
 import type { ImportEnvResponse } from '@mail2telegram/shared';
 import { Dao, loadArrayFromRaw } from './index';
 import { openaiBaseUrl } from '../mail/summarization';
+import { validateAddressPattern } from '../mail/check';
 
 export const SETTING_KEYS = {
     autoCleanupDays: 'auto_cleanup_days',
@@ -27,6 +28,11 @@ export const SETTING_KEYS = {
      * not exposed through the settings API and cannot be edited from the UI.
      */
     workerDomain: 'worker_domain',
+    /**
+     * Machine-managed: random value registered with Telegram as the webhook
+     * `secret_token`, verified on every update. Not part of `RuntimeSettings`.
+     */
+    webhookSecret: 'webhook_secret',
 } as const;
 
 function toBool(value: string | undefined, fallback = false): boolean {
@@ -160,18 +166,54 @@ export async function loadSettings(env: Environment): Promise<RuntimeSettings> {
  * is the only way it can build Mini App links. The read before the write keeps
  * repeated `/init` calls and redeploy cold starts from touching D1 when the
  * host did not change.
+ *
+ * Only the first host is kept: `/init` is public, so a caller-supplied Host
+ * must not be able to repoint webhook and Mini App links at an arbitrary
+ * origin. Migrating to a different host is an owner action (`/init` with
+ * credentials), which passes `overwrite`.
  */
-export async function saveDiscoveredDomain(env: Environment, host: string): Promise<void> {
+export async function saveDiscoveredDomain(
+    env: Environment,
+    host: string,
+    options: { overwrite?: boolean } = {},
+): Promise<void> {
     const dao = new Dao(env.DB);
     const stored = await dao.getSetting(SETTING_KEYS.workerDomain);
-    if (stored !== host) {
-        await dao.setSetting(SETTING_KEYS.workerDomain, host);
+    if (stored === host) {
+        return;
     }
+    if (stored !== null && !options.overwrite) {
+        return;
+    }
+    await dao.setSetting(SETTING_KEYS.workerDomain, host);
 }
 
 /** Host remembered by `saveDiscoveredDomain`, or null when never discovered. */
 export async function loadDiscoveredDomain(env: Environment): Promise<string | null> {
     return await new Dao(env.DB).getSetting(SETTING_KEYS.workerDomain);
+}
+
+/**
+ * A new random webhook `secret_token`, not yet registered or persisted.
+ */
+export function generateWebhookSecret(): string {
+    return crypto.randomUUID().replace(/-/g, '');
+}
+
+/**
+ * Converge on one webhook secret. The candidate is stored only when no secret
+ * exists yet, so concurrent `/init` callers all read back the same value and can
+ * register that value with Telegram instead of fighting over it.
+ */
+export async function claimWebhookSecret(env: Environment, candidate: string): Promise<string> {
+    const dao = new Dao(env.DB);
+    await dao.setSettingIfAbsent(SETTING_KEYS.webhookSecret, candidate);
+    return (await dao.getSetting(SETTING_KEYS.webhookSecret)) ?? candidate;
+}
+
+/** Value registered with Telegram, or null when `/init` never ran. */
+export async function loadWebhookSecret(env: Environment): Promise<string | null> {
+    return await new Dao(env.DB).getSetting(SETTING_KEYS.webhookSecret);
 }
 
 /** Persist a partial update made from the Mini App. */
@@ -238,6 +280,7 @@ export async function importSettingsFromEnv(dao: Dao, env: Environment): Promise
 
     const existing = new Set((await dao.listAddresses()).map(item => `${item.type}:${item.address.toLowerCase()}`));
     const importedAddresses = { white: 0, block: 0 };
+    const skippedAddresses: string[] = [];
     const seeds: { type: 'white' | 'block'; patterns: string[] }[] = [
         { type: 'white', patterns: loadArrayFromRaw(env.WHITE_LIST) },
         { type: 'block', patterns: loadArrayFromRaw(env.BLOCK_LIST) },
@@ -248,11 +291,19 @@ export async function importSettingsFromEnv(dao: Dao, env: Environment): Promise
             if (existing.has(key)) {
                 continue;
             }
+            // Environment lists reach the same matcher as UI-entered ones, so
+            // they get the same shape check rather than being trusted.
+            const patternError = validateAddressPattern(pattern);
+            if (patternError) {
+                skippedAddresses.push(pattern);
+                console.error('[settings] import.address.skipped', seed.type, pattern, patternError);
+                continue;
+            }
             existing.add(key);
             await dao.addAddress(pattern, seed.type, 'Imported from environment');
             importedAddresses[seed.type] += 1;
         }
     }
 
-    return { settings: await loadSettings(env), importedAddresses };
+    return { settings: await loadSettings(env), importedAddresses, skippedAddresses };
 }

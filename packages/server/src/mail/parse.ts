@@ -75,10 +75,13 @@ export async function parseEmail(
         attachments: [],
     };
     let isTruncate = false;
-    // The caller may hand back the bytes it already read for hashing; the global
-    // `Response` type is DOM-shaped here, so cast to the Workers stream type.
+    // The caller may hand back the bytes it already read for hashing. They are
+    // used as-is (no copy): postal-mime only reads the stream, and the caller
+    // holds the same buffer until the parse finishes.
+    // The global `Response` type is DOM-shaped here, so cast to the Workers
+    // stream type.
     let emailRaw: ReadableStream<Uint8Array> = options.rawBytes
-        ? (new Response(options.rawBytes.slice().buffer as ArrayBuffer).body as unknown as ReadableStream<Uint8Array>)
+        ? (new Response(options.rawBytes.buffer as ArrayBuffer).body as unknown as ReadableStream<Uint8Array>)
         : message.raw;
     try {
         const policy = message.rawSize > maxSize ? maxSizePolicy : 'continue';

@@ -118,7 +118,10 @@ function SwipeRow({ onDelete, children }: { onDelete?: () => void; children: Rea
             ) : null}
             <div
                 className={`swipe-row__content ${dragging ? 'swipe-row__content--dragging' : ''}`}
-                style={{ transform: `translateX(${offset}px)` }}
+                // A resting row carries no transform at all, so it stays in the
+                // scroller's own paint pass instead of becoming a layer that can
+                // drift away from the delete action during fast scrolling.
+                style={offset ? { transform: `translateX(${offset}px)` } : undefined}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={finishDrag}

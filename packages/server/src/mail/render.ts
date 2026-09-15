@@ -142,9 +142,39 @@ export async function renderEmailDebugMode(
         to: mail.recipient,
         date: mail.date,
         size: mail.size,
-        settings,
+        // The dump is delivered into a chat, which may hold more members than
+        // the owner; never render provider credentials into it. The base URL is
+        // masked too because a userinfo segment or query parameter can carry a
+        // token, and the key alone would not cover that.
+        settings: {
+            ...settings,
+            openaiApiKey: settings.openaiApiKey ? '<redacted>' : '',
+            openaiBaseUrl: maskUrl(settings.openaiBaseUrl),
+        },
         block: res,
     };
     const text = JSON.stringify(obj, null, 2);
     return renderEmailDetail(text, mail.id);
+}
+
+/**
+ * Keeps the base URL informative while dropping anything that can carry a
+ * credential: the whole userinfo segment, the query string and the fragment.
+ */
+function maskUrl(value: string): string {
+    if (!value) {
+        return value;
+    }
+    try {
+        const url = new URL(value);
+        if (url.username || url.password) {
+            url.username = 'redacted';
+            url.password = '';
+        }
+        url.search = '';
+        url.hash = '';
+        return url.toString();
+    } catch {
+        return value;
+    }
 }

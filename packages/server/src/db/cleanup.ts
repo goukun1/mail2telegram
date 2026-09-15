@@ -65,7 +65,8 @@ export async function purgeEmailsByIds(
     await dao.deleteEmailsByIds(ids);
     await dao.deleteTelegramMessagesByEmailIds(ids);
     await dao.deleteMailStatusByJournalKeys(
-        targets.filter(target => target.message_id).map(target => `${target.message_id}|${target.size}`),
+        // The journal key is the stored delivery identity itself (see emailHandler).
+        targets.filter(target => target.message_id).map(target => target.message_id as string),
     );
     return { emails: targets.length, attachments: attachments.length, remaining: 0 };
 }

@@ -74,12 +74,56 @@ describe('claimFirstStart', () => {
     });
 });
 
+describe('recordSentReply', () => {
+    // `emails.message_id` holds the delivery identity (a digest), so the reply
+    // must take the sender's real Message-ID from the preserved raw headers.
+    // Quoting the digest instead would put a false Message-ID on the reply.
+    it('threads the sent copy on the real Message-ID from the raw headers', async () => {
+        const dao = new Dao(db);
+        const stored = await dao.insertEmail(
+            parsedEmail({
+                messageId: 'sha256:abc123',
+                rawHeaders: JSON.stringify({ 'Message-ID': '<real-id@example.com>' }),
+            }),
+            { id: 'orig-id', folder: 'inbox', size: 42 },
+        );
+        const original = (await dao.getEmail('orig-id'))!;
+        expect(stored).toBeUndefined();
+
+        await dao.recordSentReply(original, 'my reply');
+
+        const sent = await db
+            .prepare(`SELECT in_reply_to, references_json, thread_id, message_id FROM emails WHERE folder = 'sent'`)
+            .first<{ in_reply_to: string; references_json: string; thread_id: string; message_id: string }>();
+        expect(sent?.in_reply_to).toBe('<real-id@example.com>');
+        expect(JSON.parse(sent!.references_json)).toEqual(['<real-id@example.com>']);
+        expect(sent?.thread_id).toBe('<real-id@example.com>');
+        // The digest must never be quoted as a Message-ID.
+        expect(sent?.message_id).not.toContain('sha256:abc123');
+    });
+
+    it('leaves threading empty when the raw headers carry no Message-ID', async () => {
+        const dao = new Dao(db);
+        await dao.insertEmail(parsedEmail({ messageId: 'sha256:def456' }), { id: 'orig-2', folder: 'inbox', size: 42 });
+        const original = (await dao.getEmail('orig-2'))!;
+
+        await dao.recordSentReply(original, 'my reply');
+
+        const sent = await db
+            .prepare(`SELECT in_reply_to, references_json FROM emails WHERE folder = 'sent'`)
+            .first<{ in_reply_to: string | null; references_json: string }>();
+        expect(sent?.in_reply_to).toBeNull();
+        expect(JSON.parse(sent!.references_json)).toEqual([]);
+    });
+});
+
 describe('purgeEmailsByIds', () => {
     it('removes the mail-status journal and chat mappings with the mail', async () => {
         const dao = new Dao(db);
         const { id, size } = await seedEmail(dao, { messageId: 'purge@test', size: 128 });
         await dao.saveTelegramMessage(300, 5, id);
-        await dao.upsertMailStatus(`purge@test|${size}`, { telegram: true, forwards: [] });
+        // The journal key is the stored delivery identity (emails.message_id).
+        await dao.upsertMailStatus('purge@test', { telegram: true, forwards: [] });
 
         expect(await count('mail_status')).toBe(1);
         expect(await count('telegram_messages')).toBe(1);

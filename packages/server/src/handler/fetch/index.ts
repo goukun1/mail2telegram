@@ -11,6 +11,8 @@ import type {
     Folder,
     MeResponse,
     RuntimeSettings,
+    SenderRuleRequest,
+    SenderRuleResponse,
     SettingsResponse,
     TelegramUser,
 } from '../../types';
@@ -18,8 +20,25 @@ import { validate } from '@tma.js/init-data-node/web';
 import { json, Router } from 'itty-router';
 import { Dao } from '../../db';
 import { purgeAttachments, purgeEmails, purgeEmailsByIds } from '../../db/cleanup';
-import { importSettingsFromEnv, loadSettings, saveDiscoveredDomain, saveSettings } from '../../db/settings';
-import { hydrateEmail, replyToEmail, summarizeEmail, testAddressAgainstLists } from '../../mail';
+import { warnIfSchemaOutdated } from '../../db/schema';
+import {
+    claimWebhookSecret,
+    generateWebhookSecret,
+    importSettingsFromEnv,
+    loadDiscoveredDomain,
+    loadSettings,
+    loadWebhookSecret,
+    saveDiscoveredDomain,
+    saveSettings,
+} from '../../db/settings';
+import {
+    headerAddress,
+    hydrateEmail,
+    replyToEmail,
+    summarizeEmail,
+    testAddressAgainstLists,
+    validateAddressPattern,
+} from '../../mail';
 import { listOpenAiCompatibleModels, listWorkersAiTextModels } from '../../mail/summarization';
 import { createTelegramBotAPI, telegramCommands, telegramWebhookHandler } from '../../telegram';
 
@@ -89,7 +108,10 @@ function createAuthMiddleware(env: Environment): (req: IRequest) => Promise<void
         const authType = splitAt === -1 ? header : header.slice(0, splitAt);
         const authData = splitAt === -1 ? '' : header.slice(splitAt + 1);
         if (authType === 'tma') {
-            if (!authData) {
+            // An empty bot token would collapse the verification key to a
+            // publicly computable constant, so refuse the scheme entirely when
+            // the secret is missing instead of letting the signature check pass.
+            if (!authData || !TELEGRAM_TOKEN) {
                 throw new HTTPError(401, 'Invalid authorization type');
             }
             try {
@@ -116,6 +138,20 @@ function createAuthMiddleware(env: Environment): (req: IRequest) => Promise<void
         }
         throw new HTTPError(401, 'Invalid authorization type');
     };
+}
+
+/**
+ * Whether the request carries valid owner credentials. The auth middleware
+ * throws on failure; for the public `/init` route we only need the answer, so
+ * a rejected attempt is reported as `false` instead of a response.
+ */
+async function isAuthenticatedOwner(req: IRequest, env: Environment): Promise<boolean> {
+    try {
+        await createAuthMiddleware(env)(req);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -146,6 +182,19 @@ function errorHandler(error: Error): Response {
             headers: { 'content-type': 'application/json; charset=utf-8' },
         },
     );
+}
+
+/**
+ * The address a block/trust rule should target for a stored mail.
+ *
+ * `emails.sender` is already the parsed `From` header address, which is the one
+ * the owner sees in the reader. It is unwrapped from a display-name form and
+ * trimmed of any surrounding quotes, and a value that is not address-shaped (a
+ * malformed header, or an empty sender) yields nothing so the caller can refuse.
+ */
+function senderRuleAddress(sender: string | null | undefined): string {
+    const address = headerAddress(sender);
+    return /^[^\s@]+@[^\s@]+$/.test(address) ? address : '';
 }
 
 function parseFolder(value: string | null | undefined): Folder | 'all' {
@@ -181,13 +230,13 @@ function parseCutoff(all: unknown, days: unknown): string | null {
     return new Date(Date.now() - value * 86400_000).toISOString();
 }
 
-function createRouter(env: Environment): RouterType {
+function createRouter(env: Environment, configuredDomain?: string): RouterType {
     const router = Router({
         catch: errorHandler,
         finally: [json],
     });
 
-    const { TELEGRAM_TOKEN, DOMAIN, DB, BUCKET } = env;
+    const { TELEGRAM_TOKEN, DB, BUCKET } = env;
     const dao = new Dao(DB);
     const auth = createAuthMiddleware(env);
 
@@ -229,20 +278,42 @@ function createRouter(env: Environment): RouterType {
     router.get('/init', async (req: IRequest): Promise<any> => {
         requireEmail(env);
         const api = createTelegramBotAPI(TELEGRAM_TOKEN);
-        // With no DOMAIN variable the host comes from this request (filled in
-        // by the fetch entrypoint). Remember it so email notifications can
-        // link back even though the email handler never sees a request. When
-        // DOMAIN is set to a different host the variable wins and nothing is
-        // stored.
         const host = new URL(req.url).host;
-        if (DOMAIN === host) {
-            await saveDiscoveredDomain(env, host);
+        // The `DOMAIN` variable is the operator's explicit choice and always
+        // wins. Without it the host is discovered from the request — but only
+        // once: `/init` is public, so an anonymous caller must not be able to
+        // repoint webhook and Mini App links at an arbitrary origin later. An
+        // authenticated owner may re-seed it (e.g. after moving hostnames).
+        let origin = configuredDomain;
+        if (!origin) {
+            const overwrite = await isAuthenticatedOwner(req, env);
+            const discovered = await loadDiscoveredDomain(env);
+            if (discovered && !overwrite) {
+                origin = discovered;
+            } else {
+                await saveDiscoveredDomain(env, host, { overwrite });
+                origin = host;
+            }
         }
-        const miniAppUrl = `https://${DOMAIN}/#/inbox`;
-        const webhook = await api.setWebhook({
-            url: `https://${DOMAIN}/telegram/${TELEGRAM_TOKEN}/webhook`,
-        });
+        // Each update carries this value in `X-Telegram-Bot-Api-Secret-Token`;
+        // it authenticates the sender independently of the URL path. Only a
+        // value Telegram accepted is recorded: a secret in D1 that Telegram
+        // never signs updates with would reject every update until the next
+        // successful `/init`.
+        const registered = await loadWebhookSecret(env);
+        const candidate = registered ?? generateWebhookSecret();
+        const webhookUrl = `https://${origin}/telegram/${TELEGRAM_TOKEN}/webhook`;
+        let webhook = await api.setWebhook({ url: webhookUrl, secret_token: candidate });
+        if (webhook.ok && !registered) {
+            // Concurrent first-time `/init` calls could have registered different
+            // values; the stored one wins, so make Telegram agree with it.
+            const effective = await claimWebhookSecret(env, candidate);
+            if (effective !== candidate) {
+                webhook = await api.setWebhook({ url: webhookUrl, secret_token: effective });
+            }
+        }
         const commands = await api.setMyCommands({ commands: telegramCommands });
+        const miniAppUrl = `https://${origin}/#/inbox`;
         // Point the bot's menu button at the worker's Mini App so it opens without
         // needing the /start button.
         const menuButton = await api.setChatMenuButton({
@@ -376,6 +447,59 @@ function createRouter(env: Environment): RouterType {
             : await purgeEmails(dao, BUCKET, cutoff);
     });
 
+    /**
+     * Applies a block/trust rule to the address a mail came from, so the reader
+     * can act on a sender without a trip to Settings.
+     *
+     * The client only says *what* to do; the worker decides *which* address, from
+     * the stored mail. That keeps this endpoint from being an arbitrary
+     * rule-writing API, and means the address can never disagree with the server's
+     * own view of who sent the mail.
+     */
+    router.post('/api/emails/:id/address-rule', auth, async (req: IRequest): Promise<SenderRuleResponse> => {
+        let body: SenderRuleRequest;
+        try {
+            body = (await req.json()) as SenderRuleRequest;
+        } catch {
+            throw new HTTPError(400, 'Invalid request body');
+        }
+        if (body.action !== 'block' && body.action !== 'trust') {
+            throw new HTTPError(400, 'Invalid action');
+        }
+        const record = await dao.getEmail(req.params.id);
+        if (!record) {
+            throw new HTTPError(404, 'Email not found');
+        }
+        const address = senderRuleAddress(record.sender);
+        if (!address) {
+            throw new HTTPError(400, 'This mail has no usable sender address');
+        }
+        // Reuse the same validation as the settings form: a value that matches an
+        // address cannot contain regex metacharacters, so this only rejects
+        // genuinely malformed senders.
+        const patternError = validateAddressPattern(address);
+        if (patternError) {
+            throw new HTTPError(400, patternError);
+        }
+
+        const type: AddressType = body.action === 'block' ? 'block' : 'white';
+        const existing = await dao.listAddresses(type);
+        const already = existing.some(item => item.address.toLowerCase() === address.toLowerCase());
+        if (!already) {
+            await dao.addAddress(address, type, 'Added from a mail');
+        }
+
+        // Blocking is expected to take the mail out of the inbox, and trusting a
+        // sender that landed in spam is expected to bring it back.
+        const folder: Folder = body.action === 'block' ? 'spam' : 'inbox';
+        let moved: Folder | undefined;
+        if (record.folder !== folder && record.folder !== 'sent' && record.folder !== 'trash') {
+            await dao.updateEmailFlags(record.id, { folder });
+            moved = folder;
+        }
+        return { address, action: body.action, changed: !already, folder: moved };
+    });
+
     router.post('/api/emails/:id/summary', auth, async (req: IRequest): Promise<any> => {
         const record = await dao.getEmail(req.params.id);
         if (!record) {
@@ -422,8 +546,13 @@ function createRouter(env: Environment): RouterType {
         }
         return new Response(object.body as unknown as ReadableStream, {
             headers: {
+                // The mimetype is stored from the sender's MIME headers, so keep
+                // the response inert the same way `/email/:id` does: never let a
+                // browser sniff it into an executable document.
                 'content-type': attachment.mimetype,
                 'content-disposition': `attachment; filename="${encodeURIComponent(attachment.filename)}"`,
+                'content-security-policy': 'sandbox',
+                'x-content-type-options': 'nosniff',
             },
         });
     });
@@ -439,6 +568,12 @@ function createRouter(env: Environment): RouterType {
         const body = (await req.json()) as { address?: string; type?: unknown; note?: string };
         if (!body.address?.trim()) {
             throw new HTTPError(400, 'Address is required');
+        }
+        // Patterns are matched against every inbound delivery, so refuse the
+        // shapes that can burn worker CPU before they are ever stored.
+        const patternError = validateAddressPattern(body.address.trim());
+        if (patternError) {
+            throw new HTTPError(400, patternError);
         }
         const type = parseAddressType(body.type);
         const record = await dao.addAddress(body.address.trim(), type, body.note);
@@ -508,8 +643,16 @@ function createRouter(env: Environment): RouterType {
     // ------------------------------------------------------------ webhook
 
     router.post('/telegram/:token/webhook', async (req: IRequest): Promise<any> => {
-        if (req.params.token !== TELEGRAM_TOKEN) {
+        // Constant-time, unlike a plain `!==`; both operands are secrets.
+        if (!timingSafeEqual(req.params.token, TELEGRAM_TOKEN)) {
             throw new HTTPError(403, 'Invalid token');
+        }
+        // Once `/init` registered a secret_token, Telegram repeats it in every
+        // request. When it is absent the deployment predates that, so the path
+        // token above remains the only factor.
+        const secret = await loadWebhookSecret(env);
+        if (secret && !timingSafeEqual(req.headers.get('X-Telegram-Bot-Api-Secret-Token') ?? '', secret)) {
+            throw new HTTPError(403, 'Invalid secret token');
         }
         try {
             await telegramWebhookHandler(req, env);
@@ -526,15 +669,35 @@ function createRouter(env: Environment): RouterType {
     return router;
 }
 
+/**
+ * The operator's configured `DOMAIN`, remembered the first time this isolate
+ * sees an `env`. The request fallback below writes the request host into
+ * `env.DOMAIN`, and Cloudflare hands the same env object to every request in an
+ * isolate, so reading `env.DOMAIN` later cannot tell the two apart — it would
+ * report the first request's host as if it had been configured.
+ */
+const configuredDomains = new WeakMap<Environment, string | undefined>();
+
+function configuredDomainOf(env: Environment): string | undefined {
+    if (!configuredDomains.has(env)) {
+        configuredDomains.set(env, env.DOMAIN || undefined);
+    }
+    return configuredDomains.get(env);
+}
+
 export async function fetchHandler(request: Request, env: Environment): Promise<Response> {
     // Every fetch-context consumer builds webhook / Mini App links from
     // `DOMAIN`. When the variable is not configured, the host of the incoming
     // request is the worker's own address, so use it for this request; `/init`
     // additionally remembers it in D1 for the request-less email handler.
+    const configuredDomain = configuredDomainOf(env);
     if (!env.DOMAIN) {
         env.DOMAIN = new URL(request.url).host;
     }
-    const router = createRouter(env);
+    // Cached per isolate, so an API-only deployment also reports a database that
+    // is behind instead of failing every route with an opaque SQL error.
+    await warnIfSchemaOutdated(env.DB);
+    const router = createRouter(env, configuredDomain);
     return router.fetch(request).catch(e => {
         return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500 });
     });

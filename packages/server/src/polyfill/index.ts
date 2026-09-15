@@ -15,7 +15,9 @@ if (typeof Buffer === 'undefined') {
         static from(data: any, encoding: string): Buffer {
             if (typeof data === 'string') {
                 const encoder = new TextEncoder();
-                return new Buffer(encoder.encode(data).buffer);
+                // `TextEncoder.encode` always allocates a fresh ArrayBuffer, but
+                // `Uint8Array.buffer` is typed as the wider ArrayBufferLike.
+                return new Buffer(encoder.encode(data).buffer as ArrayBuffer);
             }
             if (data instanceof ArrayBuffer) {
                 return new Buffer(data);

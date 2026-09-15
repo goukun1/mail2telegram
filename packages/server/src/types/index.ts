@@ -28,6 +28,9 @@ export type {
     MeResponse,
     RuntimeSettings,
     SettingsResponse,
+    SenderRuleAction,
+    SenderRuleRequest,
+    SenderRuleResponse,
     SummaryProvider,
     TelegramUser,
 } from '@mail2telegram/shared';
@@ -121,6 +124,8 @@ export interface MailStatusRecord {
     message_id: string;
     telegram: number;
     forwards: string;
+    /** 1 once the mail reached D1, so a retry reuses the row instead of re-parsing. */
+    stored: number;
     updated_at: string;
 }
 

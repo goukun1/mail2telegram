@@ -64,6 +64,25 @@ function boolToInt(value: boolean | undefined): number | null {
     return value ? 1 : 0;
 }
 
+/**
+ * The real RFC 2822 Message-ID of a stored mail, read from the preserved raw
+ * headers. `emails.message_id` holds the delivery identity (a digest), so
+ * threading needs the original header instead.
+ */
+function originalMessageId(record: Pick<EmailRecord, 'raw_headers'>): string | null {
+    if (!record.raw_headers) {
+        return null;
+    }
+    try {
+        const headers = JSON.parse(record.raw_headers) as Record<string, unknown>;
+        const value = headers['Message-ID'] ?? headers['message-id'];
+        const text = typeof value === 'string' ? value.trim() : '';
+        return text || null;
+    } catch {
+        return null;
+    }
+}
+
 function chunkIds(ids: string[]): string[][] {
     const chunks: string[][] = [];
     for (let i = 0; i < ids.length; i += ID_CHUNK_SIZE) {
@@ -429,6 +448,17 @@ export class Dao {
             .run();
     }
 
+    /** Stores a setting only when the key is absent, leaving any value in place. */
+    async setSettingIfAbsent(key: string, value: string): Promise<void> {
+        await this.db
+            .prepare(
+                `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+             ON CONFLICT (key) DO NOTHING`,
+            )
+            .bind(key, value, new Date().toISOString())
+            .run();
+    }
+
     async setSettings(entries: Record<string, string>): Promise<void> {
         const now = new Date().toISOString();
         const statements = Object.entries(entries).map(([key, value]) =>
@@ -447,6 +477,11 @@ export class Dao {
     /** Persist a reply sent through Resend so it shows up in the Sent folder. */
     async recordSentReply(original: EmailRecord, text: string): Promise<void> {
         const subject = original.subject.startsWith('Re: ') ? original.subject : `Re: ${original.subject}`;
+        // `message_id` is the delivery identity, not a real Message-ID, so it
+        // must not be quoted as one in `in_reply_to` / `references` (which feed
+        // `thread_id`). The sender's actual header is preserved in
+        // `raw_headers`, which is where the threading value comes from.
+        const quotedId = originalMessageId(original);
         await this.insertEmail(
             {
                 messageId: crypto.randomUUID(),
@@ -458,8 +493,8 @@ export class Dao {
                 subject,
                 text,
                 html: null,
-                inReplyTo: original.message_id,
-                references: original.message_id ? [original.message_id] : [],
+                inReplyTo: quotedId,
+                references: quotedId ? [quotedId] : [],
                 date: new Date().toISOString(),
                 rawHeaders: null,
                 attachments: [],
@@ -540,8 +575,9 @@ export class Dao {
     }
 
     /**
-     * Drop delivery-journal rows for purged mail, keyed as `${message_id}|${size}`
-     * (see `emailHandler`), so the journal does not outlive the mail it tracks.
+     * Drop delivery-journal rows for purged mail. The key is the delivery
+     * identity stored in `emails.message_id` (see `emailHandler`), so the journal
+     * does not outlive the mail it tracks.
      */
     async deleteMailStatusByJournalKeys(keys: string[]): Promise<void> {
         if (keys.length === 0) {
@@ -555,14 +591,46 @@ export class Dao {
         }
     }
 
-    async upsertMailStatus(messageId: string, status: { telegram: boolean; forwards: string[] }): Promise<void> {
+    async upsertMailStatus(
+        messageId: string,
+        status: { telegram?: boolean; forwards?: string[]; stored?: boolean },
+    ): Promise<void> {
+        const existing = await this.getMailStatus(messageId);
+        const telegram = status.telegram ?? existing?.telegram === 1;
+        const forwards = status.forwards ?? (existing ? (JSON.parse(existing.forwards) as string[]) : []);
+        const stored = status.stored ?? existing?.stored === 1;
         await this.db
             .prepare(
-                `INSERT INTO mail_status (message_id, telegram, forwards, updated_at) VALUES (?, ?, ?, ?)
-             ON CONFLICT (message_id) DO UPDATE SET telegram = excluded.telegram, forwards = excluded.forwards, updated_at = excluded.updated_at`,
+                `INSERT INTO mail_status (message_id, telegram, forwards, stored, updated_at) VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT (message_id) DO UPDATE SET telegram = excluded.telegram, forwards = excluded.forwards, stored = excluded.stored, updated_at = excluded.updated_at`,
             )
-            .bind(messageId, status.telegram ? 1 : 0, JSON.stringify(status.forwards), new Date().toISOString())
+            .bind(messageId, telegram ? 1 : 0, JSON.stringify(forwards), stored ? 1 : 0, new Date().toISOString())
             .run();
+    }
+
+    /**
+     * Records that this delivery is being handled and returns the journal entry,
+     * without disturbing progress an earlier attempt already made. The insert is
+     * atomic, so concurrent attempts converge on one row and each reads back the
+     * same state.
+     *
+     * This claims the journal entry only. Two truly concurrent attempts can still
+     * both reach the persist step, because `emails` has no unique constraint on
+     * `message_id`; a redelivery that overlaps the original is rare and the cost
+     * is a duplicate row rather than lost mail.
+     */
+    async claimMailStatus(messageId: string): Promise<MailStatusRecord> {
+        await this.db
+            .prepare(
+                'INSERT INTO mail_status (message_id, telegram, forwards, stored, updated_at) VALUES (?, 0, ?, 0, ?) ON CONFLICT (message_id) DO NOTHING',
+            )
+            .bind(messageId, '[]', new Date().toISOString())
+            .run();
+        const row = await this.getMailStatus(messageId);
+        if (!row) {
+            throw new Error('Failed to claim mail status');
+        }
+        return row;
     }
 }
 
