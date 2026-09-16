@@ -133,6 +133,35 @@ export interface MeResponse {
     settings: RuntimeSettings;
 }
 
+/** An outgoing attachment: the bytes travel base64-encoded in the JSON body. */
+export interface SendAttachment {
+    filename: string;
+    mimetype: string;
+    /** Base64-encoded file content. */
+    content: string;
+    /** Decoded size in bytes, used for display before upload. */
+    size: number;
+}
+
+/**
+ * Body of `POST /api/emails/send`. The sender is any address on a domain the
+ * Resend account owns; recipients are plain comma/semicolon separated strings,
+ * exactly as the Resend API accepts them.
+ */
+export interface SendEmailRequest {
+    from: string;
+    to: string;
+    cc?: string;
+    bcc?: string;
+    subject: string;
+    text: string;
+    attachments?: SendAttachment[];
+}
+
+export interface SendEmailResponse {
+    success: boolean;
+}
+
 export interface EmailListResponse {
     emails: Email[];
     total: number;

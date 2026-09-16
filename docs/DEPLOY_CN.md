@@ -115,7 +115,7 @@ pnpm run deploy   # 应用 D1 迁移，构建 Mini App，部署 Worker
 | `TELEGRAM_TOKEN` | 必填。Telegram Bot Token，例如 `7123456780:AAjkLAbvSgDdfsDdfsaSK0`。                                   |
 | `DOMAIN`         | 可选。Worker 域名，例如 `project_name.user_name.workers.dev`，用于 Webhook 与 Mini App 链接。不设置时，Worker 会在运行安装步骤（`/init`）时自动发现并记住自己的域名（存入数据库）。仅当需要让 Mini App 运行在与安装时不同的域名上时才需要设置。 |
 | `WEB_PASSWORD`   | 可选。在 Telegram 之外用普通浏览器打开 Mini App 时所需的密码。留空或不设置则只允许通过 Telegram Mini App 访问。 |
-| `RESEND_API_KEY` | 可选。Resend API Key，https://resend.com/docs/introduction。启用后可在 Telegram 或 Mini App 中回信。   |
+| `RESEND_API_KEY` | 可选。Resend API Key，https://resend.com/docs/introduction。启用后可在 Telegram 或 Mini App 中回信和撰写新邮件。   |
 | `DEBUG`          | 可选。为 `true` 时推送会增加 `Debug` 按钮。                                                            |
 
 其余全部在 Mini App 的 **Settings** 中管理：支持正则的白名单/黑名单、阻断策略、转发、摘要选项（Workers AI，或 OpenAI 兼容的 Base URL + Token，模型可从列表选择或手动填写）、摘要语言、重复通知拦截，以及邮件处理限制（保留时间与大小策略）。

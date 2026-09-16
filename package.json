@@ -29,7 +29,7 @@
                 "description": "Optional password for opening the Mini App in a plain browser outside Telegram. Leave empty to allow only the Telegram Mini App."
             },
             "RESEND_API_KEY": {
-                "description": "Optional [Resend](https://resend.com/docs/introduction) API key. Enables replying to email from Telegram or the Mini App."
+                "description": "Optional [Resend](https://resend.com/docs/introduction) API key. Enables replying to and composing email from Telegram or the Mini App."
             },
             "OPENAI_API_KEY": {
                 "description": "Optional OpenAI-compatible API key used as the default summary backend. Can also be set later in the Mini App settings."

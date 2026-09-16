@@ -13,6 +13,8 @@ import type {
     RuntimeSettings,
     SenderRuleRequest,
     SenderRuleResponse,
+    SendEmailRequest,
+    SendEmailResponse,
     SettingsResponse,
     TelegramUser,
 } from '../../types';
@@ -35,6 +37,7 @@ import {
     headerAddress,
     hydrateEmail,
     replyToEmail,
+    sendEmail,
     summarizeEmail,
     testAddressAgainstLists,
     validateAddressPattern,
@@ -52,6 +55,9 @@ class HTTPError extends Error {
 
 /** Lifetime of a browser session issued by `POST /api/auth/login`. */
 const WEB_TOKEN_TTL_MS = 30 * 86400_000;
+
+/** Resend rejects requests larger than 40 MB; keep some room for the body. */
+const SEND_ATTACHMENT_LIMIT = 40 * 1024 * 1024;
 
 async function hmacHex(secret: string, message: string): Promise<string> {
     const key = await crypto.subtle.importKey(
@@ -195,6 +201,28 @@ function errorHandler(error: Error): Response {
 function senderRuleAddress(sender: string | null | undefined): string {
     const address = headerAddress(sender);
     return /^[^\s@]+@[^\s@]+$/.test(address) ? address : '';
+}
+
+/**
+ * Splits a `To` / `Cc` / `Bcc` style field (commas or semicolons) into the
+ * entries Resend accepts. Display-name forms such as `Me <me@domain.test>` are
+ * kept verbatim, but the address inside must be well-formed, so a typo fails
+ * the request instead of producing a bounce later.
+ */
+function parseAddressField(value: string | undefined, label: string): string[] {
+    if (!value?.trim()) {
+        return [];
+    }
+    const entries = value
+        .split(/[,;]/)
+        .map(item => item.trim())
+        .filter(Boolean);
+    for (const entry of entries) {
+        if (!/^[^\s@]+@[^\s@]+$/.test(headerAddress(entry))) {
+            throw new HTTPError(400, `Invalid ${label} address: ${entry}`);
+        }
+    }
+    return entries;
 }
 
 function parseFolder(value: string | null | undefined): Folder | 'all' {
@@ -528,6 +556,78 @@ function createRouter(env: Environment, configuredDomain?: string): RouterType {
         } catch (e) {
             // The reply itself went out; only the Sent-folder copy failed.
             console.error('[reply] record.failed', (e as Error).message);
+        }
+        return { success: true };
+    });
+
+    /**
+     * Sends a brand-new mail through Resend. The sender can be any address on
+     * a domain the Resend account owns (Resend enforces that ownership), and
+     * recipients are arbitrary — this is an authenticated owner-only endpoint,
+     * not a relay.
+     */
+    router.post('/api/emails/send', auth, async (req: IRequest): Promise<SendEmailResponse> => {
+        if (!env.RESEND_API_KEY) {
+            throw new HTTPError(400, 'Resend API is not enabled');
+        }
+        let body: SendEmailRequest;
+        try {
+            body = (await req.json()) as SendEmailRequest;
+        } catch {
+            throw new HTTPError(400, 'Invalid request body');
+        }
+        const from = parseAddressField(body.from, 'from');
+        if (from.length !== 1) {
+            throw new HTTPError(400, 'Sender address is required');
+        }
+        const to = parseAddressField(body.to, 'to');
+        if (to.length === 0) {
+            throw new HTTPError(400, 'Recipient is required');
+        }
+        const cc = parseAddressField(body.cc, 'cc');
+        const bcc = parseAddressField(body.bcc, 'bcc');
+        if (!body.subject?.trim()) {
+            throw new HTTPError(400, 'Subject is required');
+        }
+        if (!body.text?.trim()) {
+            throw new HTTPError(400, 'Message body is required');
+        }
+        // The decoded bytes must stay inside Resend's request budget; the limit
+        // is checked here so an oversized pick fails with a clear message.
+        const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+        let attachmentBytes = 0;
+        for (const att of attachments) {
+            if (typeof att?.filename !== 'string' || !att.filename.trim() || typeof att?.content !== 'string') {
+                throw new HTTPError(400, 'Invalid attachment');
+            }
+            // Base64 inflates by 4/3, with up to two padding characters.
+            attachmentBytes += Math.max(0, Math.floor((att.content.length * 3) / 4) - 2);
+        }
+        if (attachmentBytes > SEND_ATTACHMENT_LIMIT) {
+            throw new HTTPError(413, 'Attachments exceed the 40 MB limit');
+        }
+
+        await sendEmail(env.RESEND_API_KEY, {
+            from: from[0],
+            to,
+            ...(cc.length ? { cc } : {}),
+            ...(bcc.length ? { bcc } : {}),
+            subject: body.subject,
+            text: body.text,
+            ...(attachments.length ? { attachments } : {}),
+        });
+        try {
+            await dao.recordSentEmail({
+                from: from[0],
+                to: body.to.trim(),
+                cc: body.cc?.trim() || null,
+                bcc: body.bcc?.trim() || null,
+                subject: body.subject,
+                text: body.text,
+            });
+        } catch (e) {
+            // The mail itself went out; only the Sent-folder copy failed.
+            console.error('[send] record.failed', (e as Error).message);
         }
         return { success: true };
     });

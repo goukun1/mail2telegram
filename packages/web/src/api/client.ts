@@ -16,6 +16,8 @@ import type {
     ImportEnvResponse,
     MeResponse,
     RuntimeSettings,
+    SendEmailRequest,
+    SendEmailResponse,
     SettingsResponse,
 } from '@mail2telegram/shared';
 import { retrieveRawInitData } from '@tma.js/sdk-react';
@@ -190,6 +192,14 @@ export const api = {
         return request<{ success: boolean }>(`/api/emails/${id}/reply`, {
             method: 'POST',
             body: JSON.stringify({ text }),
+        });
+    },
+
+    /** Sends a new mail through the worker's Resend integration. */
+    sendEmail(body: SendEmailRequest): Promise<SendEmailResponse> {
+        return request<SendEmailResponse>('/api/emails/send', {
+            method: 'POST',
+            body: JSON.stringify(body),
         });
     },
 

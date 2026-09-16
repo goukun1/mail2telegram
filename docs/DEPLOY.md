@@ -133,7 +133,7 @@ Location: Workers & Pages → your_worker → Settings → Variables and Secrets
 | `TELEGRAM_TOKEN` | Required. Telegram Bot Token, e.g. `7123456780:AAjkLAbvSgDdfsDdfsaSK0`.                                                                                                |
 | `DOMAIN`         | Optional. Worker domain, e.g. `project_name.user_name.workers.dev`. Used for webhook and Mini App links. When unset, the worker discovers its own host when you run setup (`/init`) and stores it in the database. Set it only to keep serving the Mini App from a different domain than the one setup was run from. |
 | `WEB_PASSWORD`   | Optional. Password for opening the Mini App in a plain browser outside Telegram. Leave unset or empty to allow only the Telegram Mini App.                              |
-| `RESEND_API_KEY` | Optional. Resend API Key, https://resend.com/docs/introduction. Enables replying to emails from Telegram or the Mini App.                                               |
+| `RESEND_API_KEY` | Optional. Resend API Key, https://resend.com/docs/introduction. Enables replying to and composing emails from Telegram or the Mini App.                                               |
 | `DEBUG`          | Optional. When `true`, adds a `Debug` button to pushes.                                                                                                                 |
 
 Everything else lives in **Settings** inside the Mini App: allow/block lists with regex matching, block policy, forwarding, summary options (Workers AI, or an OpenAI-compatible base URL + token, with the model picked from the provider's list or typed manually), the duplicate-notification guard, and mail handling limits (retention and size policy).

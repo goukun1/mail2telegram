@@ -2,7 +2,8 @@ import type { Email, EmailListResponse } from '@mail2telegram/shared';
 import { Preloader, Searchbar, Segmented, SegmentedButton } from 'konsta/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client';
-import { CloseIcon, GearIcon, SearchIcon } from '../components/ios/Icons';
+import { useApp } from '../AppContext';
+import { CloseIcon, ComposeIcon, GearIcon, SearchIcon } from '../components/ios/Icons';
 import { MessageList } from '../components/ios/MessageList';
 import { NavBar } from '../components/ios/NavBar';
 import { PullToRefresh } from '../components/ios/PullToRefresh';
@@ -21,6 +22,8 @@ export interface InboxPageProps {
     refreshToken?: number;
     /** Split only: toggles between the inbox and the settings hub. */
     onOpenSettings?: () => void;
+    /** Opens the compose screen; only offered when Resend sending is enabled. */
+    onCompose?: () => void;
     onUnreadChange: (unread: number) => void;
 }
 
@@ -32,8 +35,10 @@ export function InboxPage({
     isSettings = false,
     refreshToken = 0,
     onOpenSettings,
+    onCompose,
     onUnreadChange,
 }: InboxPageProps) {
+    const { me } = useApp();
     const [query, setQuery] = useState('');
     const [appliedQuery, setAppliedQuery] = useState('');
     const [limit, setLimit] = useState(PAGE_SIZE);
@@ -213,14 +218,29 @@ export function InboxPage({
         </PullToRefresh>
     );
 
+    // Floating "new message" button, offered whenever the worker can send
+    // through Resend; it hovers over the list in both layouts.
+    const composeFab =
+        me.resendEnabled && onCompose ? (
+            <button
+                type="button"
+                className={`compose-fab ${hasSidebar ? 'compose-fab--lifted' : ''}`}
+                aria-label="New message"
+                onClick={onCompose}
+            >
+                <ComposeIcon size={22} />
+            </button>
+        ) : null;
+
     // Split layout: the list is the master column and carries the big Settings
     // button at the bottom; the detail column lives outside this component.
     if (hasSidebar) {
         return (
-            <>
+            <div className="compose-anchor">
                 {nav}
                 {header}
                 {list}
+                {composeFab}
                 <div className="master-pane__footer">
                     <button
                         type="button"
@@ -231,15 +251,16 @@ export function InboxPage({
                         <span>{isSettings ? 'Done' : 'Settings'}</span>
                     </button>
                 </div>
-            </>
+            </div>
         );
     }
 
     return (
-        <div className="split-column">
+        <div className="split-column compose-anchor">
             {nav}
             {header}
             {list}
+            {composeFab}
         </div>
     );
 }

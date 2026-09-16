@@ -31,6 +31,9 @@ export type {
     SenderRuleAction,
     SenderRuleRequest,
     SenderRuleResponse,
+    SendAttachment,
+    SendEmailRequest,
+    SendEmailResponse,
     SummaryProvider,
     TelegramUser,
 } from '@mail2telegram/shared';

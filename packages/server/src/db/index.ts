@@ -474,24 +474,31 @@ export class Dao {
         }
     }
 
-    /** Persist a reply sent through Resend so it shows up in the Sent folder. */
-    async recordSentReply(original: EmailRecord, text: string): Promise<void> {
-        const subject = original.subject.startsWith('Re: ') ? original.subject : `Re: ${original.subject}`;
-        // `message_id` is the delivery identity, not a real Message-ID, so it
-        // must not be quoted as one in `in_reply_to` / `references` (which feed
-        // `thread_id`). The sender's actual header is preserved in
-        // `raw_headers`, which is where the threading value comes from.
-        const quotedId = originalMessageId(original);
+    /**
+     * Persists an outgoing mail in the Sent folder. Used both for replies sent
+     * from a notification and for mails composed in the Mini App, so the folder
+     * reflects everything the owner sent through Resend.
+     */
+    async recordSentEmail(params: {
+        from: string;
+        to: string;
+        cc?: string | null;
+        bcc?: string | null;
+        subject: string;
+        text: string;
+        inReplyTo?: string | null;
+    }): Promise<void> {
+        const quotedId = params.inReplyTo || null;
         await this.insertEmail(
             {
                 messageId: crypto.randomUUID(),
-                from: original.recipient,
+                from: params.from,
                 fromName: null,
-                to: original.sender,
-                cc: null,
-                bcc: null,
-                subject,
-                text,
+                to: params.to,
+                cc: params.cc ?? null,
+                bcc: params.bcc ?? null,
+                subject: params.subject,
+                text: params.text,
                 html: null,
                 inReplyTo: quotedId,
                 references: quotedId ? [quotedId] : [],
@@ -502,9 +509,25 @@ export class Dao {
             {
                 id: crypto.randomUUID(),
                 folder: 'sent',
-                size: text.length,
+                size: params.text.length,
             },
         );
+    }
+
+    /** Stores a reply sent through Resend so it shows up in the Sent folder. */
+    async recordSentReply(original: EmailRecord, text: string): Promise<void> {
+        const subject = original.subject.startsWith('Re: ') ? original.subject : `Re: ${original.subject}`;
+        // `message_id` is the delivery identity, not a real Message-ID, so it
+        // must not be quoted as one in `in_reply_to` / `references` (which feed
+        // `thread_id`). The sender's actual header is preserved in
+        // `raw_headers`, which is where the threading value comes from.
+        await this.recordSentEmail({
+            from: original.recipient,
+            to: original.sender,
+            subject,
+            text,
+            inReplyTo: originalMessageId(original),
+        });
     }
 
     // ----------------------------------------------------- telegram mapping

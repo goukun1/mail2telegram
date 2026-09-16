@@ -1519,7 +1519,208 @@ body {
     opacity: 0.4;
 }
 
-/* ------------------------------------------------------- reduced motion */
+/* Positioned container so the compose FAB can hover over the list. */
+.compose-anchor {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Floating "new message" button over the mail list, iOS Mail style. */
+.compose-fab {
+    position: absolute;
+    z-index: 20;
+    right: 16px;
+    bottom: calc(16px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ios-blue);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    transition:
+        opacity 0.15s ease,
+        transform 0.15s ease;
+}
+
+.compose-fab:active {
+    opacity: 0.75;
+    transform: scale(0.96);
+}
+
+/* Split layout only: keep the FAB clear of the Settings footer. */
+.compose-fab--lifted {
+    bottom: calc(84px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+/* --------------------------------------------------------------- compose */
+
+.compose {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--ios-surface);
+}
+
+.compose__bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 0.5px solid var(--ios-separator);
+}
+
+.compose__fields {
+    flex: 0 0 auto;
+    background: var(--ios-surface);
+}
+
+.compose__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 16px;
+}
+
+.compose__row + .compose__row {
+    border-top: 0.5px solid var(--ios-separator);
+}
+
+.compose__label {
+    flex: 0 0 auto;
+    width: 72px;
+    font-size: 16px;
+    color: var(--ios-gray);
+}
+
+.compose__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 44px;
+    border: 0;
+    background: none;
+    color: var(--ios-text);
+    font: inherit;
+    font-size: 16px;
+    outline: none;
+}
+
+.compose__input::placeholder {
+    color: var(--ios-gray-2);
+}
+
+.compose__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    padding: 12px 16px;
+    border: 0;
+    border-top: 0.5px solid var(--ios-separator);
+    background: var(--ios-surface);
+    color: var(--ios-text);
+    font: inherit;
+    font-size: 16px;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+}
+
+.compose__body::placeholder {
+    color: var(--ios-gray-2);
+}
+
+.compose__attachments {
+    flex: 0 0 auto;
+    padding: 4px 12px calc(10px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    border-top: 0.5px solid var(--ios-separator);
+}
+
+.compose__files {
+    display: flex;
+    flex-direction: column;
+}
+
+.compose__file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 4px 4px;
+    color: var(--ios-text);
+    font-size: 14px;
+}
+
+.compose__file + .compose__file {
+    border-top: 0.5px solid var(--ios-separator);
+}
+
+.compose__file-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.compose__file-size {
+    flex: 0 0 auto;
+    color: var(--ios-gray);
+    font-size: 13px;
+}
+
+.compose__file-remove {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(120, 120, 128, 0.16);
+    color: var(--ios-gray);
+    cursor: pointer;
+}
+
+.compose__add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 8px 4px;
+}
+
+.compose__error {
+    position: absolute;
+    inset-inline: 16px;
+    bottom: calc(56px + var(--k-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    z-index: 10;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(28, 28, 30, 0.9);
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.dark .compose__error {
+    background: rgba(58, 58, 60, 0.95);
+}
+
+/* ------------------------------------------------------------- reduced motion */
 
 /* Gestures stay fully functional; only the decorative settle animations are
    dropped for users who ask the system to reduce motion. */
@@ -1531,6 +1732,7 @@ body {
     .ios-tabbar__item,
     .ios-menu,
     .bar-button,
+    .compose-fab,
     .k-list-item .settings-remove {
         transition: none;
     }

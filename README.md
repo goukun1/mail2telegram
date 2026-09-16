@@ -27,7 +27,7 @@ Email ──▶ Telegram push with quick action buttons
 ```
 
 - **Push notifications** carry quick action buttons per email: `Preview`, `Summary` and `Open`.
-- **Mini App inbox** lists history per folder, renders HTML in a sandbox, downloads attachments, replies through Resend, and manages all settings.
+- **Mini App inbox** lists history per folder, renders HTML in a sandbox, downloads attachments, replies and composes new mail through Resend, and manages all settings.
 - **Settings in the Mini App** include white/black lists with regex matching, an address tester, block policy, forwarding, AI summary options and mail handling limits.
 
 All behavior is configured in the Mini App and stored in D1 — the worker itself only needs a few variables for its Telegram identity and optional API keys.

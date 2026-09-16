@@ -21,6 +21,7 @@ import { useDarkMode } from './hooks/useTheme';
 import { isTelegramEnvironment } from './init';
 import { MessageTabBar } from './layout/TabBar';
 import { InboxPage } from './pages/InboxPage';
+import { ComposePage } from './pages/ComposePage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { MailPage } from './pages/MailPage';
@@ -55,6 +56,7 @@ function Layout() {
     const split = useMediaQuery(`(min-width: ${SPLIT_MIN_WIDTH}px)`);
     const selectedId = params.get('id');
     const isSettings = location.pathname.startsWith('/settings');
+    const isCompose = location.pathname.startsWith('/compose');
     // Deep link opened by the Open button on a Telegram notification.
     const mailId = location.pathname.startsWith('/mail/') ? location.pathname.slice('/mail/'.length) : null;
 
@@ -64,9 +66,19 @@ function Layout() {
         next.delete('id');
         navigate({ pathname: '/inbox', search: next.toString() });
     }, [navigate, params]);
+    const openCompose = useCallback(() => navigate('/compose'), [navigate]);
+    const closeCompose = useCallback(() => navigate('/inbox'), [navigate]);
+    const finishCompose = useCallback(() => {
+        // A sent mail lands in the Sent folder, so the list only needs the
+        // unread badge to stay honest — but a refresh is cheap and harmless.
+        bumpRefresh();
+        navigate('/inbox');
+    }, [bumpRefresh, navigate]);
 
     if (split) {
-        const detail = isSettings ? (
+        const detail = isCompose ? (
+            <ComposePage onClose={closeCompose} onSent={finishCompose} />
+        ) : isSettings ? (
             <Outlet context={{ onUnreadChange }} />
         ) : mailId ? (
             <MessageReader
@@ -102,6 +114,7 @@ function Layout() {
                         isSettings={isSettings}
                         refreshToken={refreshToken}
                         onOpenSettings={() => navigate(isSettings ? '/inbox' : '/settings')}
+                        onCompose={openCompose}
                         onUnreadChange={onUnreadChange}
                     />
                 </div>
@@ -110,9 +123,9 @@ function Layout() {
         );
     }
 
-    // On the phone the mail detail route fills the screen like an opened
-    // message, so it gets no tab bar. Its back button returns to the inbox.
-    if (mailId) {
+    // On the phone the mail detail and compose routes fill the screen like an
+    // opened message, so they get no tab bar. Back returns to the inbox.
+    if (mailId || isCompose) {
         return (
             <div className="app-shell">
                 <div className="app-shell__content">
@@ -174,7 +187,25 @@ function InboxRoute() {
             }}
             hasSidebar={false}
             refreshToken={refreshToken}
+            onCompose={() => navigate('/compose')}
             onUnreadChange={onUnreadChange}
+        />
+    );
+}
+
+/** Phone-only compose screen; the split layout renders ComposePage directly. */
+function ComposeRoute() {
+    const { onMailChanged } = useOutletContext<{
+        onMailChanged?: () => void;
+    }>();
+    const navigate = useNavigate();
+    return (
+        <ComposePage
+            onClose={() => navigate('/inbox')}
+            onSent={() => {
+                onMailChanged?.();
+                navigate('/inbox');
+            }}
         />
     );
 }
@@ -244,6 +275,7 @@ function AppInner() {
                     <Route element={<Layout />}>
                         <Route path="/" element={<Navigate to="/inbox" replace />} />
                         <Route path="/inbox" element={<InboxRoute />} />
+                        <Route path="/compose" element={<ComposeRoute />} />
                         <Route path="/mail/:id" element={<MailPage />} />
                         <Route path="/settings" element={<Outlet />}>
                             <Route index element={<SettingsHub />} />
