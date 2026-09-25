@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, fetchAttachmentBlob } from '../../api/client';
 import { useAsync } from '../../hooks/useAsync';
 import { useDarkMode } from '../../hooks/useTheme';
+import { getPlatform } from '../../init';
 import { formatBytes, formatFullDate, initialOf, senderLabel } from '../../lib/format';
 import { haptic } from '../../lib/haptics';
 import { buildEmailDocument } from '../../lib/sanitize';
@@ -182,12 +183,14 @@ export function MessageReader({ emailId, onChanged, onDeleted, onBack }: Message
     const hasHtml = Boolean(email.body_html);
     // Plain text is the default view; emails without a text part fall back to HTML.
     const preferHtml = showHtml || !email.body_text;
+    const platform = getPlatform();
+    const showNavBar = platform !== 'macos' && platform !== 'tdesktop';
 
     return (
         <div className="reader">
-            {/* The subject is already shown in the header below, so the navbar
-                only carries the native back button and keeps its title empty. */}
-            {onBack ? <NavBar onBack={onBack} /> : null}
+            {/* Desktop Telegram already has a header; keep its back button active
+                without adding an empty navigation bar inside the page. */}
+            {onBack ? <NavBar onBack={onBack} showBar={showNavBar} /> : null}
             <div className="reader__scroll">
                 <div className="reader__head">
                     <h1 className="reader__subject">{email.subject || '(no subject)'}</h1>

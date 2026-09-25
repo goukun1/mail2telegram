@@ -19,6 +19,8 @@ export interface NavBarProps {
     close?: boolean;
     /** Trailing controls, rendered on the right side of the navbar. */
     right?: ReactNode;
+    /** Keep the Telegram back button active without taking up page space. */
+    showBar?: boolean;
     className?: string;
 }
 
@@ -28,7 +30,7 @@ export interface NavBarProps {
  * The only Telegram-native chrome in the app is the back / close button: it is
  * requested here, inside the navbar region, and nowhere else.
  */
-export function NavBar({ title, onBack, close, right, className }: NavBarProps) {
+export function NavBar({ title, onBack, close, right, showBar = true, className }: NavBarProps) {
     const handler = useRef(onBack);
     handler.current = onBack;
     const wantsButton = Boolean(onBack) || Boolean(close);
@@ -54,7 +56,7 @@ export function NavBar({ title, onBack, close, right, className }: NavBarProps) 
         };
     }, [wantsButton, close]);
 
-    return (
+    return showBar ? (
         <Navbar
             centerTitle
             right={right}
@@ -62,5 +64,5 @@ export function NavBar({ title, onBack, close, right, className }: NavBarProps) 
             className={`ios-navbar ${className ?? ''}`}
             bgClassName="ios-navbar__bg"
         />
-    );
+    ) : null;
 }
